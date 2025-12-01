@@ -1,0 +1,89 @@
+services:
+  # InfluxDB - Time series database
+  influxdb:
+    image: influxdb:2.7
+    container_name: iaqverse-influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    volumes:
+      - ./database/influx_data:/var/lib/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-iaqverse}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-iaq_data}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:-iaqverse-secret-token}
+    networks:
+      - iaqverse-network
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: iaqverse-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend
+      - ./assets:/app/assets
+      - ./database:/app/database
+    environment:
+      - INFLUXDB_ENABLED=${INFLUXDB_ENABLED:-true}
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-iaqverse-secret-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-iaqverse}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-iaq_data}
+      - WEBSOCKET_ENABLED=${WEBSOCKET_ENABLED:-true}
+    depends_on:
+      - influxdb
+    networks:
+      - iaqverse-network
+
+  # Frontend (optional - can also be served separately)
+  frontend:
+    image: nginx:alpine
+    container_name: iaqverse-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+      - ./assets:/usr/share/nginx/html/assets
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+    networks:
+      - iaqverse-network
+
+  # ML Scheduler - Réentraînement périodique
+  ml-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.ml-scheduler
+    container_name: iaqverse-ml-scheduler
+    restart: unless-stopped
+    volumes:
+      - ./assets/ml_models:/app/assets/ml_models
+      - ./assets/datasets:/app/assets/datasets
+      - ./backend/ml:/app/backend/ml
+    environment:
+      - RETRAIN_INTERVAL=${RETRAIN_INTERVAL:-24}
+      - INFLUXDB_ENABLED=${INFLUXDB_ENABLED:-true}
+      - API_URL=http://backend:8000/api/iaq/data?hours=72
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - backend
+      - influxdb
+    networks:
+      - iaqverse-network
+
+networks:
+  iaqverse-network:
+    driver: bridge
+
+volumes:
+  influx_data:

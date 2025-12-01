@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IAQverse - Architecture Microservices Canvas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #canvas {
+            display: block;
+            background: #1a1a2e;
+            cursor: grab;
+        }
+
+        #canvas:active {
+            cursor: grabbing;
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            color: white;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 300px;
+            z-index: 1000;
+        }
+
+        .controls h1 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .controls button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .controls button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .controls button:active {
+            transform: translateY(0);
+        }
+
+        .info-box {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 15px;
+            border-radius: 12px;
+            color: white;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 350px;
+            display: none;
+        }
+
+        .info-box.active {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .info-box h3 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        .info-box p {
+            font-size: 13px;
+            line-height: 1.6;
+            color: #ddd;
+        }
+
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 15px;
+            border-radius: 12px;
+            color: white;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .legend h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 12px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            margin-right: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="controls">
+        <h1>🏗️ IAQverse Architecture</h1>
+        <button onclick="toggleAnimation()">⏯️ Pause/Play</button>
+        <button onclick="toggleDataFlow()">🔄 Flux de Données</button>
+        <button onclick="resetView()">🎯 Réinitialiser Vue</button>
+        <button onclick="toggleLegend()">📋 Légende</button>
+        <p style="margin-top: 15px; font-size: 12px; color: #aaa;">
+            Cliquez sur les composants pour plus d'infos<br>
+            Glissez pour déplacer la vue
+        </p>
+    </div>
+
+    <div class="legend" id="legend" style="display: none;">
+        <h3>🎨 Légende</h3>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #3b82f6;"></div>
+            <span>Client Layer</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #10b981;"></div>
+            <span>Web/Proxy</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #8b5cf6;"></div>
+            <span>Backend API</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ec4899;"></div>
+            <span>ML Services</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #f59e0b;"></div>
+            <span>Database</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ef4444;"></div>
+            <span>IoT Sensors</span>
+        </div>
+    </div>
+
+    <div class="info-box" id="infoBox"></div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const infoBox = document.getElementById('infoBox');
+
+        // Canvas setup
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Animation state
+        let animationRunning = true;
+        let showDataFlow = true;
+        let particles = [];
+        let offsetX = 0;
+        let offsetY = 0;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+
+        // Component definitions
+        const components = [
+            // Client Layer
+            { x: 200, y: 100, width: 150, height: 80, color: '#3b82f6', label: 'Dashboard', layer: 'client', 
+              info: 'Dashboard principal avec graphiques temps réel, alertes et visualisation des données. Technologies: HTML5, Plotly.js, WebSocket.' },
+            { x: 400, y: 100, width: 150, height: 80, color: '#3b82f6', label: 'Digital Twin 3D', layer: 'client',
+              info: 'Jumeau numérique 3D avec Three.js. Affiche les salles en 3D et les actions préventives en temps réel.' },
+            { x: 600, y: 100, width: 150, height: 80, color: '#3b82f6', label: 'Settings', layer: 'client',
+              info: 'Interface de configuration: gestion des salles, capteurs, seuils d\'alertes et paramètres système.' },
+            { x: 900, y: 100, width: 140, height: 80, color: '#ef4444', label: 'IoT Sensors', layer: 'iot',
+              info: 'Capteurs IoT (CO₂, PM2.5, TVOC, Température, Humidité). POST /api/ingest toutes les 5 secondes.' },
+
+            // Web Layer
+            { x: 300, y: 250, width: 180, height: 70, color: '#10b981', label: 'Nginx Proxy', layer: 'web',
+              info: 'Serveur web Nginx (port 8080). Sert les fichiers statiques et fait proxy vers le backend FastAPI. Gestion du cache.' },
+            { x: 550, y: 250, width: 160, height: 70, color: '#10b981', label: 'WebSocket', layer: 'web',
+              info: 'Communication bidirectionnelle temps réel (ws://localhost:8000/ws/iaq). Broadcast des données aux clients connectés.' },
+
+            // Backend Layer
+            { x: 150, y: 380, width: 180, height: 90, color: '#8b5cf6', label: 'API Module', layer: 'backend',
+              info: 'FastAPI - Endpoints REST: /api/ingest (ingestion), /api/iaq/data (query), /config. Cache RAM (iaq_database).' },
+            { x: 370, y: 380, width: 180, height: 90, color: '#8b5cf6', label: 'Core Module', layer: 'backend',
+              info: 'Infrastructure: settings.py, influx_client.py, websocket_manager.py. Gestion des connexions et configuration.' },
+            { x: 590, y: 380, width: 180, height: 90, color: '#ec4899', label: 'ML Module', layer: 'ml',
+              info: 'Machine Learning: ml_train.py, ml_predict_generic.py. VotingRegressor (RandomForest + GradientBoosting). R²>0.98.' },
+            { x: 810, y: 380, width: 180, height: 90, color: '#8b5cf6', label: 'Utils', layer: 'backend',
+              info: 'Utilitaires: iaq_score.py (calcul scores IAQ), utils.py (helpers). Fonctions de calcul et validation.' },
+
+            // Data Layer
+            { x: 200, y: 540, width: 160, height: 100, color: '#f59e0b', label: 'InfluxDB', layer: 'database',
+              info: 'Base de données time-series (port 8086). Bucket: iaq_bucket, Measurement: iaq_raw. Rétention: 30 jours.' },
+            { x: 400, y: 540, width: 160, height: 100, color: '#ec4899', label: 'ML Models', layer: 'ml',
+              info: 'Modèles ML persistés (.joblib): generic_multi_output, scaler, encodeurs. Rechargés à chaque prédiction.' },
+            { x: 600, y: 540, width: 160, height: 100, color: '#ec4899', label: 'ML Scheduler', layer: 'ml',
+              info: 'Service de réentraînement automatique. Intervalle: 12 heures. Container Docker dédié (ml-scheduler).' },
+            { x: 800, y: 540, width: 160, height: 100, color: '#f59e0b', label: 'Config JSON', layer: 'database',
+              info: 'Configuration persistée (assets/config.json): enseignes, salles, capteurs, seuils, conditions.' }
+        ];
+
+        // Connection definitions (data flows)
+        const connections = [
+            // Client to Web
+            { from: 0, to: 4, type: 'http', label: 'HTTP' },
+            { from: 1, to: 4, type: 'http', label: 'HTTP' },
+            { from: 2, to: 4, type: 'http', label: 'HTTP' },
+            { from: 0, to: 5, type: 'ws', label: 'WS' },
+            { from: 1, to: 5, type: 'ws', label: 'WS' },
+            
+            // IoT to Backend
+            { from: 3, to: 6, type: 'iot', label: 'POST 5s' },
+            
+            // Web to Backend
+            { from: 4, to: 6, type: 'http', label: 'Proxy' },
+            { from: 5, to: 7, type: 'ws', label: 'Broadcast' },
+            
+            // Backend to Data
+            { from: 6, to: 10, type: 'query', label: 'Write' },
+            { from: 7, to: 10, type: 'query', label: 'Query' },
+            { from: 8, to: 11, type: 'ml', label: 'Load' },
+            { from: 12, to: 11, type: 'ml', label: 'Train' },
+            { from: 6, to: 13, type: 'query', label: 'Config' },
+            
+            // Predictions
+            { from: 8, to: 6, type: 'ml', label: 'Predict' }
+        ];
+
+        // Particle class for data flow animation
+        class Particle {
+            constructor(connection) {
+                this.connection = connection;
+                this.progress = 0;
+                this.speed = 0.01 + Math.random() * 0.01;
+                this.size = 4;
+                this.color = this.getColorByType(connection.type);
+            }
+
+            getColorByType(type) {
+                const colors = {
+                    http: '#3b82f6',
+                    ws: '#10b981',
+                    iot: '#ef4444',
+                    query: '#f59e0b',
+                    ml: '#ec4899'
+                };
+                return colors[type] || '#fff';
+            }
+
+            update() {
+                this.progress += this.speed;
+                if (this.progress > 1) {
+                    this.progress = 0;
+                }
+            }
+
+            draw() {
+                const from = components[this.connection.from];
+                const to = components[this.connection.to];
+                
+                const x = from.x + from.width / 2 + offsetX + 
+                    (to.x + to.width / 2 - from.x - from.width / 2) * this.progress;
+                const y = from.y + from.height / 2 + offsetY + 
+                    (to.y + to.height / 2 - from.y - from.height / 2) * this.progress;
+
+                ctx.save();
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = this.color;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(x, y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Initialize particles
+        function initParticles() {
+            particles = [];
+            connections.forEach(conn => {
+                for (let i = 0; i < 3; i++) {
+                    particles.push(new Particle(conn));
+                }
+            });
+        }
+
+        initParticles();
+
+        // Draw connection line
+        function drawConnection(conn, alpha = 0.3) {
+            const from = components[conn.from];
+            const to = components[conn.to];
+            
+            const fromX = from.x + from.width / 2 + offsetX;
+            const fromY = from.y + from.height / 2 + offsetY;
+            const toX = to.x + to.width / 2 + offsetX;
+            const toY = to.y + to.height / 2 + offsetY;
+
+            ctx.save();
+            ctx.strokeStyle = conn.type === 'ws' ? `rgba(16, 185, 129, ${alpha})` :
+                             conn.type === 'iot' ? `rgba(239, 68, 68, ${alpha})` :
+                             conn.type === 'ml' ? `rgba(236, 72, 153, ${alpha})` :
+                             conn.type === 'query' ? `rgba(245, 158, 11, ${alpha})` :
+                             `rgba(59, 130, 246, ${alpha})`;
+            ctx.lineWidth = 2;
+            ctx.setLineDash(conn.type === 'ws' ? [5, 5] : []);
+            
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.stroke();
+            
+            // Draw arrow
+            const angle = Math.atan2(toY - fromY, toX - fromX);
+            const arrowSize = 10;
+            ctx.beginPath();
+            ctx.moveTo(toX, toY);
+            ctx.lineTo(
+                toX - arrowSize * Math.cos(angle - Math.PI / 6),
+                toY - arrowSize * Math.sin(angle - Math.PI / 6)
+            );
+            ctx.lineTo(
+                toX - arrowSize * Math.cos(angle + Math.PI / 6),
+                toY - arrowSize * Math.sin(angle + Math.PI / 6)
+            );
+            ctx.closePath();
+            ctx.fillStyle = ctx.strokeStyle;
+            ctx.fill();
+            
+            ctx.restore();
+        }
+
+        // Draw component
+        function drawComponent(comp, hover = false) {
+            const x = comp.x + offsetX;
+            const y = comp.y + offsetY;
+            
+            ctx.save();
+            
+            // Shadow and glow
+            if (hover) {
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = comp.color;
+            } else {
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            }
+            
+            // Background
+            ctx.fillStyle = comp.color;
+            ctx.beginPath();
+            roundRect(ctx, x, y, comp.width, comp.height, 12);
+            ctx.fill();
+            
+            // Border
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Text
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 14px "Segoe UI"';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(comp.label, x + comp.width / 2, y + comp.height / 2);
+            
+            ctx.restore();
+        }
+
+        // RoundRect helper
+        function roundRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+
+        // Mouse interaction
+        let hoveredComponent = null;
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                offsetX = e.clientX - dragStartX;
+                offsetY = e.clientY - dragStartY;
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            hoveredComponent = null;
+            components.forEach((comp, index) => {
+                const x = comp.x + offsetX;
+                const y = comp.y + offsetY;
+                if (mouseX >= x && mouseX <= x + comp.width &&
+                    mouseY >= y && mouseY <= y + comp.height) {
+                    hoveredComponent = index;
+                }
+            });
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (hoveredComponent === null) {
+                isDragging = true;
+                dragStartX = e.clientX - offsetX;
+                dragStartY = e.clientY - offsetY;
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        canvas.addEventListener('click', () => {
+            if (hoveredComponent !== null) {
+                const comp = components[hoveredComponent];
+                infoBox.innerHTML = `
+                    <h3>${comp.label}</h3>
+                    <p>${comp.info}</p>
+                `;
+                infoBox.classList.add('active');
+            } else {
+                infoBox.classList.remove('active');
+            }
+        });
+
+        // Animation loop
+        function animate() {
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Draw connections
+            connections.forEach(conn => drawConnection(conn, 0.3));
+
+            // Draw components
+            components.forEach((comp, index) => {
+                drawComponent(comp, index === hoveredComponent);
+            });
+
+            // Draw and update particles
+            if (showDataFlow && animationRunning) {
+                particles.forEach(particle => {
+                    particle.update();
+                    particle.draw();
+                });
+            }
+
+            // Draw title
+            ctx.save();
+            ctx.font = 'bold 24px "Segoe UI"';
+            ctx.fillStyle = 'rgba(102, 126, 234, 0.8)';
+            ctx.textAlign = 'center';
+            ctx.fillText('IAQverse - Architecture Microservices', canvas.width / 2, 40);
+            ctx.restore();
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Control functions
+        function toggleAnimation() {
+            animationRunning = !animationRunning;
+        }
+
+        function toggleDataFlow() {
+            showDataFlow = !showDataFlow;
+        }
+
+        function resetView() {
+            offsetX = 0;
+            offsetY = 0;
+        }
+
+        function toggleLegend() {
+            const legend = document.getElementById('legend');
+            legend.style.display = legend.style.display === 'none' ? 'block' : 'none';
+        }
+    </script>
+</body>
+</html>

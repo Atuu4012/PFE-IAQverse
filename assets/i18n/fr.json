@@ -1,0 +1,308 @@
+{
+  "brand": "IAQverse",
+  "nav": {
+    "home": "Accueil",
+    "digitalTwin": "Digital Twin",
+    "settings": "Paramètres"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "aboutTitle": "À propos de cette page",
+    "aboutParagraph": "Cette interface Dashboard vous permet de visualiser l'évolution des composants principaux de la qualité de l'air en temps réel.",
+    "co2": "Évolution du CO₂",
+    "pm25": "Concentration de PM2.5",
+    "comfort": "Température & Humidité",
+    "tvoc": "Concentration de TVOC",
+    "scoreFeature": "Score IAQ en temps réel",
+    "predictionFeature": "Prédiction du score dans 30 minutes",
+    "alertsFeature": "Alertes automatiques sur les onglets",
+    "score": {
+      "title": "Score de qualité de l'air",
+      "label": "Score global",
+      "roomLabel": "Score de la salle",
+      "predicted": "Dans 30 min",
+      "legend": "Légende",
+      "excellent": "Excellent",
+      "good": "Bon",
+      "moderate": "Moyen",
+      "poor": "Mauvais"
+    }
+  },
+  "charts": {
+    "no_data": "Pas de données",
+    "trace": {
+      "co2": "CO₂ (ppm)",
+      "pm25": "PM2.5 (µg/m³)",
+      "temp": "Température (°C)",
+      "humidity": "Humidité (%)",
+      "tvoc": "TVOC (mg/m³)"
+    },
+    "co2Y": "ppm",
+    "pm25Y": "µg/m³",
+    "temperatureY": "Température (°C)",
+    "humidityY": "Humidité (%)",
+    "tvocY": "mg/m³",
+    "timeX": "Heure"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "menu": {
+      "account": "Compte",
+      "display": "Affichage",
+      "notifications": "Notifications",
+      "locations": "Lieux",
+      "subscription": "Abonnement",
+      "contact": "Contact"
+    },
+    "aboutTitle": "À propos de cette page",
+    "aboutParagraph": "Cette interface des paramètres vous permet de modifier vos réglages afin de les adapter pour une meilleure utilisation.",
+    "languageLabel": "Langue",
+    "summary": {
+      "you": "Vous",
+      "insurance": "Votre assurance",
+      "union": "Votre syndicat",
+      "mode": "Mode",
+      "langloc": "Langue & Localisation",
+      "technologies": "Technologies",
+      "type": "Type",
+      "manage_brands": "Gestion des enseignes",
+      "subscription": "Votre abonnement",
+      "contact": "Contact"
+    },
+    "infoList": {
+      "account": "Gestion des informations du compte",
+      "display": "Gestion de l'affichage et de la langue",
+      "notifications": "Gestions de vos notifications",
+      "rooms": "Ajout et suppression des salles",
+      "subscription": "Choix de votre abonnement",
+      "contact": "Contactez nous"
+    },
+    "fields": {
+      "nom": "Nom",
+      "prenom": "Prénom",
+      "date_naissance": "Date de naissance",
+      "email": "Email",
+      "telephone": "Téléphone",
+      "adresse": "Adresse",
+      "mode_affichage": "Mode d'affichage",
+      "langue": "Langue",
+      "localisation": "Localisation",
+      "avatar": "Photo de profil",
+      "sms": "SMS",
+      "push": "Push",
+      "alertes": "Alertes",
+      "rappels": "Rappels",
+      "newsletters": "Newsletters",
+      "current_plan": "Plan actuel"
+    },
+    "plans": {
+      "basic": {
+        "title": "Basic",
+        "description": "Plan de base avec fonctionnalités essentielles",
+        "features": {
+          "monitoring": "Monitoring de base",
+          "alerts": "Alertes simples",
+          "users": "Nombre d'utilisateur : 3"
+        }
+      },
+      "pro": {
+        "title": "Pro",
+        "description": "Plan professionnel avec fonctionnalités avancées",
+        "features": {
+          "advanced": "Monitoring avancé",
+          "custom": "Alertes personnalisées",
+          "users": "Nombre d'utilisateur : 10"
+        }
+      },
+      "enterprise": {
+        "title": "Entreprise",
+        "description": "Solution complète pour les grandes organisations",
+        "features": {
+          "advanced": "Monitoring avancé",
+          "integration": "Intégrations personnalisées",
+          "users": "Nombre d'utilisateur : Illimité",
+          "training": "Formation équipe",
+          "support": "Support dédié 24/7",
+          "sla": "SLA garanti"
+        }
+      }
+    },
+    "enterprise_modal": {
+      "title": "Contact pour Plan Entreprise",
+      "message": "Pour le plan Entreprise, veuillez nous contacter directement :\n\nEmail : {email}\nTéléphone : {phone}\nAdresse : {address}\n\nNotre équipe vous aidera à configurer la solution parfaite pour votre organisation.",
+      "close": "Fermer"
+    }
+  },
+  "digitalTwin": {
+    "title": "Jumeaux numériques",
+    "visualisation": "Visualisation",
+    "aboutTitle": "À propos de cette page",
+    "aboutParagraph": "Cette interface Digital Twin vous permet de visualiser les alertes de qualité de l'air intérieur en temps réel, d'explorer les pièces en 3D et de consulter les actions préventives recommandées.",
+    "actions": "Actions",
+    "preventive": {
+      "title": "Actions Préventives",
+      "subtitle": "Basées sur les prédictions (30 min)",
+      "loading": "Analyse des prédictions en cours...",
+      "noActions": "Aucune action préventive nécessaire. La qualité de l'air restera bonne.",
+      "no_actions": "Aucune action préventive nécessaire. La qualité de l'air restera bonne.",
+      "no_actions_global": "Aucune action préventive nécessaire",
+      "config_unavailable": "Configuration non disponible",
+      "loading_error": "Erreur lors du chargement des prédictions",
+      "reasons": {
+        "co2_increase": "Le CO₂ va augmenter de {current} à {predicted} ppm",
+        "co2_prevent": "Prévenir l'accumulation de CO₂",
+        "pm25_increase": "Les particules fines vont augmenter de {current} à {predicted} µg/m³",
+        "temperature_rise": "La température va monter de {current}°C à {predicted}°C",
+        "temperature_drop": "La température va baisser de {current}°C à {predicted}°C",
+        "humidity_increase": "L'humidité va augmenter de {current}% à {predicted}%"
+      },
+      "priorities": {
+        "high": "Urgent",
+        "medium": "Recommandé",
+        "low": "Optionnel"
+      },
+      "arrow": "→"
+    },
+    "table": {
+      "state": "État",
+      "subject": "Sujet",
+      "action": "Action"
+    },
+    "tip": {
+      "table": "Le panneau Actions Préventives (en haut) montre les recommandations basées sur les prédictions à 30 minutes.",
+      "visual": "La visualisation 3D (gauche) affiche les pièces avec les points d'alerte colorés selon la sévérité.",
+      "details": "Le tableau Actions (droite) liste les interventions recommandées avec leur statut et sujet.",
+      "noDetails": "Aucun détail disponible",
+      "allGood": "Tous les paramètres sont dans les normes",
+      "recommendedAction": "Action recommandée"
+    },
+    "details": {
+      "title": "Détails",
+      "low": "trop bas",
+      "high": "trop élevé",
+      "out_of_range": "hors plage",
+      "thresholdMin": "seuil min",
+      "thresholdMax": "seuil max",
+      "parameters": {
+        "co2": "CO₂",
+        "pm25": "PM2.5",
+        "tvoc": "TVOC",
+        "temperature": "Température",
+        "humidity": "Humidité"
+      }
+    },
+    "alertCount": {
+      "zero": "Aucune alerte",
+      "one": "1 alerte",
+      "multiple": "{{count}} alertes"
+    },
+    "actionCount": {
+      "zero": "Aucune action",
+      "one": "1 action",
+      "multiple": "{{count}} actions"
+    },
+  "sample": {
+      "window": {
+        "subject": "Fenêtre",
+        "action": "Fermer"
+      },
+      "door": {
+        "subject": "Porte",
+        "action": "Fermer"
+      },
+      "ventilation": {
+        "subject": "Ventilation",
+        "action": "Activer"
+      },
+      "radiator": {
+        "subject": "Radiateur",
+        "action": "Réduire"
+      },
+      "air_conditioning": {
+        "subject": "Climatisation",
+        "action": "Activer"
+      },
+      "temperature": {
+        "subject": "Température",
+        "action": "Ajuster"
+      },
+      "humidity": {
+        "subject": "Humidité",
+        "action": "Réguler"
+      }
+    },
+    "actionVerbs": {
+      "open": "Ouvrir",
+      "close": "Fermer",
+      "increase": "Augmenter",
+      "decrease": "Diminuer",
+      "turn_on": "Allumer",
+      "turn_off": "Éteindre"
+    }
+  },
+  "buttons": {
+    "toggleTheme": "Changer le thème",
+    "frame": "Centrer"
+  },
+  "placeholders": {
+    "comma_list": "Séparer les valeurs par des virgules"
+  },
+  "languages": {
+    "fr": "Français",
+    "en": "English",
+    "es": "Español",
+    "de": "Deutsch",
+    "it": "Italiano"
+  },
+  "modes": {
+    "light": "Clair",
+    "dark": "Sombre"
+  },
+  "actions": {
+    "add_location": "Ajouter une pièce",
+    "add_brand": "Ajouter une enseigne",
+    "edit": "Modifier",
+    "remove": "Supprimer",
+    "confirm": "Confirmation",
+    "yes": "Oui",
+    "no": "Non",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "select": "Sélectionner",
+    "selected": "Sélectionné"
+  },
+  "modals": {
+    "add_brand": "Ajouter une enseigne",
+    "add_room": "Ajouter une pièce",
+    "edit_brand": "Modifier l'enseigne",
+    "edit_title": "Modifier les paramètres",
+    "glb_label": "Modèle 3D (.glb)",
+    "glb_drop": "Glissez-déposez un fichier .glb ici"
+  },
+  "notifications": {
+    "saved": "Modification sauvegardée",
+    "save_error": "Erreur lors de la sauvegarde",
+    "order_saved": "Nouvel ordre enregistré",
+    "rooms_order_saved": "Ordre des pièces enregistré",
+    "plan_saved": "Plan d'abonnement mis à jour",
+    "location_exists": "Une enseigne avec ce nom existe déjà",
+    "add_success": "Enseigne ajoutée avec succès",
+    "add_error": "Erreur lors de l'ajout de l'enseigne",
+    "file_invalid": "Fichier .glb invalide",
+    "upload_error": "Erreur lors de l’upload du modèle 3D",
+    "piece_added": "Pièce ajoutée avec succès",
+    "piece_add_error": "Erreur lors de l'ajout de la pièce",
+    "update_success": "Enseigne modifiée avec succès",
+    "update_error": "Erreur lors de la modification de l'enseigne",
+    "delete_files_error": "Erreur lors de la suppression des fichiers 3D",
+    "delete_success": "Enseigne supprimée avec succès",
+    "delete_file_error": "Erreur lors de la suppression du fichier 3D",
+    "piece_deleted": "Pièce supprimée avec succès",
+    "config_saved": "Configuration sauvegardée avec succès",
+    "location_not_found": "Enseigne non trouvée",
+    "confirm_delete_message": "Voulez-vous vraiment supprimer ?",
+    "mode_updated": "Mode mis à jour",
+    "load_error": "Impossible de charger la configuration",
+    "load_failure": "Erreur lors du chargement de la configuration"
+  }
+}

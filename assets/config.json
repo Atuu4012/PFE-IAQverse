@@ -1,0 +1,89 @@
+{
+    "vous": {
+        "nom": "Dupont",
+        "prenom": "Pierre",
+        "date_naissance": "1990-01-01",
+        "email": "jean.dupont@example.com",
+        "telephone": "+33 1 23 45 67 89",
+        "adresse": "1 rue Exemple, 75000 Paris",
+        "avatar": ""
+    },
+    "assurance": {
+        "nom": "AssureCo",
+        "email": "contact@assureco.com",
+        "telephone": "+33 1 11 11 11 11",
+        "adresse": "10 avenue de l'Assurance"
+    },
+    "syndicat": {
+        "nom": "Syndicat XY",
+        "email": "syndicat@example.com",
+        "telephone": "+33 9 99 99 99 99",
+        "adresse": "20 boulevard du Syndicat"
+    },
+    "affichage": {
+        "mode": "Clair",
+        "langue": "fr",
+        "localisation": "Europe, Paris"
+    },
+    "notifications": {
+        "technologies": {
+            "email": true,
+            "sms": false,
+            "push": true
+        },
+        "types": {
+            "alertes": true,
+            "rappels": true,
+            "newsletters": true
+        }
+    },
+    "lieux": {
+        "enseignes": [
+            {
+                "id": "ens_1762004765975",
+                "nom": "Maison",
+                "adresse": "123 rue d'Avron",
+                "pieces": [
+                    {
+                        "id": "piece_1763546957299",
+                        "nom": "Chambre",
+                        "type": "chambre",
+                        "glbModel": "/assets/rooms/ens_1762004765975_piece_1763546957299.glb"
+                    }
+                ]
+            },
+            {
+                "id": "boutique1",
+                "nom": "Boutique",
+                "adresse": "123 Rue des Commerces",
+                "pieces": [
+                    {
+                        "id": "piece_1763414279663",
+                        "nom": "Salon",
+                        "type": "salon",
+                        "glbModel": "/assets/rooms/ens_boutique1_piece_1763414279663.glb"
+                    },
+                    {
+                        "id": "piece_1763490078400",
+                        "nom": "Chambre",
+                        "type": "chambre",
+                        "glbModel": "/assets/rooms/ens_boutique1_piece_1763490078400.glb"
+                    }
+                ]
+            }
+        ],
+        "active": "ens_1762004765975"
+    },
+    "contact": {
+        "email": "support@iaqverse.local",
+        "telephone": "+33 1 23 45 67 89",
+        "adresse_postale": "1 rue Support, 75000 Paris"
+    },
+    "value": false,
+    "nom": "",
+    "adresse": "123 rue d'Avrons",
+    "type": "salon",
+    "abonnement": {
+        "plan_actuel": "pro"
+    }
+}

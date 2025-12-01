@@ -1,0 +1,47 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+.venv
+venv
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Documentation
+*.md
+
+# Test files
+test_*
+*_test.py
+
+# Database (on conserve les modèles ML mais pas les données)
+database/influx_data/*
+!database/influx_data/.gitkeep
+
+# Temporary
+tmp/
+temp/
+*.tmp

@@ -1,0 +1,32 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.log
+
+# Environment variables
+.env
+
+# Database
+database/influx_data/
+database/mosquitto/
+database/*.db
+
+# Large ML model files (use Git LFS or download separately)
+assets/ml_models/generic_multi_output.joblib
+
+# Docker volumes
+volumes/
+
+# Backups
+backups/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

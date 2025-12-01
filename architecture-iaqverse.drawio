@@ -1,0 +1,254 @@
+<mxfile host="app.diagrams.net" modified="2025-11-18T23:00:00.000Z" agent="DrawIO" version="22.1.11">
+  <diagram name="IAQverse Architecture" id="architecture-iaqverse">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- Title -->
+        <mxCell id="title" value="&lt;b&gt;&lt;font style=&quot;font-size: 24px;&quot;&gt;IAQverse - Architecture Cloud &amp;amp; Microservices&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Plateforme IoT de Surveillance de la Qualité de l&#39;Air Intérieur&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="527" y="20" width="600" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Client Layer -->
+        <mxCell id="client-layer" value="&lt;b&gt;COUCHE CLIENT&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="80" y="100" width="1494" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- Browser -->
+        <mxCell id="browser" value="&lt;b&gt;Navigateur Web&lt;/b&gt;&lt;br&gt;(Chrome, Firefox, Edge)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="140" y="150" width="200" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Dashboard -->
+        <mxCell id="dashboard" value="&lt;b&gt;📊 Dashboard&lt;/b&gt;&lt;br&gt;index.html&lt;br&gt;&lt;font size=&quot;2&quot;&gt;Graphiques temps réel&lt;br&gt;Charts + Alertes&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="440" y="140" width="180" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Digital Twin -->
+        <mxCell id="digital-twin" value="&lt;b&gt;🏠 Digital Twin 3D&lt;/b&gt;&lt;br&gt;digital-twin.html&lt;br&gt;&lt;font size=&quot;2&quot;&gt;Three.js Scene&lt;br&gt;Actions Préventives&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="680" y="140" width="180" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Settings -->
+        <mxCell id="settings" value="&lt;b&gt;⚙️ Configuration&lt;/b&gt;&lt;br&gt;settings.html&lt;br&gt;&lt;font size=&quot;2&quot;&gt;Paramètres système&lt;br&gt;Gestion salles&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="920" y="140" width="180" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- IoT Sensors -->
+        <mxCell id="iot-sensors" value="&lt;b&gt;🌡️ Capteurs IoT&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;2&quot;&gt;CO₂, PM2.5, TVOC&lt;br&gt;Température, Humidité&lt;br&gt;POST /api/ingest (5s)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="140" width="200" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Web Layer -->
+        <mxCell id="web-layer" value="&lt;b&gt;COUCHE WEB / PROXY&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="80" y="320" width="1494" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- Nginx -->
+        <mxCell id="nginx" value="&lt;b&gt;NGINX&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;2&quot;&gt;Port: 8080&lt;br&gt;Serveur web statique&lt;br&gt;Proxy inverse API&lt;br&gt;Gestion cache&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="320" y="360" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- WebSocket -->
+        <mxCell id="websocket" value="&lt;b&gt;WebSocket&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;2&quot;&gt;ws://localhost:8000/ws/iaq&lt;br&gt;Broadcast temps réel&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="920" y="360" width="200" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Backend Layer -->
+        <mxCell id="backend-layer" value="&lt;b&gt;COUCHE APPLICATION (BACKEND)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="80" y="500" width="1494" height="350" as="geometry" />
+        </mxCell>
+
+        <!-- FastAPI -->
+        <mxCell id="fastapi" value="&lt;b&gt;FastAPI Application&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;2&quot;&gt;Port: 8000&lt;br&gt;Python 3.12 + Uvicorn&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="140" y="550" width="1374" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- API Module -->
+        <mxCell id="api-module" value="&lt;b&gt;📡 API Module&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;2&quot;&gt;backend/api/&lt;br&gt;&lt;br&gt;• ingest.py&lt;br&gt;• query.py&lt;br&gt;• config_api.py&lt;br&gt;&lt;br&gt;iaq_database [] (RAM)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="160" y="640" width="280" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- Core Module -->
+        <mxCell id="core-module" value="&lt;b&gt;🔧 Core Module&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;2&quot;&gt;backend/core/&lt;br&gt;&lt;br&gt;• settings.py&lt;br&gt;• influx_client.py&lt;br&gt;• websocket_manager.py&lt;br&gt;&lt;br&gt;Infrastructure &amp;amp; Config&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="480" y="640" width="280" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- ML Module -->
+        <mxCell id="ml-module" value="&lt;b&gt;🤖 ML Module&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;2&quot;&gt;backend/ml/&lt;br&gt;&lt;br&gt;• ml_train.py&lt;br&gt;• ml_predict_generic.py&lt;br&gt;• scheduler_retrain.py&lt;br&gt;&lt;br&gt;Machine Learning&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="800" y="640" width="280" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- Utils -->
+        <mxCell id="utils" value="&lt;b&gt;🛠️ Utils&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;2&quot;&gt;backend/&lt;br&gt;&lt;br&gt;• iaq_score.py&lt;br&gt;• utils.py&lt;br&gt;&lt;br&gt;Helpers &amp;amp; Calculs&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="640" width="280" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- Data Layer -->
+        <mxCell id="data-layer" value="&lt;b&gt;COUCHE DONNÉES &amp;amp; SERVICES&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="80" y="890" width="1494" height="220" as="geometry" />
+        </mxCell>
+
+        <!-- InfluxDB -->
+        <mxCell id="influxdb" value="&lt;b&gt;InfluxDB&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;2&quot;&gt;Port: 8086&lt;br&gt;Time-Series Database&lt;br&gt;&lt;br&gt;Measurement: iaq_raw&lt;br&gt;Rétention: 30 jours&lt;br&gt;Bucket: iaq_bucket&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="200" y="940" width="200" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- ML Models -->
+        <mxCell id="ml-models" value="&lt;b&gt;ML Models&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;2&quot;&gt;assets/ml_models/&lt;br&gt;&lt;br&gt;• generic_multi_output.joblib&lt;br&gt;• generic_scaler.joblib&lt;br&gt;• encoders (salle, capteur)&lt;br&gt;&lt;br&gt;VotingRegressor (RF + GB)&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="480" y="940" width="240" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- ML Scheduler -->
+        <mxCell id="ml-scheduler" value="&lt;b&gt;ML Scheduler Service&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;2&quot;&gt;Container: ml-scheduler&lt;br&gt;&lt;br&gt;scheduler_retrain.py&lt;br&gt;Intervalle: 12 heures&lt;br&gt;&lt;br&gt;Réentraînement automatique&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="800" y="940" width="240" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- Config Storage -->
+        <mxCell id="config-storage" value="&lt;b&gt;Configuration&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;2&quot;&gt;assets/config.json&lt;br&gt;&lt;br&gt;• Enseignes&lt;br&gt;• Salles &amp;amp; Capteurs&lt;br&gt;• Seuils d&#39;alertes&lt;br&gt;• Conditions&lt;/font&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#fff2cc;strokeColor=#d6b656;size=15;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1120" y="940" width="200" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- Dataset -->
+        <mxCell id="dataset" value="&lt;b&gt;CSV Dataset&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;2&quot;&gt;assets/datasets/&lt;br&gt;&lt;br&gt;22,526 lignes&lt;br&gt;Données historiques&lt;br&gt;Training ML&lt;/font&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#dae8fc;strokeColor=#6c8ebf;size=15;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1360" y="940" width="180" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows: Client to Web -->
+        <mxCell id="arrow1" value="HTTP/REST" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" edge="1" parent="1" source="dashboard" target="nginx">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="arrow2" value="HTTP/REST" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" edge="1" parent="1" source="digital-twin" target="nginx">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="arrow3" value="WebSocket" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#ffe6cc;strokeColor=#d79b00;dashed=1;" edge="1" parent="1" source="dashboard" target="websocket">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows: IoT to Backend -->
+        <mxCell id="arrow4" value="POST /api/ingest&lt;br&gt;(5 secondes)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;fillColor=#f8cecc;strokeColor=#b85450;" edge="1" parent="1" source="iot-sensors" target="api-module">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1300" y="300" />
+              <mxPoint x="300" y="300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Arrows: Web to Backend -->
+        <mxCell id="arrow5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#d5e8d4;strokeColor=#82b366;" edge="1" parent="1" source="nginx" target="fastapi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="arrow6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#ffe6cc;strokeColor=#d79b00;dashed=1;" edge="1" parent="1" source="websocket" target="fastapi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows: Backend to Data -->
+        <mxCell id="arrow7" value="Write Data&lt;br&gt;Query Flux" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#f8cecc;strokeColor=#b85450;" edge="1" parent="1" source="core-module" target="influxdb">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="arrow8" value="Load Models&lt;br&gt;Predict" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#e1d5e7;strokeColor=#9673a6;" edge="1" parent="1" source="ml-module" target="ml-models">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="arrow9" value="Train&lt;br&gt;Save Models" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=1;" edge="1" parent="1" source="ml-scheduler" target="ml-models">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="arrow10" value="Read CSV" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" edge="1" parent="1" source="ml-scheduler" target="dataset">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="arrow11" value="GET/POST" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#fff2cc;strokeColor=#d6b656;" edge="1" parent="1" source="api-module" target="config-storage">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="300" y="870" />
+              <mxPoint x="1220" y="870" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- API Endpoints Box -->
+        <mxCell id="api-endpoints" value="&lt;b&gt;API REST Endpoints&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;1&quot;&gt;&lt;br&gt;POST /api/ingest → Ingestion capteurs&lt;br&gt;GET /api/iaq/data → Données historiques&lt;br&gt;GET /api/predict/score → Score prédit (30min)&lt;br&gt;GET /api/predict/preventive-actions → Actions ML&lt;br&gt;GET /config → Configuration système&lt;br&gt;POST /config → Sauvegarde configuration&lt;br&gt;WS /ws/iaq → Stream temps réel&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;spacingLeft=10;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="100" width="320" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- Performance Metrics -->
+        <mxCell id="metrics" value="&lt;b&gt;⚡ Performance&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;1&quot;&gt;&lt;br&gt;Ingestion: 15ms avg&lt;br&gt;Query (1h): 120ms avg&lt;br&gt;ML Predict: 450ms avg&lt;br&gt;&lt;br&gt;Volumétrie:&lt;br&gt;• 2880 points/jour/capteur&lt;br&gt;• ~50 KB/jour (compressé)&lt;br&gt;&lt;br&gt;Ressources Docker:&lt;br&gt;• CPU: 1.1 core total&lt;br&gt;• RAM: ~1 GB total&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;spacingLeft=10;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="320" width="320" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- Tech Stack -->
+        <mxCell id="tech-stack" value="&lt;b&gt;🛠️ Stack Technologique&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;1&quot;&gt;&lt;br&gt;Backend:&lt;br&gt;• Python 3.12&lt;br&gt;• FastAPI + Uvicorn&lt;br&gt;• Pandas, NumPy&lt;br&gt;• Scikit-learn 1.7.2&lt;br&gt;• InfluxDB Client&lt;br&gt;&lt;br&gt;Frontend:&lt;br&gt;• Vanilla JavaScript&lt;br&gt;• Plotly.js (charts)&lt;br&gt;• Three.js (3D)&lt;br&gt;• HTML5 + CSS3&lt;br&gt;&lt;br&gt;Infrastructure:&lt;br&gt;• Docker + Compose&lt;br&gt;• Nginx Alpine&lt;br&gt;• InfluxDB 2.7&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=10;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="560" width="320" height="290" as="geometry" />
+        </mxCell>
+
+        <!-- Data Flow Legend -->
+        <mxCell id="legend" value="&lt;b&gt;Légende - Flux de Données&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=center;verticalAlign=top;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1480" y="890" width="320" height="220" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;strokeColor=#b85450;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1500" y="940" as="sourcePoint" />
+            <mxPoint x="1560" y="940" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend1-text" value="Ingestion données IoT" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1570" y="927" width="150" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#6c8ebf;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1500" y="970" as="sourcePoint" />
+            <mxPoint x="1560" y="970" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend2-text" value="Requêtes HTTP/REST" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1570" y="957" width="150" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#d79b00;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1500" y="1000" as="sourcePoint" />
+            <mxPoint x="1560" y="1000" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend3-text" value="WebSocket (temps réel)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1570" y="987" width="150" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#9673a6;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1500" y="1030" as="sourcePoint" />
+            <mxPoint x="1560" y="1030" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend4-text" value="Prédictions ML" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1570" y="1017" width="150" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1500" y="1060" as="sourcePoint" />
+            <mxPoint x="1560" y="1060" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend5-text" value="Infrastructure" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1570" y="1047" width="150" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Footer -->
+        <mxCell id="footer" value="IAQverse v2.0 - Architecture Microservices - Docker Compose - 18 novembre 2025" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=2;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="527" y="1130" width="600" height="20" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

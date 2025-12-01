@@ -1,86 +1,159 @@
-# IAQverse – Jumeau numérique pour la qualité de l'air intérieur (PFE)
+# IAQverse - Plateforme de Qualité de l'Air Intérieur
 
-> IAQverse est une plateforme immersive et intelligente dédiée à la surveillance, la visualisation et l'amélioration de la qualité de l'air intérieur (IAQ) dans les bâtiments. Grâce à l'intégration de capteurs, d'une API en temps réel, d'un dashboard interactif et d'une scène VR, le projet transforme l'invisible en action.
+Plateforme complète de surveillance et prédiction de la qualité de l'air intérieur (IAQ) avec jumeau numérique 3D, Machine Learning et IoT.
 
----
+## 🚀 Démarrage rapide
 
-## *Structure du projet*
+```powershell
+# Démarrer l'application
+docker-compose up -d
 
-**IAQverse/**
-│
-├── **backend/**              API FastAPI, traitement des données
-│   ├── main.py
-│   ├── models.py
-│   ├── database.py
-│   ├── ml_model.py
-│   └── requirements.txt
-│
-├── **frontend/**              Dashboard web, VR, visualisation
-│   ├── index.html
-│   ├── style.css
-│   ├── app.js
-│   └── charts.js
-│
-├── simulator.py          Générateur de données capteurs
-│
-├── **assets/**                Images, textures, vidéos 360°
-│   └── ...
-│
-├── **config/**                Fichiers .env, paramètres
-│   └── .env
-│
-└── README.md              Documentation du projet
+# Accéder aux interfaces
+- Frontend: http://localhost:3000
+- API: http://localhost:8000/docs
+- InfluxDB: http://localhost:8086
+```
 
-## Fonctionnalités
+## 📁 Architecture
 
-- **Collecte IAQ** : CO₂, PM2.5, TVOC, température, humidité
-- **API FastAPI** : réception et stockage des données en temps réel
-- **Dashboard Web** : visualisation des indicateurs IAQ
-- **Capteurs** : génération de données par des capteurs
-- **Prévision IA** : modèle LSTM pour anticiper les risques
-- **Scène VR** : immersion 360° avec alertes visuelles
-- **Automatisation** : envoi d’alertes au syndic, propriétaire ou assurance
-- **Agenda connecté** : synchronisation avec Outlook ou Google Calendar
+```
+├── backend/          # API FastAPI + ML
+│   ├── api/         # Endpoints REST
+│   ├── core/        # Configuration & services
+│   ├── ml/          # Prédiction ML
+│   └── main.py      # Point d'entrée
+├── frontend/        # Interface web
+│   ├── js/          # Scripts JavaScript
+│   ├── index.html   # Dashboard principal
+│   └── digital-twin.html  # Jumeau numérique 3D
+├── assets/          # Ressources
+│   ├── datasets/    # Données d'entraînement
+│   └── ml_models/   # Modèles ML pré-entraînés
+└── database/        # Données InfluxDB
+```
 
-## Installation
+## 🎯 Fonctionnalités
 
-1. **Cloner le projet** :
+### Dashboard Principal (`index.html`)
+- Visualisation en temps réel (CO₂, PM2.5, TVOC, Température, Humidité)
+- Score IAQ actuel et prédit (30 min)
+- Graphiques interactifs Plotly
+- Multi-pièces et multi-enseignes
 
-   ```bash
-   git clone https://github.com/ton-utilisateur/iaqverse.git
-   cd iaqverse
-   ```
-2. **Installer les dépendances Python** :
+### Jumeau Numérique 3D (`digital-twin.html`)
+- Modèle 3D interactif de la pièce
+- Points d'alerte visuels (ventilation, fenêtres, radiateur...)
+- Actions préventives basées sur ML
+- Changement de couleur selon sévérité
 
-   ```
-   pip install -r backend/requirements.txt
-   ```
-3. **Lancer l’API FastAPI** :
+### Machine Learning
+- Prédiction des paramètres IAQ à 30 minutes
+- Ensemble Voting (RandomForest + GradientBoosting)
+- Actions préventives intelligentes
+- Score IAQ prédit en temps réel
 
-   ```
-   uvicorn backend.main:app --reload
-   ```
-4. **Ouvrir le dashboard** :
+## 🔧 Configuration
 
-* Ouvrir `frontend/index.html` dans ton navigateur
+### Variables d'environnement (`.env`)
 
-## Technologies utilisées
+```env
+# InfluxDB
+INFLUXDB_URL=http://influxdb:8086
+INFLUXDB_TOKEN=your-token
+INFLUXDB_ORG=iaqverse
+INFLUXDB_BUCKET=iaq_data
 
-* **Python** : FastAPI, Pydantic, SQLAlchemy, TensorFlow
-* **JavaScript** : Plotly.js, A-Frame, WebSocket
-* **HTML/CSS** : Interface responsive
-* **SQLite / Firebase** : Stockage des données
-* **VR** : Insta360, WebXR
-* **Agenda** : Microsoft Graph API, Google Calendar API
+# Application
+APP_NAME=IAQverse
+APP_VERSION=2.0.0
+ML_MODELS_DIR=/app/assets/ml_models
+```
 
-## Objectifs pédagogiques
+### Entraîner le modèle ML
 
-* Comprendre les enjeux de la qualité de l’air intérieur
-* Concevoir un jumeau numérique immersif et interactif
-* Appliquer des modèles IA pour la prédiction environnementale
-* Automatiser des actions techniques et administratives
+```powershell
+docker exec iaqverse-backend python backend/ml/ml_train.py
+```
 
-## Équipe projet
+## 📡 API Endpoints
 
-* Arthur Parizot de Laporterie
-* Quentin Tajchner
+### Ingestion de données
+```http
+POST /api/ingest/iaq
+Content-Type: application/json
+
+{
+  "enseigne": "Maison",
+  "salle": "Bureau",
+  "co2": 650,
+  "pm25": 12,
+  "tvoc": 250,
+  "temperature": 21.5,
+  "humidity": 45
+}
+```
+
+### Requête de données
+```http
+GET /api/iaq/data?enseigne=Maison&salle=Bureau&hours=1
+```
+
+### Prédiction ML
+```http
+GET /api/predict/score?enseigne=Maison&salle=Bureau
+GET /api/predict/preventive-actions?enseigne=Maison&salle=Bureau
+```
+
+## 🧪 Tests
+
+### Envoyer des données de test
+```powershell
+.\send_test_data.ps1
+```
+
+### Vérifier la santé
+```http
+GET /health
+```
+
+## 📊 Seuils IAQ
+
+| Paramètre | Bon | Moyen | Mauvais |
+|-----------|-----|-------|---------|
+| CO₂ | < 800 ppm | 800-1200 ppm | > 1200 ppm |
+| PM2.5 | < 5 µg/m³ | 5-35 µg/m³ | > 35 µg/m³ |
+| TVOC | < 300 ppb | 300-1000 ppb | > 1000 ppb |
+| Température | 18-22°C | 16-18 ou 22-24°C | < 16 ou > 24°C |
+| Humidité | 40-60% | 30-40 ou 60-70% | < 30 ou > 70% |
+
+## 🛠️ Développement
+
+### Structure du code
+
+- **Backend modulaire**: Séparation claire API/Core/ML
+- **Frontend léger**: Vanilla JS, pas de framework lourd
+- **ML intégré**: Prédictions en temps réel sans service séparé
+- **Base de données**: InfluxDB (time-series) + Mémoire (cache)
+
+### Ajouter un nouveau capteur
+
+1. Modifier `backend/api/ingest.py`
+2. Ajouter les seuils dans `backend/action_selector.py`
+3. Mettre à jour le frontend `frontend/js/charts.js`
+
+### Personnaliser le jumeau numérique
+
+Éditer `frontend/js/three-scene.js` pour modifier le modèle 3D ou les points d'alerte.
+
+## 📝 Licence
+
+Projet de fin d'études - IAQverse Platform
+
+## 🤝 Support
+
+Pour toute question, consulter `/docs` de l'API ou examiner les logs :
+
+```powershell
+docker-compose logs -f backend
+docker-compose logs -f frontend
+```

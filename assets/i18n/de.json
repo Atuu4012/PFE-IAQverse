@@ -1,0 +1,308 @@
+{
+    "brand": "IAQverse",
+    "nav": {
+        "home": "Panel",
+        "digitalTwin": "Digitaler Zwilling",
+        "settings": "Einstellungen"
+    },
+    "dashboard": {
+        "title": "Panel",
+        "aboutTitle": "Über diese Seite",
+        "aboutParagraph": "Dieses Panel ermöglicht die Visualisierung der wichtigsten Komponenten der Innenraumluftqualität in Echtzeit.",
+        "co2": "CO₂-Verlauf",
+        "pm25": "PM2.5-Konzentration",
+        "comfort": "Temperatur & Luftfeuchtigkeit",
+        "tvoc": "TVOC-Konzentration",
+        "scoreFeature": "IAQ-Bewertung in Echtzeit",
+        "predictionFeature": "Vorhersage der Bewertung in 30 Minuten",
+        "alertsFeature": "Automatische Warnungen auf Registerkarten",
+        "score": {
+            "title": "Luftqualitätsbewertung",
+            "label": "Gesamtpunktzahl",
+            "roomLabel": "Raumpunktzahl",
+            "predicted": "In 30 Min",
+            "legend": "Legende",
+            "excellent": "Ausgezeichnet",
+            "good": "Gut",
+            "moderate": "Mäßig",
+            "poor": "Schlecht"
+        }
+    },
+    "charts": {
+        "no_data": "Keine Daten",
+        "trace": {
+            "co2": "CO₂ (ppm)",
+            "pm25": "PM2.5 (µg/m³)",
+            "temp": "Temperatur (°C)",
+            "humidity": "Luftfeuchtigkeit (%)",
+            "tvoc": "TVOC (mg/m³)"
+        },
+        "co2Y": "ppm",
+        "pm25Y": "µg/m³",
+        "temperatureY": "Temperatur (°C)",
+        "humidityY": "Luftfeuchtigkeit (%)",
+        "tvocY": "mg/m³",
+        "timeX": "Zeit"
+    },
+    "settings": {
+        "title": "Einstellungen",
+        "menu": {
+            "account": "Konto",
+            "display": "Anzeige",
+            "notifications": "Benachrichtigungen",
+            "locations": "Standorte",
+            "subscription": "Abonnement",
+            "contact": "Kontakt"
+        },
+        "aboutTitle": "Über diese Seite",
+        "aboutParagraph": "Verwenden Sie dieses Einstellungsfeld, um Ihre Präferenzen anzupassen.",
+        "languageLabel": "Sprache",
+        "summary": {
+            "you": "Sie",
+            "insurance": "Ihre Versicherung",
+            "union": "Ihre Gewerkschaft",
+            "mode": "Modus",
+            "langloc": "Sprache & Lokalisierung",
+            "technologies": "Technologien",
+            "type": "Typ",
+            "manage_brands": "Standorte verwalten",
+            "subscription": "Ihr Abonnement",
+            "contact": "Kontakt"
+        },
+        "infoList": {
+            "account": "Kontoinformationen verwalten",
+            "display": "Anzeige- und Spracheinstellungen",
+            "notifications": "Ihre Benachrichtigungseinstellungen",
+            "rooms": "Räume hinzufügen und entfernen",
+            "subscription": "Wählen Sie Ihr Abonnement",
+            "contact": "Kontaktieren Sie uns"
+        },
+        "fields": {
+            "nom": "Name",
+            "prenom": "Vorname",
+            "date_naissance": "Geburtsdatum",
+            "email": "E-Mail",
+            "telephone": "Telefon",
+            "adresse": "Adresse",
+            "mode_affichage": "Anzeige-Modus",
+            "langue": "Sprache",
+            "localisation": "Lokalisierung",
+            "avatar": "Profilbild",
+            "sms": "SMS",
+            "push": "Push",
+            "alertes": "Warnungen",
+            "rappels": "Erinnerungen",
+            "newsletters": "Newsletter",
+            "current_plan": "Aktueller Plan"
+        },
+        "plans": {
+            "basic": {
+                "title": "Basic",
+                "description": "Basisplan mit grundlegenden Funktionen",
+                "features": {
+                    "monitoring": "Basis-Monitoring",
+                    "alerts": "Einfache Warnungen",
+                    "reports": "Monatliche Berichte",
+                    "users": "Anzahl der Benutzer: 1"
+                }
+            },
+            "pro": {
+                "title": "Pro",
+                "description": "Professioneller Plan mit erweiterten Funktionen",
+                "features": {
+                    "advanced": "Erweitertes Monitoring",
+                    "custom": "Benutzerdefinierte Warnungen",
+                    "realtime": "Echtzeit-Berichte",
+                    "api": "API-Zugang",
+                    "users": "Anzahl der Benutzer: 10"
+                }
+            },
+            "enterprise": {
+                "title": "Enterprise",
+                "description": "Vollständige Lösung für große Organisationen",
+                "features": {
+                    "advanced": "Erweitertes Monitoring",
+                    "integration": "Benutzerdefinierte Integrationen",
+                    "users": "Anzahl der Benutzer: Unbegrenzt",
+                    "training": "Team-Schulung",
+                    "support": "Dedizierter 24/7-Support",
+                    "sla": "Garantierter SLA"
+                }
+            }
+        },
+        "enterprise_modal": {
+            "title": "Kontakt für Enterprise-Plan",
+            "message": "Für den Enterprise-Plan kontaktieren Sie uns bitte direkt:\n\nE-Mail: {email}\nTelefon: {phone}\nAdresse: {address}\n\nUnser Team hilft Ihnen bei der Einrichtung der perfekten Lösung für Ihre Organisation.",
+            "close": "Schließen"
+        }
+    },
+    "digitalTwin": {
+        "title": "Digitaler Zwilling",
+        "visualisation": "Visualisierung",
+        "aboutTitle": "Über diese Seite",
+        "aboutParagraph": "Diese Digital Twin-Schnittstelle ermöglicht es Ihnen, Warnungen zur Innenraumluftqualität in Echtzeit zu visualisieren, Räume in 3D zu erkunden und empfohlene Präventivmaßnahmen zu überprüfen.",
+        "actions": "Aktionen",
+        "details": "Details",
+        "preventive": {
+            "title": "Präventive Maßnahmen",
+            "subtitle": "Basierend auf Vorhersagen (30 Min.)",
+            "loading": "Vorhersagen werden analysiert...",
+            "noActions": "Keine präventiven Maßnahmen erforderlich. Die Luftqualität bleibt gut.",
+            "no_actions": "Keine präventiven Maßnahmen erforderlich. Die Luftqualität bleibt gut.",
+            "no_actions_global": "Keine präventiven Maßnahmen erforderlich",
+            "config_unavailable": "Konfiguration nicht verfügbar",
+            "loading_error": "Fehler beim Laden der Vorhersagen",
+            "reasons": {
+                "co2_increase": "CO₂ wird von {current} auf {predicted} ppm ansteigen",
+                "co2_prevent": "CO₂-Ansammlung verhindern",
+                "pm25_increase": "Feinstaub wird von {current} auf {predicted} µg/m³ ansteigen",
+                "temperature_rise": "Temperatur wird von {current}°C auf {predicted}°C ansteigen",
+                "temperature_drop": "Temperatur wird von {current}°C auf {predicted}°C fallen",
+                "humidity_increase": "Luftfeuchtigkeit wird von {current}% auf {predicted}% ansteigen"
+            },
+            "priorities": {
+                "high": "Dringend",
+                "medium": "Empfohlen",
+                "low": "Optional"
+            },
+            "arrow": "→"
+        },
+        "table": {
+            "state": "Zustand",
+            "subject": "Betreff",
+            "action": "Aktion"
+        },
+        "tip": {
+            "table": "Das Panel Präventive Maßnahmen (oben) zeigt Empfehlungen basierend auf 30-Minuten-Vorhersagen.",
+            "visual": "Die 3D-Visualisierung (links) zeigt Räume mit farbigen Alarmpunkten nach Schweregrad.",
+            "details": "Die Tabelle Aktionen (rechts) listet empfohlene Interventionen mit ihrem Status und Betreff.",
+            "noDetails": "Keine Details verfügbar",
+            "allGood": "Alle Parameter liegen im Normbereich",
+            "recommendedAction": "Empfohlene Maßnahme"
+        },
+        "details": {
+      "title": "Details",
+            "low": "zu niedrig",
+            "high": "zu hoch",
+            "out_of_range": "außerhalb des Bereichs",
+            "thresholdMin": "Min-Schwelle",
+            "thresholdMax": "Max-Schwelle",
+            "parameters": {
+                "co2": "CO₂",
+                "pm25": "PM2.5",
+                "tvoc": "TVOC",
+                "temperature": "Temperatur",
+                "humidity": "Luftfeuchtigkeit"
+            }
+        },
+        "alertCount": {
+            "zero": "Keine Warnungen",
+            "one": "1 Warnung",
+            "multiple": "{{count}} Warnungen"
+        },
+        "actionCount": {
+            "zero": "Keine Aktionen",
+            "one": "1 Aktion",
+            "multiple": "{{count}} Aktionen"
+        },
+        "sample": {
+            "window": {
+                "subject": "Fenster",
+                "action": "Schließen"
+            },
+            "door": {
+                "subject": "Tür",
+                "action": "Schließen"
+            },
+            "ventilation": {
+                "subject": "Lüftung",
+                "action": "Aktivieren"
+            },
+            "radiator": {
+                "subject": "Heizkörper",
+                "action": "Reduzieren"
+            },
+            "temperature": {
+                "subject": "Temperatur",
+                "action": "Anpassen"
+            },
+            "humidity": {
+                "subject": "Luftfeuchtigkeit",
+                "action": "Regulieren"
+            }
+        },
+        "actionVerbs": {
+            "open": "Öffnen",
+            "close": "Schließen",
+            "increase": "Erhöhen",
+            "decrease": "Verringern",
+            "turn_on": "Einschalten",
+            "turn_off": "Ausschalten"
+        }
+    },
+    "buttons": {
+        "toggleTheme": "Thema wechseln",
+        "frame": "Zentrieren"
+    },
+    "placeholders": {
+        "comma_list": "Werte durch Kommas trennen"
+    },
+    "languages": {
+        "fr": "Français",
+        "en": "English",
+        "es": "Español",
+        "de": "Deutsch",
+        "it": "Italiano"
+    },
+    "modes": {
+        "light": "Hell",
+        "dark": "Dunkel"
+    },
+    "actions": {
+        "add_location": "Raum hinzufügen",
+        "add_brand": "Standort hinzufügen",
+        "edit": "Bearbeiten",
+        "remove": "Entfernen",
+        "confirm": "Bestätigung",
+        "yes": "Ja",
+        "no": "Nein",
+        "cancel": "Abbrechen",
+        "save": "Speichern",
+        "select": "Auswählen",
+        "selected": "Ausgewählt"
+    },
+    "modals": {
+        "add_brand": "Standort hinzufügen",
+        "add_room": "Raum hinzufügen",
+        "edit_brand": "Standort bearbeiten",
+        "edit_title": "Einstellungen bearbeiten",
+        "glb_label": "3D-Modell (.glb)",
+        "glb_drop": "Ziehen Sie eine .glb-Datei hierher"
+    },
+    "notifications": {
+        "saved": "Änderungen gespeichert",
+        "save_error": "Fehler beim Speichern",
+        "order_saved": "Neue Reihenfolge gespeichert",
+        "rooms_order_saved": "Raumreihenfolge gespeichert",
+        "plan_saved": "Abonnement-Plan aktualisiert",
+        "location_exists": "Ein Standort mit diesem Namen existiert bereits",
+        "add_success": "Standort erfolgreich hinzugefügt",
+        "add_error": "Fehler beim Hinzufügen des Standorts",
+        "file_invalid": "Ungültige .glb-Datei",
+        "upload_error": "Fehler beim Hochladen des 3D-Modells",
+        "piece_added": "Raum erfolgreich hinzugefügt",
+        "piece_add_error": "Fehler beim Hinzufügen des Raums",
+        "update_success": "Standort erfolgreich aktualisiert",
+        "update_error": "Fehler beim Aktualisieren des Standorts",
+        "delete_files_error": "Fehler beim Löschen von 3D-Dateien",
+        "delete_success": "Standort erfolgreich entfernt",
+        "delete_file_error": "Fehler beim Löschen der 3D-Datei",
+        "piece_deleted": "Raum erfolgreich entfernt",
+        "config_saved": "Konfiguration erfolgreich gespeichert",
+        "location_not_found": "Standort nicht gefunden",
+        "confirm_delete_message": "Möchten Sie dies wirklich löschen?",
+        "mode_updated": "Modus aktualisiert",
+        "load_error": "Konfiguration kann nicht geladen werden",
+        "load_failure": "Fehler beim Laden der Konfiguration"
+    }
+}

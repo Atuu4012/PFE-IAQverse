@@ -1,0 +1,34 @@
+# Dockerfile pour le service de réentraînement ML
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Installer les dépendances système
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copier les fichiers de requirements
+COPY backend/ml/requirements-ml.txt /app/requirements-ml.txt
+
+# Installer uniquement les dépendances ML (pas besoin de tout requirements-backend.txt)
+RUN pip install --no-cache-dir -r requirements-ml.txt
+
+# Copier le code ML
+COPY backend/ml/ /app/backend/ml/
+COPY assets/ /app/assets/
+
+# Créer les dossiers nécessaires
+RUN mkdir -p /app/assets/ml_models /app/assets/datasets/ml_data
+
+# Variables d'environnement
+ENV PYTHONUNBUFFERED=1
+ENV RETRAIN_INTERVAL=24
+ENV INFLUXDB_ENABLED=true
+ENV API_URL=http://backend:8000/api/iaq/data
+
+WORKDIR /app
+
+# Lancer le scheduler avec un script shell pour interpréter les variables
+CMD sh -c "python backend/ml/scheduler_retrain.py --interval $RETRAIN_INTERVAL --run-now"

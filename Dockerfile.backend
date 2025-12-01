@@ -1,0 +1,22 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copier les dépendances
+COPY backend/requirements-docker.txt .
+
+# Installer les dépendances
+RUN pip install --no-cache-dir -r requirements-docker.txt
+
+# Copier le code
+COPY backend ./backend
+COPY assets ./assets
+
+# Créer le répertoire database
+RUN mkdir -p /app/database
+
+# Exposer le port
+EXPOSE 8000
+
+# Commande de démarrage
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

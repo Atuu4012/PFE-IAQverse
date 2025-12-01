@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="digitalTwin.title">Digital Twin</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="js/theme.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/config-loader.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/websocket-manager.js"></script>
+    <script src="js/api-retry.js"></script>
+    <script src="js/tabs-manager.js"></script>
+    <script src="js/preventive-global.js"></script>
+    <script src="js/digital-twin.js"></script>
+    <script src="js/alerts-engine.js"></script>
+    <script async src="https://unpkg.com/es-module-shims/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.155.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.155.0/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+    <header>
+    <h1 data-i18n="digitalTwin.title">Digital Twin</h1>
+    <div class="header-buttons">
+        <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer le thème">
+        <img src="/assets/icons/theme.png" alt="Thème">
+        </button>
+        <button class="info-btn" onclick="openModal()">
+        <img src="/assets/icons/info.png">
+        </button>
+    </div>
+
+    <div id="infoModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+    <h2 data-i18n="digitalTwin.aboutTitle">À propos de cette page</h2>
+    <p data-i18n="digitalTwin.aboutParagraph">Cette interface Digital Twin vous permet de visualiser les alertes de qualité de l'air intérieur en temps réel.</p>
+        <ul>
+            <li data-i18n="digitalTwin.tip.table">Le tableau à gauche montre les actions recommandées.</li>
+            <li data-i18n="digitalTwin.tip.visual">La visualisation indique les zones concernées dans la pièce.</li>
+            <li data-i18n="digitalTwin.tip.details">Les détails au centre expliquent les causes des alertes.</li>
+        </ul>
+    </div>
+    </div>
+    </header>
+
+    <!-- Panneau Actions Préventives Global -->
+    <section class="preventive-panel-global">
+        <div class="preventive-global-header">
+            <h2><span data-i18n="digitalTwin.preventive.title">Actions Préventives</span></h2>
+            <span class="preventive-global-subtitle" data-i18n="digitalTwin.preventive.subtitle">Basées sur les prédictions (30 min)</span>
+        </div>
+        <div id="preventive-global-container" class="preventive-global-content">
+            <div class="preventive-loading">
+                <span data-i18n="digitalTwin.preventive.loading">Analyse des prédictions en cours...</span>
+            </div>
+        </div>
+    </section>
+
+    <div class="tabs-container">
+    <div class="location-tabs" id="location-tabs">
+        <!-- Les onglets des enseignes seront générés dynamiquement ici -->
+        </div>
+    </div>
+
+    <main class="twin-layout">
+    <!-- Visualisation pièce en premier (haut sur mobile) -->
+    <section class="room-panel">
+    <h2 data-i18n="digitalTwin.visualisation">Visualisation</h2>
+        <div class="room-tabs" id="room-tabs">
+            <!-- Les onglets des pièces seront générés dynamiquement ici -->
+        </div>
+        <div class="room-visual">
+            <div id="blender-viewer"></div>
+            <!-- Bouton pour recentrer / cadrer le modèle -->
+            <button id="frame-btn" title="Centrer la pièce (touche F)" data-i18n-title="buttons.frame" data-i18n="buttons.frame" style="position:absolute; top:8px; right:8px; z-index:10; padding:6px 8px; background:#fff; border-radius:4px; border:1px solid #ccc; cursor:pointer;">Centrer</button>
+
+                <!-- Les alert-points seront générés automatiquement pour chaque pièce -->
+                <div id="alert-points-container"></div>
+                <!-- Alert-points statiques commentés - maintenant générés automatiquement
+                <div class="alert-point" data-i18n-key="window" data-target-names="Window|Fenetre|Fenêtre|window|fenetre" data-severity="info" style="top: 20%; left: 30%; transform: translate(-50%, -50%);"></div>
+                <div class="alert-point" data-i18n-key="door" data-target-names="Door|Porte|porte|door" style="top: 50%; left: 10%; transform: translate(-50%, -50%);"></div>
+                <div class="alert-point" data-i18n-key="ventilation" data-target-names="Clim|Ventilation|VMC|ventilation|vmc|extracteur" style="top: 10%; left: 50%; transform: translate(-50%, -50%);"></div>
+                <div class="alert-point" data-i18n-key="radiator" data-target-names="Radiator|Chauffage|radiateur|chauffage|heater" data-severity="warning" style="top: 80%; left: 20%; transform: translate(-50%, -50%);"></div>
+                -->
+            <div class="room-label">2 Alertes</div>
+        </div>
+    </section>
+
+    <!-- Tableau d'actions en second (bas sur mobile) -->
+    <section class="actions-panel">
+    <h2 data-i18n="digitalTwin.actions">Actions</h2>
+        <table class="actions-table">
+            <thead>
+                <tr>
+                    <th data-i18n="digitalTwin.table.state">État</th>
+                    <th data-i18n="digitalTwin.table.subject">Sujet</th>
+                    <th data-i18n="digitalTwin.table.action">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+
+        <!-- Détails dynamiques -->
+        <div id="details-panel" class="details-panel hidden">
+            <h3 id="details-title"><span data-i18n="digitalTwin.details.title">Détails</span> <span id="details-subject"></span></h3>
+            <ul id="details-list"></ul>
+        </div>
+    </section>
+    </main>
+
+    <footer class="nav-bar">
+    <div class="nav-left">
+        <a href="index.html">
+            <img src="/assets/icons/home.png">
+        </a>
+        <a href="#" onclick="return false;" class="active-page">
+            <img src="/assets/icons/digital-twin.png">
+        </a>
+    </div>
+
+    <div class="nav-center">
+    <span class="brand" data-i18n="brand">IAQverse</span>
+    </div>
+
+    <div class="nav-right">
+        <a href="settings.html">
+            <img src="/assets/icons/settings.png">
+        </a>
+    </div>
+    </footer>
+
+    <script type="module" src="js/three-scene.js"></script>
+    
+</body>
+</html>

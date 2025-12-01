@@ -1,0 +1,2048 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API IAQ - Architecture Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        nav {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 3px solid #667eea;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: #667eea;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        nav a:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        section {
+            margin-bottom: 50px;
+            scroll-margin-top: 80px;
+        }
+
+        h2 {
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        h3 {
+            color: #764ba2;
+            font-size: 1.5em;
+            margin: 25px 0 15px 0;
+        }
+
+        h4 {
+            color: #555;
+            font-size: 1.2em;
+            margin: 20px 0 10px 0;
+        }
+
+        .card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            transform: translateX(5px);
+        }
+
+        .endpoint {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            transition: all 0.3s;
+        }
+
+        .endpoint:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .method {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 0.85em;
+            margin-right: 10px;
+        }
+
+        .method.get { background: #28a745; color: white; }
+        .method.post { background: #007bff; color: white; }
+        .method.put { background: #ffc107; color: #333; }
+        .method.delete { background: #dc3545; color: white; }
+
+        .path {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 8px 15px;
+            border-radius: 5px;
+            display: inline-block;
+            margin: 10px 0;
+            font-size: 0.95em;
+            color: #495057;
+        }
+
+        .params-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 0.95em;
+        }
+
+        .params-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .params-table td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .params-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .tag {
+            display: inline-block;
+            background: #e7f5ff;
+            color: #0c5460;
+            padding: 4px 10px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            margin: 5px 5px 5px 0;
+        }
+
+        .threshold {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .threshold-item {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .level {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .level.excellent { background: #d4edda; color: #155724; }
+        .level.good { background: #d1ecf1; color: #0c5460; }
+        .level.moderate { background: #fff3cd; color: #856404; }
+        .level.poor { background: #f8d7da; color: #721c24; }
+        .level.very-poor { background: #e2d5dd; color: #4a1c24; }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            margin: 15px 0;
+        }
+
+        .code-block pre {
+            margin: 0;
+        }
+
+        .highlight {
+            color: #66d9ef;
+        }
+
+        .string {
+            color: #a6e22e;
+        }
+
+        .number {
+            color: #ae81ff;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .warning-box {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-card h4 {
+            color: white;
+            margin: 0 0 10px 0;
+            font-size: 1em;
+            opacity: 0.9;
+        }
+
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+
+        footer {
+            background: #2d2d2d;
+            color: white;
+            text-align: center;
+            padding: 30px;
+            margin-top: 50px;
+        }
+
+        .back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #667eea;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s;
+            text-decoration: none;
+            font-size: 1.5em;
+        }
+
+        .back-to-top:hover {
+            background: #764ba2;
+            transform: translateY(-5px);
+        }
+
+        /* Architecture Diagram Styles */
+        .architecture-diagram {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 30px;
+            margin: 30px 0;
+            overflow-x: auto;
+        }
+
+        .diagram-container {
+            min-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .diagram-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .diagram-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            min-width: 200px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            position: relative;
+        }
+
+        .diagram-box.client {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .diagram-box.api {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .diagram-box.storage {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .diagram-box.external {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .diagram-box h4 {
+            color: white;
+            margin: 0 0 10px 0;
+            font-size: 1.1em;
+        }
+
+        .diagram-box p {
+            margin: 0;
+            font-size: 0.85em;
+            opacity: 0.9;
+        }
+
+        .diagram-arrow {
+            font-size: 2em;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .diagram-arrow.vertical {
+            transform: rotate(90deg);
+        }
+
+        .endpoints-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .endpoint-box {
+            background: rgba(102, 126, 234, 0.1);
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .endpoint-box:hover {
+            background: rgba(102, 126, 234, 0.2);
+            transform: scale(1.05);
+        }
+
+        .endpoint-box h5 {
+            color: #667eea;
+            margin: 0 0 8px 0;
+            font-size: 0.95em;
+        }
+
+        .endpoint-box .count {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #764ba2;
+        }
+
+        .flow-diagram {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 30px;
+            margin: 20px 0;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .flow-number {
+            background: #667eea;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .flow-content h5 {
+            margin: 0 0 5px 0;
+            color: #667eea;
+        }
+
+        .flow-content p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            nav ul {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>API IAQ - Indoor Air Quality</h1>
+            <p>Documentation complète de l'architecture RESTful</p>
+            <span class="version-badge">Version 1.0.0</span>
+        </header>
+
+        <nav>
+            <ul>
+                <li><a href="#overview">Vue d'ensemble</a></li>
+                <li><a href="#cloud-architecture">Architecture Cloud</a></li>
+                <li><a href="#architecture">Architecture API</a></li>
+                <li><a href="#endpoints">Endpoints</a></li>
+                <li><a href="#models">Modèles de données</a></li>
+                <li><a href="#thresholds">Seuils IAQ</a></li>
+                <li><a href="#examples">Exemples</a></li>
+                <li><a href="#tech">Stack technique</a></li>
+            </ul>
+        </nav>
+
+        <div class="content">
+            <!-- Vue d'ensemble -->
+            <section id="overview">
+                <h2>Vue d'ensemble</h2>
+                <div class="card">
+                    <h3>À propos de l'API</h3>
+                    <p>API RESTful complète pour la surveillance, l'analyse et la gestion de la qualité de l'air intérieur (IAQ). 
+                    Le système permet de collecter des données provenant de capteurs IoT, d'afficher des statistiques en temps réel, 
+                    et de recommander/exécuter des actions préventives pour maintenir une qualité d'air optimale.</p>
+                </div>
+
+                <div class="grid-2">
+                    <div class="stat-card">
+                        <h4>Endpoints disponibles</h4>
+                        <div class="value">15+</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Métriques surveillées</h4>
+                        <div class="value">5</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Catégories</h4>
+                        <div class="value">7</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Méthodes HTTP</h4>
+                        <div class="value">4</div>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <strong>📖 Documentation interactive :</strong>
+                    <ul style="margin: 10px 0 0 20px;">
+                        <li><strong>Swagger UI :</strong> <code>/api/iaq/docs</code></li>
+                        <li><strong>ReDoc :</strong> <code>/api/iaq/redoc</code></li>
+                        <li><strong>OpenAPI JSON :</strong> <code>/api/iaq/openapi.json</code></li>
+                        <li><strong>Architecture JSON :</strong> <code>/api/iaq/architecture</code></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Architecture Cloud Complète -->
+            <section id="cloud-architecture">
+                <h2>Architecture Cloud - IAQverse Platform</h2>
+
+                <div class="info-box">
+                    <strong>Projet IAQverse :</strong> Plateforme immersive et intelligente pour la surveillance, visualisation et amélioration 
+                    de la qualité de l'air intérieur avec jumeau numérique 3D, dashboard temps réel, alertes intelligentes et actions automatisées.
+                </div>
+
+                <!-- Schéma architecture cloud complète -->
+                <div class="architecture-diagram">
+                    <h3 style="text-align: center; color: #667eea; margin-bottom: 30px;">Architecture Cloud Microservices</h3>
+                    
+                    <div class="diagram-container">
+                        <!-- Couche IoT - Capteurs -->
+                        <div class="diagram-row">
+                            <div class="diagram-box external" style="min-width: 700px;">
+                                <h4>IoT Layer - Capteurs Physiques</h4>
+                                <p>Multiples enseignes | Multiples salles | Multiples capteurs</p>
+                                <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                                    <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 5px; font-size: 0.85em;">CO₂</span>
+                                    <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 5px; font-size: 0.85em;">PM2.5</span>
+                                    <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 5px; font-size: 0.85em;">TVOC</span>
+                                    <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 5px; font-size: 0.85em;">Température</span>
+                                    <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 5px; font-size: 0.85em;">Humidité</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="diagram-arrow">↓ MQTT / HTTP / WebSocket</div>
+
+                        <!-- Ingestion Layer -->
+                        <div class="diagram-row">
+                            <div class="diagram-box api" style="min-width: 400px;">
+                                <h4>API Gateway + Load Balancer</h4>
+                                <p>Nginx / AWS API Gateway / Azure API Management</p>
+                                <p style="margin-top: 5px; font-size: 0.8em;">Rate limiting | Auth | SSL/TLS</p>
+                            </div>
+                        </div>
+
+                        <div class="diagram-arrow">↓</div>
+
+                        <!-- Microservices Layer -->
+                        <div style="background: #f8f9fa; border-radius: 15px; padding: 30px; margin: 20px 0; width: 100%;">
+                            <h3 style="text-align: center; color: #667eea; margin-bottom: 25px;">Microservices Layer (Docker/Kubernetes)</h3>
+                            
+                            <div class="diagram-row" style="flex-wrap: wrap; gap: 15px;">
+                                <!-- Microservice 1: Data Ingestion -->
+                                <div class="diagram-box api" style="min-width: 220px; max-width: 280px;">
+                                    <h4>Data Ingestion Service</h4>
+                                    <p style="font-size: 0.8em;">FastAPI | Python</p>
+                                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.3); margin: 10px 0;">
+                                    <ul style="text-align: left; font-size: 0.75em; padding-left: 20px; margin: 5px 0;">
+                                        <li>POST /measurements</li>
+                                        <li>Validation Pydantic</li>
+                                        <li>Message Queue publish</li>
+                                    </ul>
+                                </div>
+
+                                <!-- Microservice 2: Query Service -->
+                                <div class="diagram-box api" style="min-width: 220px; max-width: 280px;">
+                                    <h4>Query Service</h4>
+                                    <p style="font-size: 0.8em;">FastAPI | Python</p>
+                                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.3); margin: 10px 0;">
+                                    <ul style="text-align: left; font-size: 0.75em; padding-left: 20px; margin: 5px 0;">
+                                        <li>GET /measurements</li>
+                                        <li>Agrégation temporelle</li>
+                                        <li>Cache Redis</li>
+                                    </ul>
+                                </div>
+
+                                <!-- Microservice 3: ML Service -->
+                                <div class="diagram-box" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); min-width: 220px; max-width: 280px;">
+                                    <h4>ML Prediction Service</h4>
+                                    <p style="font-size: 0.8em;">Python | TensorFlow</p>
+                                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.3); margin: 10px 0;">
+                                    <ul style="text-align: left; font-size: 0.75em; padding-left: 20px; margin: 5px 0;">
+                                        <li>Prétraitement auto</li>
+                                        <li>Prédiction 30min</li>
+                                        <li>Réentraînement cron</li>
+                                    </ul>
+                                </div>
+
+                                <!-- Microservice 4: Alerts Service -->
+                                <div class="diagram-box external" style="min-width: 220px; max-width: 280px;">
+                                    <h4>Alerts & Actions Service</h4>
+                                    <p style="font-size: 0.8em;">Node.js | Express</p>
+                                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.3); margin: 10px 0;">
+                                    <ul style="text-align: left; font-size: 0.75em; padding-left: 20px; margin: 5px 0;">
+                                        <li>Seuils monitoring</li>
+                                        <li>WebSocket push</li>
+                                        <li>Actions modules IoT</li>
+                                    </ul>
+                                </div>
+
+                                <!-- Microservice 5: Config Service -->
+                                <div class="diagram-box api" style="min-width: 220px; max-width: 280px;">
+                                    <h4>Configuration Service</h4>
+                                    <p style="font-size: 0.8em;">FastAPI | Python</p>
+                                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.3); margin: 10px 0;">
+                                    <ul style="text-align: left; font-size: 0.75em; padding-left: 20px; margin: 5px 0;">
+                                        <li>GET/PUT /config</li>
+                                        <li>Capteurs & lieux</li>
+                                        <li>Utilisateurs</li>
+                                    </ul>
+                                </div>
+
+                                <!-- Microservice 6: Assets Service -->
+                                <div class="diagram-box api" style="min-width: 220px; max-width: 280px;">
+                                    <h4>Assets Service</h4>
+                                    <p style="font-size: 0.8em;">Node.js | Express</p>
+                                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.3); margin: 10px 0;">
+                                    <ul style="text-align: left; font-size: 0.75em; padding-left: 20px; margin: 5px 0;">
+                                        <li>Upload 3D models</li>
+                                        <li>CDN sync</li>
+                                        <li>File management</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="diagram-arrow">↓ ↑</div>
+
+                        <!-- Message Queue & Event Bus -->
+                        <div class="diagram-row">
+                            <div class="diagram-box" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); min-width: 350px;">
+                                <h4>Message Queue & Event Bus</h4>
+                                <p>RabbitMQ / Apache Kafka / Redis Pub/Sub</p>
+                                <p style="margin-top: 5px; font-size: 0.8em;">Async communication | Event streaming</p>
+                            </div>
+                        </div>
+
+                        <div class="diagram-arrow">↓ ↑</div>
+
+                        <!-- Data Layer -->
+                        <div style="background: #f8f9fa; border-radius: 15px; padding: 30px; margin: 20px 0; width: 100%;">
+                            <h3 style="text-align: center; color: #667eea; margin-bottom: 25px;">Data Layer - Multi-Database Architecture</h3>
+                            
+                            <div class="diagram-row" style="flex-wrap: wrap; gap: 15px;">
+                                <!-- TimeSeries DB -->
+                                <div class="diagram-box storage" style="min-width: 220px;">
+                                    <h4>Time Series DB</h4>
+                                    <p style="font-size: 0.8em;">InfluxDB / TimescaleDB</p>
+                                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.3); margin: 10px 0;">
+                                    <p style="font-size: 0.75em;">Mesures IAQ temps réel</p>
+                                    <p style="font-size: 0.75em;">Optimisé queries temporelles</p>
+                                </div>
+
+                                <!-- Document DB -->
+                                <div class="diagram-box storage" style="min-width: 220px;">
+                                    <h4>Document DB</h4>
+                                    <p style="font-size: 0.8em;">MongoDB / Firebase</p>
+                                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.3); margin: 10px 0;">
+                                    <p style="font-size: 0.75em;">Configuration JSON</p>
+                                    <p style="font-size: 0.75em;">Utilisateurs | Lieux</p>
+                                </div>
+
+                                <!-- Cache -->
+                                <div class="diagram-box storage" style="min-width: 220px;">
+                                    <h4>Cache Layer</h4>
+                                    <p style="font-size: 0.8em;">Redis / Memcached</p>
+                                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.3); margin: 10px 0;">
+                                    <p style="font-size: 0.75em;">Dernières mesures</p>
+                                    <p style="font-size: 0.75em;">Sessions | Agrégations</p>
+                                </div>
+
+                                <!-- Object Storage -->
+                                <div class="diagram-box storage" style="min-width: 220px;">
+                                    <h4>Object Storage</h4>
+                                    <p style="font-size: 0.8em;">AWS S3 / Azure Blob</p>
+                                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.3); margin: 10px 0;">
+                                    <p style="font-size: 0.75em;">Modèles 3D (.glb)</p>
+                                    <p style="font-size: 0.75em;">ML models | Datasets</p>
+                                </div>
+
+                                <!-- Relational DB -->
+                                <div class="diagram-box storage" style="min-width: 220px;">
+                                    <h4>Relational DB</h4>
+                                    <p style="font-size: 0.8em;">PostgreSQL</p>
+                                    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.3); margin: 10px 0;">
+                                    <p style="font-size: 0.75em;">Actions log</p>
+                                    <p style="font-size: 0.75em;">Historique alertes</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="diagram-arrow">↑</div>
+
+                        <!-- Frontend Layer -->
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; padding: 30px; margin: 20px 0; width: 100%; color: white;">
+                            <h3 style="text-align: center; margin-bottom: 25px;">Frontend Layer - Multi-Platform</h3>
+                            
+                            <div class="diagram-row" style="flex-wrap: wrap; gap: 15px;">
+                                <!-- Web Dashboard -->
+                                <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 10px; min-width: 250px; backdrop-filter: blur(10px);">
+                                    <h4 style="color: white; margin-bottom: 10px;">Web Dashboard</h4>
+                                    <p style="font-size: 0.85em; margin-bottom: 15px;">React / Vue.js / Vanilla JS</p>
+                                    <ul style="text-align: left; font-size: 0.8em; padding-left: 20px;">
+                                        <li>Graphiques temps réel (Plotly.js)</li>
+                                        <li>Multi-enseigne & multi-salle</li>
+                                        <li>Filtres & agrégations</li>
+                                        <li>Thème clair/sombre</li>
+                                        <li>Multi-langue (i18n)</li>
+                                    </ul>
+                                </div>
+
+                                <!-- 3D Digital Twin -->
+                                <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 10px; min-width: 250px; backdrop-filter: blur(10px);">
+                                    <h4 style="color: white; margin-bottom: 10px;">Jumeau Numérique 3D</h4>
+                                    <p style="font-size: 0.85em; margin-bottom: 15px;">Three.js / A-Frame / WebXR</p>
+                                    <ul style="text-align: left; font-size: 0.8em; padding-left: 20px;">
+                                        <li>Modèles 3D des salles (.glb)</li>
+                                        <li>Navigation immersive</li>
+                                        <li>Alertes visuelles contextuelles</li>
+                                        <li>Hotspots capteurs</li>
+                                        <li>Mode VR (Insta360)</li>
+                                    </ul>
+                                </div>
+
+                                <!-- Mobile App -->
+                                <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 10px; min-width: 250px; backdrop-filter: blur(10px);">
+                                    <h4 style="color: white; margin-bottom: 10px;">Application Mobile</h4>
+                                    <p style="font-size: 0.85em; margin-bottom: 15px;">React Native / PWA</p>
+                                    <ul style="text-align: left; font-size: 0.8em; padding-left: 20px;">
+                                        <li>Push notifications</li>
+                                        <li>Responsive design</li>
+                                        <li>Offline mode (cache)</li>
+                                        <li>Géolocalisation</li>
+                                        <li>Scan QR code capteurs</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; width: 100%; gap: 20px;">
+                            <div class="diagram-arrow" style="flex: 1;">← WebSocket Real-time</div>
+                            <div class="diagram-arrow" style="flex: 1;">REST API →</div>
+                        </div>
+
+                        <!-- External Services -->
+                        <div style="background: #fff3e0; border-radius: 15px; padding: 25px; margin: 20px 0; width: 100%; border: 2px solid #ff9800;">
+                            <h3 style="text-align: center; color: #e65100; margin-bottom: 20px;">Services Externes & Intégrations</h3>
+                            
+                            <div class="diagram-row" style="flex-wrap: wrap; gap: 15px; justify-content: center;">
+                                <div style="background: white; padding: 15px; border-radius: 8px; min-width: 180px; border: 2px solid #ff9800;">
+                                    <h5 style="color: #e65100; margin-bottom: 8px;">Notifications</h5>
+                                    <p style="font-size: 0.8em; color: #666;">Email (SMTP)</p>
+                                    <p style="font-size: 0.8em; color: #666;">SMS (Twilio)</p>
+                                    <p style="font-size: 0.8em; color: #666;">Slack / Teams</p>
+                                </div>
+
+                                <div style="background: white; padding: 15px; border-radius: 8px; min-width: 180px; border: 2px solid #ff9800;">
+                                    <h5 style="color: #e65100; margin-bottom: 8px;">Calendriers</h5>
+                                    <p style="font-size: 0.8em; color: #666;">Google Calendar API</p>
+                                    <p style="font-size: 0.8em; color: #666;">Microsoft Graph API</p>
+                                    <p style="font-size: 0.8em; color: #666;">Agenda automatisé</p>
+                                </div>
+
+                                <div style="background: white; padding: 15px; border-radius: 8px; min-width: 180px; border: 2px solid #ff9800;">
+                                    <h5 style="color: #e65100; margin-bottom: 8px;">Monitoring</h5>
+                                    <p style="font-size: 0.8em; color: #666;">Prometheus</p>
+                                    <p style="font-size: 0.8em; color: #666;">Grafana</p>
+                                    <p style="font-size: 0.8em; color: #666;">ELK Stack (logs)</p>
+                                </div>
+
+                                <div style="background: white; padding: 15px; border-radius: 8px; min-width: 180px; border: 2px solid #ff9800;">
+                                    <h5 style="color: #e65100; margin-bottom: 8px;">CI/CD</h5>
+                                    <p style="font-size: 0.8em; color: #666;">GitHub Actions</p>
+                                    <p style="font-size: 0.8em; color: #666;">Docker Registry</p>
+                                    <p style="font-size: 0.8em; color: #666;">Kubernetes</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Flux ML détaillé -->
+                <div class="flow-diagram">
+                    <h3 style="color: #667eea; margin-bottom: 20px;">Cycle Machine Learning - Prédiction et Actions Automatisées</h3>
+                    
+                    <div class="flow-step">
+                        <div class="flow-number">1</div>
+                        <div class="flow-content">
+                            <h5>Collecte continue des données</h5>
+                            <p>Les capteurs IoT envoient des mesures toutes les 3 secondes → Data Ingestion Service → TimeSeries DB</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="flow-number">2</div>
+                        <div class="flow-content">
+                            <h5>Prétraitement automatique (Cron toutes les 5 minutes)</h5>
+                            <p>Script preprocess_dataset.py : extraction features, normalisation, encoding catégoriel → Stockage dans ml_data/</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="flow-number">3</div>
+                        <div class="flow-content">
+                            <h5>Réentraînement des modèles ML (Cron toutes les heures)</h5>
+                            <p>ml_train.py : Random Forest + Gradient Boosting sur nouvelles données → Sauvegarde modèles dans Object Storage (S3)</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="flow-number">4</div>
+                        <div class="flow-content">
+                            <h5>Prédictions en temps réel</h5>
+                            <p>ML Prediction Service : chargement dernières mesures → Prédiction qualité air +30min (CO₂, PM2.5, TVOC)</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="flow-number">5</div>
+                        <div class="flow-content">
+                            <h5>Analyse des seuils et génération d'alertes</h5>
+                            <p>Alerts Service compare prédictions vs seuils → Si dépassement : création alerte + publication Message Queue</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="flow-number">6</div>
+                        <div class="flow-content">
+                            <h5>Recommandations d'actions préventives</h5>
+                            <p>Génération actions (augmenter ventilation, activer purificateur) → POST /api/iaq/actions/preventive</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="flow-number">7</div>
+                        <div class="flow-content">
+                            <h5>Exécution automatique des actions</h5>
+                            <p>Si dépassement critique : POST /api/iaq/actions/executions → Commande modules IoT (MQTT) → Log dans PostgreSQL</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="flow-number">8</div>
+                        <div class="flow-content">
+                            <h5>Notifications multi-canal</h5>
+                            <p>WebSocket push vers dashboard/mobile + Email/SMS/Slack selon priorité et configuration utilisateur</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="flow-number">9</div>
+                        <div class="flow-content">
+                            <h5>Affichage dans l'interface</h5>
+                            <p>Dashboard : graphiques prédictifs + alertes contextuelles | Jumeau 3D : hotspots visuels rouges/verts</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Détails techniques -->
+                <div class="card">
+                    <h3>Technologies Cloud & DevOps</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 20px;">
+                        <div>
+                            <h4 style="color: #667eea;">Containerisation & Orchestration</h4>
+                            <ul style="margin-left: 20px; color: #666;">
+                                <li><strong>Docker</strong> : Chaque microservice dans un container</li>
+                                <li><strong>Kubernetes</strong> : Orchestration, scaling, load balancing</li>
+                                <li><strong>Helm</strong> : Gestion des charts K8s</li>
+                                <li><strong>Docker Compose</strong> : Dev local</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 style="color: #667eea;">Cloud Providers (Options)</h4>
+                            <ul style="margin-left: 20px; color: #666;">
+                                <li><strong>AWS</strong> : EC2, ECS, Lambda, S3, RDS, ElastiCache</li>
+                                <li><strong>Azure</strong> : AKS, Blob Storage, CosmosDB</li>
+                                <li><strong>GCP</strong> : GKE, Cloud Storage, Firestore</li>
+                                <li><strong>Hybrid</strong> : Multi-cloud ou on-premise</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 style="color: #667eea;">Message Queue & Streaming</h4>
+                            <ul style="margin-left: 20px; color: #666;">
+                                <li><strong>RabbitMQ</strong> : Communication async entre services</li>
+                                <li><strong>Apache Kafka</strong> : Event streaming haute performance</li>
+                                <li><strong>Redis Pub/Sub</strong> : Messages temps réel légers</li>
+                                <li><strong>MQTT</strong> : Communication IoT</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 style="color: #667eea;">Monitoring & Observability</h4>
+                            <ul style="margin-left: 20px; color: #666;">
+                                <li><strong>Prometheus</strong> : Métriques time-series</li>
+                                <li><strong>Grafana</strong> : Dashboards monitoring</li>
+                                <li><strong>ELK Stack</strong> : Logs centralisés (Elasticsearch, Logstash, Kibana)</li>
+                                <li><strong>Jaeger</strong> : Distributed tracing</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 style="color: #667eea;">CI/CD Pipeline</h4>
+                            <ul style="margin-left: 20px; color: #666;">
+                                <li><strong>GitHub Actions</strong> : Workflow automatisé</li>
+                                <li><strong>GitLab CI</strong> : Alternative pipeline</li>
+                                <li><strong>ArgoCD</strong> : GitOps pour Kubernetes</li>
+                                <li><strong>Docker Registry</strong> : Stockage images</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 style="color: #667eea;">Sécurité</h4>
+                            <ul style="margin-left: 20px; color: #666;">
+                                <li><strong>OAuth 2.0 / JWT</strong> : Authentification</li>
+                                <li><strong>Let's Encrypt</strong> : Certificats SSL/TLS</li>
+                                <li><strong>HashiCorp Vault</strong> : Gestion secrets</li>
+                                <li><strong>Rate Limiting</strong> : Protection DDoS</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Avantages architecture microservices -->
+                <div class="card">
+                    <h3>Avantages de l'Architecture Microservices</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 15px;">
+                        <div style="background: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
+                            <h5 style="color: #155724; margin-bottom: 8px;">Scalabilité indépendante</h5>
+                            <p style="font-size: 0.85em; color: #155724;">Chaque service scale selon ses besoins (ML service plus puissant, Query service plus d'instances)</p>
+                        </div>
+                        <div style="background: #d1ecf1; padding: 15px; border-radius: 8px; border-left: 4px solid #0c5460;">
+                            <h5 style="color: #0c5460; margin-bottom: 8px;">Résilience</h5>
+                            <p style="font-size: 0.85em; color: #0c5460;">Si un service tombe, les autres continuent de fonctionner (fault isolation)</p>
+                        </div>
+                        <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #856404;">
+                            <h5 style="color: #856404; margin-bottom: 8px;">Déploiement indépendant</h5>
+                            <p style="font-size: 0.85em; color: #856404;">Mise à jour du ML service sans redéployer tout le système</p>
+                        </div>
+                        <div style="background: #e7f3ff; padding: 15px; border-radius: 8px; border-left: 4px solid #2196F3;">
+                            <h5 style="color: #0c5460; margin-bottom: 8px;">Technologies hétérogènes</h5>
+                            <p style="font-size: 0.85em; color: #0c5460;">Python pour ML/API, Node.js pour WebSocket, Go pour performance critique</p>
+                        </div>
+                        <div style="background: #f8d7da; padding: 15px; border-radius: 8px; border-left: 4px solid #721c24;">
+                            <h5 style="color: #721c24; margin-bottom: 8px;">Développement en équipe</h5>
+                            <p style="font-size: 0.85em; color: #721c24;">Équipes autonomes sur chaque service avec ownership clair</p>
+                        </div>
+                        <div style="background: #e2d5dd; padding: 15px; border-radius: 8px; border-left: 4px solid #4a1c24;">
+                            <h5 style="color: #4a1c24; margin-bottom: 8px;">Performance optimisée</h5>
+                            <p style="font-size: 0.85em; color: #4a1c24;">Base de données spécialisée par use case (TimeSeries, Document, Cache)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Flow de données en temps réel -->
+                <div class="warning-box">
+                    <strong>Architecture Temps Réel :</strong>
+                    <ul style="margin: 10px 0 0 20px;">
+                        <li><strong>WebSocket</strong> : Connexion bidirectionnelle dashboard ↔ backend pour push instantané des alertes et nouvelles mesures</li>
+                        <li><strong>Redis Pub/Sub</strong> : Distribution des événements entre microservices (nouvelle mesure → ML service + Query service)</li>
+                        <li><strong>Kafka</strong> : Event log persistant pour replay et analytics (toutes les mesures passent par Kafka avant DB)</li>
+                        <li><strong>Server-Sent Events (SSE)</strong> : Alternative WebSocket pour streaming unidirectionnel</li>
+                    </ul>
+                </div>
+
+                <!-- Coûts et scaling -->
+                <div class="info-box">
+                    <strong>Stratégie de Scaling :</strong>
+                    <ul style="margin: 10px 0 0 20px;">
+                        <li><strong>Horizontal Scaling</strong> : Ajout automatique d'instances (Kubernetes HPA) selon CPU/RAM/requêtes</li>
+                        <li><strong>Vertical Scaling</strong> : Augmentation ressources ML service pour modèles complexes</li>
+                        <li><strong>Database Sharding</strong> : Partitionnement TimeSeries DB par enseigne ou par mois</li>
+                        <li><strong>CDN</strong> : Distribution fichiers statiques (3D models, assets) via CloudFront/Cloudflare</li>
+                        <li><strong>Auto-scaling Rules</strong> : Scale up si latence API > 500ms ou CPU > 70%</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Architecture API (existante) -->
+            <section id="architecture">
+                <h2>Architecture API - Détails Techniques</h2>
+
+                <!-- Schéma d'architecture complet -->
+                <div class="architecture-diagram">
+                    <h3 style="text-align: center; color: #667eea; margin-bottom: 30px;">Schéma d'Architecture Système</h3>
+                    
+                    <div class="diagram-container">
+                        <!-- Clients -->
+                        <div class="diagram-row">
+                            <div class="diagram-box client">
+                                <h4>Clients Web</h4>
+                                <p>Navigateurs, Applications Frontend</p>
+                            </div>
+                            <div class="diagram-box client">
+                                <h4>Applications Mobile</h4>
+                                <p>iOS, Android</p>
+                            </div>
+                            <div class="diagram-box client">
+                                <h4>Systèmes ML</h4>
+                                <p>Prédictions, Recommandations</p>
+                            </div>
+                        </div>
+
+                        <div class="diagram-arrow">↓</div>
+
+                        <!-- API Layer -->
+                        <div class="diagram-row">
+                            <div class="diagram-box api" style="min-width: 600px;">
+                                <h4>API FastAPI (Port 8000)</h4>
+                                <p>RESTful API | CORS Enabled | /api/iaq/*</p>
+                                
+                                <div class="endpoints-grid">
+                                    <div class="endpoint-box">
+                                        <h5>Measurements</h5>
+                                        <div class="count">3</div>
+                                    </div>
+                                    <div class="endpoint-box">
+                                        <h5>Sensors</h5>
+                                        <div class="count">1</div>
+                                    </div>
+                                    <div class="endpoint-box">
+                                        <h5>Config</h5>
+                                        <div class="count">2</div>
+                                    </div>
+                                    <div class="endpoint-box">
+                                        <h5>Actions</h5>
+                                        <div class="count">6</div>
+                                    </div>
+                                    <div class="endpoint-box">
+                                        <h5>Locations</h5>
+                                        <div class="count">1</div>
+                                    </div>
+                                    <div class="endpoint-box">
+                                        <h5>Assets</h5>
+                                        <div class="count">2</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="diagram-arrow">↓</div>
+
+                        <!-- Data Layer -->
+                        <div class="diagram-row">
+                            <div class="diagram-box storage">
+                                <h4>IAQ Database</h4>
+                                <p>Mesures en mémoire</p>
+                            </div>
+                            <div class="diagram-box storage">
+                                <h4>Actions Log</h4>
+                                <p>Préventives + Exécutions</p>
+                            </div>
+                            <div class="diagram-box storage">
+                                <h4>Config JSON</h4>
+                                <p>Lieux, Capteurs, Modules</p>
+                            </div>
+                        </div>
+
+                        <div class="diagram-arrow">↓ ↑</div>
+
+                        <!-- External Systems -->
+                        <div class="diagram-row">
+                            <div class="diagram-box external">
+                                <h4>Capteurs IoT</h4>
+                                <p>CO2, PM2.5, TVOC, T°, H%</p>
+                            </div>
+                            <div class="diagram-box external">
+                                <h4>Modules IoT</h4>
+                                <p>Ventilation, Purificateur, HVAC</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Flux de données -->
+                <div class="flow-diagram">
+                    <h3 style="color: #667eea; margin-bottom: 20px;">Flux de Données - Cycle de Vie d'une Mesure</h3>
+                    
+                    <div class="flow-step">
+                        <div class="flow-number">1</div>
+                        <div class="flow-content">
+                            <h5>Collecte des données</h5>
+                            <p>Les capteurs IoT mesurent CO2, PM2.5, TVOC, température et humidité toutes les 3 secondes</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="flow-number">2</div>
+                        <div class="flow-content">
+                            <h5>Envoi vers l'API</h5>
+                            <p>POST /api/iaq/measurements - Les données sont envoyées au serveur FastAPI</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="flow-number">3</div>
+                        <div class="flow-content">
+                            <h5>Validation et stockage</h5>
+                            <p>Pydantic valide les données, sanitization, puis stockage dans iaq_database (mémoire)</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="flow-number">4</div>
+                        <div class="flow-content">
+                            <h5>Analyse ML (externe)</h5>
+                            <p>Un système ML externe récupère les données via GET /api/iaq/measurements/raw</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="flow-number">5</div>
+                        <div class="flow-content">
+                            <h5>Génération d'actions préventives</h5>
+                            <p>Le ML détecte des anomalies et POST des recommandations vers /api/iaq/actions/preventive</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="flow-number">6</div>
+                        <div class="flow-content">
+                            <h5>Exécution d'actions</h5>
+                            <p>Le système POST vers /api/iaq/actions/executions pour activer modules (ventilation, purificateur)</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="flow-number">7</div>
+                        <div class="flow-content">
+                            <h5>Affichage et monitoring</h5>
+                            <p>Les applications frontend récupèrent les données filtrées/agrégées pour visualisation</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Architecture technique -->
+                <div class="card">
+                    <h3>Stack Technique Détaillée</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+                        <div>
+                            <h4 style="color: #667eea;">Backend Framework</h4>
+                            <ul style="margin-left: 20px; color: #666;">
+                                <li>FastAPI 0.121.2</li>
+                                <li>Uvicorn (ASGI Server)</li>
+                                <li>Python 3.11</li>
+                                <li>Asyncio (Tâches périodiques)</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 style="color: #667eea;">Data Processing</h4>
+                            <ul style="margin-left: 20px; color: #666;">
+                                <li>Pandas (Manipulation)</li>
+                                <li>NumPy (Calculs)</li>
+                                <li>Resample (Agrégation temporelle)</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 style="color: #667eea;">Validation</h4>
+                            <ul style="margin-left: 20px; color: #666;">
+                                <li>Pydantic v2 (Models)</li>
+                                <li>Field validators</li>
+                                <li>Type checking</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 style="color: #667eea;">Deployment</h4>
+                            <ul style="margin-left: 20px; color: #666;">
+                                <li>Docker</li>
+                                <li>Image: python:3.11</li>
+                                <li>Port: 8000</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>Design Pattern</h3>
+                    <p><strong>RESTful API</strong> avec structure hiérarchique organisée autour du préfixe commun <code>/api/iaq/</code></p>
+                </div>
+
+                <div class="card">
+                    <h3>Caractéristiques</h3>
+                    <table class="params-table">
+                        <tr>
+                            <td><strong>Pattern</strong></td>
+                            <td>RESTful API</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Structure</strong></td>
+                            <td>Hiérarchique avec préfixe /api/iaq/</td>
+                        </tr>
+                        <tr>
+                            <td><strong>CORS</strong></td>
+                            <td>Activé pour tous les origins</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Stockage</strong></td>
+                            <td>En mémoire (non persistant)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Authentification</strong></td>
+                            <td>⚠️ Non implémentée (TODO: JWT)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Rate Limiting</strong></td>
+                            <td>⚠️ Non implémentée</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="warning-box">
+                    <strong>⚠️ Notes importantes :</strong>
+                    <ul style="margin: 10px 0 0 20px;">
+                        <li>Les données sont stockées en mémoire et seront perdues au redémarrage</li>
+                        <li>Aucune authentification n'est requise (à ajouter en production)</li>
+                        <li>CORS ouvert à tous les origins (à restreindre en production)</li>
+                        <li>Au démarrage, l'API charge un dataset et simule un flux de données périodique</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Endpoints -->
+            <section id="endpoints">
+                <h2>Endpoints disponibles</h2>
+
+                <!-- Health -->
+                <h3>Health Check</h3>
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <div class="path">/api/iaq/health</div>
+                    <p><strong>Description :</strong> Health check pour monitoring de l'état de l'API</p>
+                    <h4>Réponse</h4>
+                    <div class="code-block"><pre>{
+  "status": "healthy",
+  "version": "1.0.0",
+  "database_size": 1234,
+  "preventive_actions_count": 56,
+  "executions_count": 23
+}</pre></div>
+                    <span class="tag">Health</span>
+                </div>
+
+                <!-- Measurements -->
+                <h3>Mesures IAQ</h3>
+                
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <div class="path">/api/iaq/measurements</div>
+                    <p><strong>Description :</strong> Récupère les mesures IAQ avec filtrage et agrégation flexibles</p>
+                    
+                    <h4>Paramètres de requête</h4>
+                    <table class="params-table">
+                        <thead>
+                            <tr>
+                                <th>Paramètre</th>
+                                <th>Type</th>
+                                <th>Requis</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>enseigne</td>
+                                <td>string</td>
+                                <td>Non</td>
+                                <td>Filtrer par enseigne</td>
+                            </tr>
+                            <tr>
+                                <td>salle</td>
+                                <td>string</td>
+                                <td>Non</td>
+                                <td>Filtrer par salle</td>
+                            </tr>
+                            <tr>
+                                <td>capteur_id</td>
+                                <td>string</td>
+                                <td>Non</td>
+                                <td>Filtrer par capteur</td>
+                            </tr>
+                            <tr>
+                                <td>start</td>
+                                <td>string (ISO 8601)</td>
+                                <td>Non</td>
+                                <td>Date de début (ex: 2025-11-14T10:00:00)</td>
+                            </tr>
+                            <tr>
+                                <td>end</td>
+                                <td>string (ISO 8601)</td>
+                                <td>Non</td>
+                                <td>Date de fin</td>
+                            </tr>
+                            <tr>
+                                <td>hours</td>
+                                <td>integer</td>
+                                <td>Non</td>
+                                <td>Récupère les N dernières heures</td>
+                            </tr>
+                            <tr>
+                                <td>step</td>
+                                <td>enum (5min, daily, weekly)</td>
+                                <td>Non</td>
+                                <td>Intervalle d'agrégation</td>
+                            </tr>
+                            <tr>
+                                <td>raw</td>
+                                <td>boolean</td>
+                                <td>Non</td>
+                                <td>Retourne données brutes sans agrégation</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <span class="tag">Measurements</span>
+                </div>
+
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <div class="path">/api/iaq/measurements/raw</div>
+                    <p><strong>Description :</strong> Accès direct aux données brutes pour systèmes ML</p>
+                    
+                    <h4>Paramètres de requête</h4>
+                    <table class="params-table">
+                        <thead>
+                            <tr>
+                                <th>Paramètre</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>enseigne</td>
+                                <td>string</td>
+                                <td>Filtrer par enseigne</td>
+                            </tr>
+                            <tr>
+                                <td>salle</td>
+                                <td>string</td>
+                                <td>Filtrer par salle</td>
+                            </tr>
+                            <tr>
+                                <td>capteur_id</td>
+                                <td>string</td>
+                                <td>Filtrer par capteur</td>
+                            </tr>
+                            <tr>
+                                <td>limit</td>
+                                <td>integer</td>
+                                <td>Nombre maximum de résultats</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <span class="tag">Measurements</span>
+                </div>
+
+                <!-- Sensors -->
+                <h3>Capteurs</h3>
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <div class="path">/api/iaq/sensors</div>
+                    <p><strong>Description :</strong> Liste tous les capteurs configurés dans le système</p>
+                    <h4>Réponse</h4>
+                    <div class="code-block"><pre>{
+  "sensors": [
+    {
+      "enseigne": "Maison",
+      "salle": "Bureau",
+      "capteur_id": "Bureau1",
+      "piece_id": "bureau"
+    }
+  ]
+}</pre></div>
+                    <span class="tag">Sensors</span>
+                </div>
+
+                <!-- Configuration -->
+                <h3>Configuration</h3>
+                
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <div class="path">/api/iaq/config</div>
+                    <p><strong>Description :</strong> Récupère la configuration complète de l'application</p>
+                    <span class="tag">Configuration</span>
+                </div>
+
+                <div class="endpoint">
+                    <span class="method put">PUT</span>
+                    <div class="path">/api/iaq/config</div>
+                    <p><strong>Description :</strong> Met à jour la configuration de l'application</p>
+                    <h4>Body (JSON)</h4>
+                    <div class="code-block"><pre>{
+  "lieux": {
+    "enseignes": [...]
+  }
+}</pre></div>
+                    <span class="tag">Configuration</span>
+                </div>
+
+                <!-- Actions -->
+                <h3>Actions préventives</h3>
+                
+                <div class="endpoint">
+                    <span class="method post">POST</span>
+                    <div class="path">/api/iaq/actions/preventive</div>
+                    <p><strong>Description :</strong> Crée des actions préventives recommandées par le système ML</p>
+                    <h4>Body (JSON)</h4>
+                    <div class="code-block"><pre>{
+  "timestamp": "2025-11-14T10:30:00",
+  "enseigne": "Maison",
+  "salle": "Bureau",
+  "capteur_id": "Bureau1",
+  "actions": [
+    {
+      "metric": "co2",
+      "action": "Augmenter la ventilation",
+      "priority": "high",
+      "value": 1200,
+      "threshold": 1000
+    }
+  ]
+}</pre></div>
+                    <span class="tag">Actions</span>
+                </div>
+
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <div class="path">/api/iaq/actions/preventive</div>
+                    <p><strong>Description :</strong> Récupère l'historique des actions préventives</p>
+                    <p><strong>Paramètres :</strong> enseigne, salle, capteur_id, limit (default: 50)</p>
+                    <span class="tag">Actions</span>
+                </div>
+
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <div class="path">/api/iaq/actions/preventive/stats</div>
+                    <p><strong>Description :</strong> Statistiques détaillées sur les actions préventives</p>
+                    <span class="tag">Actions</span>
+                </div>
+
+                <h3>Exécutions d'actions</h3>
+                
+                <div class="endpoint">
+                    <span class="method post">POST</span>
+                    <div class="path">/api/iaq/actions/executions</div>
+                    <p><strong>Description :</strong> Exécute une action sur un module IoT</p>
+                    <h4>Body (JSON)</h4>
+                    <div class="code-block"><pre>{
+  "action_type": "ventilation_increase",
+  "module_type": "ventilation",
+  "enseigne": "Maison",
+  "salle": "Bureau",
+  "priority": "high",
+  "parameters": {
+    "mode": "auto",
+    "power": 80
+  }
+}</pre></div>
+                    <span class="tag">Actions</span>
+                </div>
+
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <div class="path">/api/iaq/actions/executions</div>
+                    <p><strong>Description :</strong> Historique des actions exécutées</p>
+                    <span class="tag">Actions</span>
+                </div>
+
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <div class="path">/api/iaq/actions/executions/stats</div>
+                    <p><strong>Description :</strong> Statistiques sur les exécutions</p>
+                    <span class="tag">Actions</span>
+                </div>
+
+                <!-- Locations -->
+                <h3>Lieux et modules</h3>
+                
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <div class="path">/api/iaq/locations/{enseigne}/rooms/{salle}/modules</div>
+                    <p><strong>Description :</strong> Récupère les modules IoT disponibles dans une salle</p>
+                    <h4>Paramètres de chemin</h4>
+                    <table class="params-table">
+                        <thead>
+                            <tr>
+                                <th>Paramètre</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>enseigne</td>
+                                <td>string</td>
+                                <td>Nom de l'enseigne</td>
+                            </tr>
+                            <tr>
+                                <td>salle</td>
+                                <td>string</td>
+                                <td>Nom de la salle</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <span class="tag">Locations</span>
+                </div>
+
+                <!-- Assets -->
+                <h3>Assets et fichiers 3D</h3>
+                
+                <div class="endpoint">
+                    <span class="method post">POST</span>
+                    <div class="path">/api/iaq/assets/rooms/files</div>
+                    <p><strong>Description :</strong> Upload de fichiers 3D (.glb) pour modéliser des salles</p>
+                    <h4>Form Data</h4>
+                    <table class="params-table">
+                        <tbody>
+                            <tr>
+                                <td><strong>file</strong></td>
+                                <td>file (.glb)</td>
+                                <td>Fichier 3D à uploader</td>
+                            </tr>
+                            <tr>
+                                <td><strong>filename</strong></td>
+                                <td>string</td>
+                                <td>Nom du fichier</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <span class="tag">Assets</span>
+                </div>
+
+                <div class="endpoint">
+                    <span class="method delete">DELETE</span>
+                    <div class="path">/api/iaq/assets/rooms/files</div>
+                    <p><strong>Description :</strong> Supprime des fichiers 3D</p>
+                    <h4>Body (JSON)</h4>
+                    <div class="code-block"><pre>{
+  "paths": [
+    "/assets/rooms/bureau.glb",
+    "/assets/rooms/salon.glb"
+  ]
+}</pre></div>
+                    <span class="tag">Assets</span>
+                </div>
+            </section>
+
+            <!-- Modèles de données -->
+            <section id="models">
+                <h2>Modèles de données</h2>
+
+                <div class="card">
+                    <h3>IAQMeasurement</h3>
+                    <table class="params-table">
+                        <thead>
+                            <tr>
+                                <th>Champ</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>timestamp</td>
+                                <td>datetime (ISO 8601)</td>
+                                <td>Horodatage de la mesure</td>
+                            </tr>
+                            <tr>
+                                <td>co2</td>
+                                <td>float (ppm)</td>
+                                <td>Dioxyde de carbone</td>
+                            </tr>
+                            <tr>
+                                <td>pm25</td>
+                                <td>float (µg/m³)</td>
+                                <td>Particules fines</td>
+                            </tr>
+                            <tr>
+                                <td>tvoc</td>
+                                <td>float (mg/m³)</td>
+                                <td>Composés organiques volatils</td>
+                            </tr>
+                            <tr>
+                                <td>temperature</td>
+                                <td>float (°C)</td>
+                                <td>Température</td>
+                            </tr>
+                            <tr>
+                                <td>humidity</td>
+                                <td>float (%)</td>
+                                <td>Humidité relative</td>
+                            </tr>
+                            <tr>
+                                <td>enseigne</td>
+                                <td>string</td>
+                                <td>Nom de l'enseigne</td>
+                            </tr>
+                            <tr>
+                                <td>salle</td>
+                                <td>string</td>
+                                <td>Nom de la salle</td>
+                            </tr>
+                            <tr>
+                                <td>capteur_id</td>
+                                <td>string</td>
+                                <td>Identifiant du capteur</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h3>PreventiveAction</h3>
+                    <table class="params-table">
+                        <thead>
+                            <tr>
+                                <th>Champ</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>timestamp</td>
+                                <td>string</td>
+                                <td>Horodatage</td>
+                            </tr>
+                            <tr>
+                                <td>enseigne</td>
+                                <td>string</td>
+                                <td>Nom de l'enseigne</td>
+                            </tr>
+                            <tr>
+                                <td>salle</td>
+                                <td>string</td>
+                                <td>Nom de la salle</td>
+                            </tr>
+                            <tr>
+                                <td>capteur_id</td>
+                                <td>string (optional)</td>
+                                <td>Identifiant du capteur</td>
+                            </tr>
+                            <tr>
+                                <td>actions</td>
+                                <td>array[Action]</td>
+                                <td>Liste des actions recommandées</td>
+                            </tr>
+                            <tr>
+                                <td>prediction_details</td>
+                                <td>object (optional)</td>
+                                <td>Détails des prédictions ML</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h3>ActionExecution</h3>
+                    <table class="params-table">
+                        <thead>
+                            <tr>
+                                <th>Champ</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>action_type</td>
+                                <td>string</td>
+                                <td>Type d'action (ventilation_increase, etc.)</td>
+                            </tr>
+                            <tr>
+                                <td>module_type</td>
+                                <td>string</td>
+                                <td>Type de module (ventilation, purifier, etc.)</td>
+                            </tr>
+                            <tr>
+                                <td>enseigne</td>
+                                <td>string</td>
+                                <td>Nom de l'enseigne</td>
+                            </tr>
+                            <tr>
+                                <td>salle</td>
+                                <td>string</td>
+                                <td>Nom de la salle</td>
+                            </tr>
+                            <tr>
+                                <td>reason</td>
+                                <td>object (optional)</td>
+                                <td>Raison de l'exécution</td>
+                            </tr>
+                            <tr>
+                                <td>priority</td>
+                                <td>enum (low|medium|high)</td>
+                                <td>Priorité de l'action</td>
+                            </tr>
+                            <tr>
+                                <td>parameters</td>
+                                <td>object (optional)</td>
+                                <td>Paramètres spécifiques</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Seuils IAQ -->
+            <section id="thresholds">
+                <h2>Seuils de qualité de l'air</h2>
+
+                <div class="threshold">
+                    <div class="threshold-item">
+                        <h3>CO₂ (Dioxyde de carbone)</h3>
+                        <div class="level excellent">
+                            <span>Excellent</span>
+                            <span>&lt; 800 ppm</span>
+                        </div>
+                        <div class="level good">
+                            <span>Bon</span>
+                            <span>800-1000 ppm</span>
+                        </div>
+                        <div class="level moderate">
+                            <span>Modéré</span>
+                            <span>1000-1500 ppm</span>
+                        </div>
+                        <div class="level poor">
+                            <span>Médiocre</span>
+                            <span>1500-2000 ppm</span>
+                        </div>
+                        <div class="level very-poor">
+                            <span>Très médiocre</span>
+                            <span>&gt; 2000 ppm</span>
+                        </div>
+                    </div>
+
+                    <div class="threshold-item">
+                        <h3>PM2.5 (Particules fines)</h3>
+                        <div class="level excellent">
+                            <span>Excellent</span>
+                            <span>&lt; 12 µg/m³</span>
+                        </div>
+                        <div class="level good">
+                            <span>Bon</span>
+                            <span>12-35 µg/m³</span>
+                        </div>
+                        <div class="level moderate">
+                            <span>Modéré</span>
+                            <span>35-55 µg/m³</span>
+                        </div>
+                        <div class="level poor">
+                            <span>Médiocre</span>
+                            <span>55-150 µg/m³</span>
+                        </div>
+                        <div class="level very-poor">
+                            <span>Très médiocre</span>
+                            <span>&gt; 150 µg/m³</span>
+                        </div>
+                    </div>
+
+                    <div class="threshold-item">
+                        <h3>TVOC (Composés organiques)</h3>
+                        <div class="level excellent">
+                            <span>Excellent</span>
+                            <span>&lt; 0.3 mg/m³</span>
+                        </div>
+                        <div class="level good">
+                            <span>Bon</span>
+                            <span>0.3-0.5 mg/m³</span>
+                        </div>
+                        <div class="level moderate">
+                            <span>Modéré</span>
+                            <span>0.5-1.0 mg/m³</span>
+                        </div>
+                        <div class="level poor">
+                            <span>Médiocre</span>
+                            <span>1.0-3.0 mg/m³</span>
+                        </div>
+                        <div class="level very-poor">
+                            <span>Très médiocre</span>
+                            <span>&gt; 3.0 mg/m³</span>
+                        </div>
+                    </div>
+
+                    <div class="threshold-item">
+                        <h3>Température</h3>
+                        <div class="level excellent">
+                            <span>Optimal</span>
+                            <span>19-24°C</span>
+                        </div>
+                        <div class="level good">
+                            <span>Acceptable</span>
+                            <span>18-26°C</span>
+                        </div>
+                    </div>
+
+                    <div class="threshold-item">
+                        <h3>Humidité</h3>
+                        <div class="level excellent">
+                            <span>Optimal</span>
+                            <span>40-60%</span>
+                        </div>
+                        <div class="level good">
+                            <span>Acceptable</span>
+                            <span>30-70%</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Exemples -->
+            <section id="examples">
+                <h2>Exemples d'utilisation</h2>
+
+                <div class="card">
+                    <h3>Récupérer les mesures filtrées</h3>
+                    <div class="code-block"><pre><span class="highlight">GET</span> /api/iaq/measurements?enseigne=Maison&salle=Bureau&hours=24&step=5min
+
+<span class="string">Description:</span> Récupère les mesures du bureau des 24 dernières heures, agrégées par 5 minutes</pre></div>
+                </div>
+
+                <div class="card">
+                    <h3>Récupérer les données brutes</h3>
+                    <div class="code-block"><pre><span class="highlight">GET</span> /api/iaq/measurements/raw?limit=100
+
+<span class="string">Description:</span> Récupère les 100 dernières mesures brutes pour ML</pre></div>
+                </div>
+
+                <div class="card">
+                    <h3>Créer une action préventive</h3>
+                    <div class="code-block"><pre><span class="highlight">POST</span> /api/iaq/actions/preventive
+<span class="highlight">Content-Type:</span> application/json
+
+{
+  <span class="string">"timestamp"</span>: <span class="string">"2025-11-14T10:30:00"</span>,
+  <span class="string">"enseigne"</span>: <span class="string">"Maison"</span>,
+  <span class="string">"salle"</span>: <span class="string">"Bureau"</span>,
+  <span class="string">"actions"</span>: [
+    {
+      <span class="string">"metric"</span>: <span class="string">"co2"</span>,
+      <span class="string">"action"</span>: <span class="string">"Augmenter la ventilation"</span>,
+      <span class="string">"priority"</span>: <span class="string">"high"</span>,
+      <span class="string">"value"</span>: <span class="number">1200</span>,
+      <span class="string">"threshold"</span>: <span class="number">1000</span>
+    }
+  ]
+}</pre></div>
+                </div>
+
+                <div class="card">
+                    <h3>Exécuter une action sur un module</h3>
+                    <div class="code-block"><pre><span class="highlight">POST</span> /api/iaq/actions/executions
+<span class="highlight">Content-Type:</span> application/json
+
+{
+  <span class="string">"action_type"</span>: <span class="string">"ventilation_increase"</span>,
+  <span class="string">"module_type"</span>: <span class="string">"ventilation"</span>,
+  <span class="string">"enseigne"</span>: <span class="string">"Maison"</span>,
+  <span class="string">"salle"</span>: <span class="string">"Bureau"</span>,
+  <span class="string">"priority"</span>: <span class="string">"high"</span>,
+  <span class="string">"parameters"</span>: {
+    <span class="string">"mode"</span>: <span class="string">"auto"</span>,
+    <span class="string">"power"</span>: <span class="number">80</span>
+  }
+}</pre></div>
+                </div>
+
+                <div class="card">
+                    <h3>Récupérer les modules d'une salle</h3>
+                    <div class="code-block"><pre><span class="highlight">GET</span> /api/iaq/locations/Maison/rooms/Bureau/modules
+
+<span class="string">Description:</span> Récupère tous les modules IoT disponibles dans le bureau</pre></div>
+                </div>
+            </section>
+
+            <!-- Stack technique -->
+            <section id="tech">
+                <h2>Stack technique</h2>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <h3>Backend</h3>
+                        <table class="params-table">
+                            <tr>
+                                <td><strong>Framework</strong></td>
+                                <td>FastAPI 0.121.2</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Serveur ASGI</strong></td>
+                                <td>Uvicorn 0.38.0</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Python</strong></td>
+                                <td>3.11</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Validation</strong></td>
+                                <td>Pydantic</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="card">
+                        <h3>Data Processing</h3>
+                        <table class="params-table">
+                            <tr>
+                                <td><strong>Manipulation</strong></td>
+                                <td>Pandas</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Calcul numérique</strong></td>
+                                <td>NumPy</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Agrégation</strong></td>
+                                <td>Pandas resample</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="card">
+                        <h3>Deployment</h3>
+                        <table class="params-table">
+                            <tr>
+                                <td><strong>Conteneurisation</strong></td>
+                                <td>Docker</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Base image</strong></td>
+                                <td>python:3.11</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="card">
+                        <h3>Documentation</h3>
+                        <table class="params-table">
+                            <tr>
+                                <td><strong>OpenAPI</strong></td>
+                                <td>3.0</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Swagger UI</strong></td>
+                                <td>Intégré</td>
+                            </tr>
+                            <tr>
+                                <td><strong>ReDoc</strong></td>
+                                <td>Intégré</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <footer>
+            <p><strong>API IAQ - Indoor Air Quality</strong></p>
+            <p>Version 1.0.0 | Projet académique INGE 3 - Cloud pour IA</p>
+            <p style="margin-top: 10px; opacity: 0.7;">© 2025 - Documentation générée automatiquement</p>
+        </footer>
+    </div>
+
+    <a href="#" class="back-to-top">↑</a>
+
+    <script>
+        // Smooth scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Back to top button visibility
+        const backToTop = document.querySelector('.back-to-top');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 300) {
+                backToTop.style.display = 'flex';
+            } else {
+                backToTop.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

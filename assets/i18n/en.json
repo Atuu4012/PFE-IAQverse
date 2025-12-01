@@ -1,0 +1,304 @@
+{
+  "brand": "IAQverse",
+  "nav": {
+    "home": "Home",
+    "digitalTwin": "Digital Twin",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "aboutTitle": "About this page",
+    "aboutParagraph": "This Dashboard lets you visualize the main indoor air quality components in real-time.",
+    "co2": "CO₂ trend",
+    "pm25": "PM2.5 concentration",
+    "comfort": "Temperature & Humidity",
+    "tvoc": "TVOC concentration",
+    "scoreFeature": "Real-time IAQ score",
+    "predictionFeature": "Score prediction in 30 minutes",
+    "alertsFeature": "Automatic alerts on tabs",
+    "score": {
+      "title": "Air Quality Score",
+      "label": "Global Score",
+      "roomLabel": "Room Score",
+      "predicted": "In 30 min",
+      "legend": "Legend",
+      "excellent": "Excellent",
+      "good": "Good",
+      "moderate": "Moderate",
+      "poor": "Poor"
+    }
+  },
+  "charts": {
+    "no_data": "No data",
+    "trace": {
+      "co2": "CO₂ (ppm)",
+      "pm25": "PM2.5 (µg/m³)",
+      "temp": "Temperature (°C)",
+      "humidity": "Humidity (%)",
+      "tvoc": "TVOC (mg/m³)"
+    },
+    "co2Y": "ppm",
+    "pm25Y": "µg/m³",
+    "temperatureY": "Temperature (°C)",
+    "humidityY": "Humidity (%)",
+    "tvocY": "mg/m³",
+    "timeX": "Time"
+  },
+  "settings": {
+    "title": "Settings",
+    "menu": {
+      "account": "Account",
+      "display": "Display",
+      "notifications": "Notifications",
+      "locations": "Locations",
+      "subscription": "Subscription",
+      "contact": "Contact"
+    },
+    "aboutTitle": "About this page",
+    "aboutParagraph": "Use this settings panel to adjust your preferences for a better experience.",
+    "languageLabel": "Language",
+    "summary": {
+      "you": "You",
+      "insurance": "Your insurance",
+      "union": "Your union",
+      "mode": "Mode",
+      "langloc": "Language & Localization",
+      "technologies": "Technologies",
+      "type": "Type",
+      "manage_brands": "Manage locations",
+      "subscription": "Your subscription",
+      "contact": "Contact"
+    },
+    "infoList": {
+      "account": "Account information management",
+      "display": "Display and language management",
+      "notifications": "Your notification settings",
+      "rooms": "Add and remove rooms",
+      "subscription": "Choose your subscription",
+      "contact": "Contact us"
+    },
+    "fields": {
+      "nom": "Name",
+      "prenom": "First name",
+      "date_naissance": "Date of birth",
+      "email": "Email",
+      "telephone": "Phone",
+      "adresse": "Address",
+      "mode_affichage": "Display mode",
+      "langue": "Language",
+      "localisation": "Localization",
+      "avatar": "Profile photo",
+      "sms": "SMS",
+      "push": "Push",
+      "alertes": "Alerts",
+      "rappels": "Reminders",
+      "newsletters": "Newsletters",
+      "current_plan": "Current plan"
+    },
+    "plans": {
+      "basic": {
+        "title": "Basic",
+        "description": "Basic plan with essential features",
+        "features": {
+          "monitoring": "Basic monitoring",
+          "alerts": "Simple alerts",
+          "users": "Number of users: 3"
+        }
+      },
+      "pro": {
+        "title": "Pro",
+        "description": "Professional plan with advanced features",
+        "features": {
+          "advanced": "Advanced monitoring",
+          "custom": "Custom alerts",
+          "users": "Number of users: 10"
+        }
+      },
+      "enterprise": {
+        "title": "Enterprise",
+        "description": "Complete solution for large organizations",
+        "features": {
+          "advanced": "Advanced monitoring",
+          "integration": "Custom integrations",
+          "users": "Number of users: Unlimited",
+          "training": "Team training",
+          "support": "24/7 dedicated support",
+          "sla": "Guaranteed SLA"
+        }
+      }
+    },
+    "enterprise_modal": {
+      "title": "Contact for Enterprise Plan",
+      "message": "For the Enterprise plan, please contact us directly:\n\nEmail: {email}\nPhone: {phone}\nAddress: {address}\n\nOur team will help you configure the perfect solution for your organization.",
+      "close": "Close"
+    }
+  },
+  "digitalTwin": {
+    "title": "Digital Twin",
+    "visualisation": "Visualization",
+    "aboutTitle": "About this page",
+    "aboutParagraph": "This Digital Twin interface lets you visualize indoor air quality alerts in real time, explore rooms in 3D, and review recommended preventive actions.",
+    "actions": "Actions",
+    "preventive": {
+      "title": "Preventive Actions",
+      "subtitle": "Based on predictions (30 min)",
+      "loading": "Analyzing predictions...",
+      "noActions": "No preventive action needed. Air quality will remain good.",
+      "no_actions": "No preventive actions needed. Air quality will remain good.",
+      "no_actions_global": "No preventive actions needed",
+      "config_unavailable": "Configuration not available",
+      "loading_error": "Error loading predictions",
+      "reasons": {
+        "co2_increase": "CO₂ will increase from {current} to {predicted} ppm",
+        "co2_prevent": "Prevent CO₂ accumulation",
+        "pm25_increase": "Fine particles will increase from {current} to {predicted} µg/m³",
+        "temperature_rise": "Temperature will rise from {current}°C to {predicted}°C",
+        "temperature_drop": "Temperature will drop from {current}°C to {predicted}°C",
+        "humidity_increase": "Humidity will increase from {current}% to {predicted}%"
+      },
+      "priorities": {
+        "high": "Urgent",
+        "medium": "Recommended",
+        "low": "Optional"
+      },
+      "arrow": "→"
+    },
+    "table": {
+      "state": "State",
+      "subject": "Subject",
+      "action": "Action"
+    },
+    "tip": {
+      "table": "The Preventive Actions panel (top) shows recommendations based on 30-minute predictions.",
+      "visual": "The 3D visualization (left) displays rooms with colored alert points according to severity.",
+      "details": "The Actions table (right) lists recommended interventions with their status and subject.",
+      "noDetails": "No details available",
+      "allGood": "All parameters are within normal range",
+      "recommendedAction": "Recommended action"
+    },
+    "details": {
+      "title": "Details",
+      "low": "too low",
+      "high": "too high",
+      "out_of_range": "out of range",
+      "thresholdMin": "min threshold",
+      "thresholdMax": "max threshold",
+      "parameters": {
+        "co2": "CO₂",
+        "pm25": "PM2.5",
+        "tvoc": "TVOC",
+        "temperature": "Temperature",
+        "humidity": "Humidity"
+      }
+    },
+    "alertCount": {
+      "zero": "No alerts",
+      "one": "1 Alert",
+      "multiple": "{{count}} Alerts"
+    },
+    "actionCount": {
+      "zero": "No actions",
+      "one": "1 action",
+      "multiple": "{{count}} actions"
+    },
+  "sample": {
+      "window": {
+        "subject": "Window",
+        "action": "Close"
+      },
+      "door": {
+        "subject": "Door",
+        "action": "Close"
+      },
+      "ventilation": {
+        "subject": "Ventilation",
+        "action": "Activate"
+      },
+      "radiator": {
+        "subject": "Radiator",
+        "action": "Reduce"
+      },
+      "temperature": {
+        "subject": "Temperature",
+        "action": "Adjust"
+      },
+      "humidity": {
+        "subject": "Humidity",
+        "action": "Regulate"
+      }
+    },
+    "actionVerbs": {
+      "open": "Open",
+      "close": "Close",
+      "increase": "Increase",
+      "decrease": "Decrease",
+      "turn_on": "Turn on",
+      "turn_off": "Turn off"
+    }
+  },
+  "buttons": {
+    "toggleTheme": "Toggle theme",
+    "frame": "Center"
+  },
+  "placeholders": {
+    "comma_list": "Separate values with commas"
+  },
+  "languages": {
+    "fr": "Français",
+    "en": "English",
+    "es": "Español",
+    "de": "Deutsch",
+    "it": "Italiano"
+  },
+  "modes": {
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "actions": {
+    "add_location": "Add room",
+    "add_brand": "Add location",
+    "edit": "Edit",
+    "remove": "Remove",
+    "confirm": "Confirmation",
+    "yes": "Yes",
+    "no": "No",
+    "cancel": "Cancel",
+    "save": "Save",
+    "select": "Select",
+    "selected": "Selected"
+  },
+  "modals": {
+    "add_brand": "Add location",
+    "add_room": "Add room",
+    "edit_brand": "Edit location",
+    "edit_title": "Edit settings",
+    "glb_label": "3D model (.glb)",
+    "glb_drop": "Drag & drop a .glb file here"
+  },
+  "notifications": {
+    "saved": "Changes saved",
+    "save_error": "Error saving",
+    "order_saved": "New order saved",
+    "rooms_order_saved": "Rooms order saved",
+    "plan_saved": "Subscription plan updated",
+    "location_exists": "A location with this name already exists",
+    "add_success": "Location added successfully",
+    "add_error": "Error adding the location",
+    "file_invalid": "Invalid .glb file",
+    "upload_error": "Error uploading 3D model",
+    "piece_added": "Room added successfully",
+    "piece_add_error": "Error adding the room",
+    "update_success": "Location updated successfully",
+    "update_error": "Error updating the location",
+    "delete_files_error": "Error deleting 3D files",
+    "delete_success": "Location removed successfully",
+    "delete_file_error": "Error deleting 3D file",
+    "piece_deleted": "Room removed successfully",
+    "config_saved": "Configuration saved successfully",
+    "location_not_found": "Location not found",
+    "confirm_delete_message": "Are you sure you want to delete?",
+    "mode_updated": "Mode updated",
+    "load_error": "Unable to load configuration",
+    "load_failure": "Error loading configuration"
+  }
+}

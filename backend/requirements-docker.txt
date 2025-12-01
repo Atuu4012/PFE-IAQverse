@@ -1,0 +1,12 @@
+fastapi==0.119.1
+uvicorn[standard]==0.32.1
+pydantic==2.12.3
+python-dotenv==1.0.0
+influxdb-client==1.45.0
+python-multipart==0.0.18
+websockets==14.1
+pandas==2.3.3
+numpy==2.3.5
+scikit-learn==1.7.2
+joblib==1.5.2
+requests==2.31.0

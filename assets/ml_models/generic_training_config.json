@@ -1,0 +1,46 @@
+{
+  "model_type": "voting_multi_output",
+  "feature_columns": [
+    "humidity",
+    "co2",
+    "tvoc",
+    "pm25",
+    "temperature",
+    "humidity_ma3",
+    "pm25_ma3",
+    "co2_ma3",
+    "tvoc_ma6",
+    "pm25_ma6",
+    "humidity_ma6",
+    "co2_lag1",
+    "humidity_lag1",
+    "pm25_lag1",
+    "tvoc_lag2",
+    "tvoc_lag1",
+    "sensor_encoded",
+    "salle_encoded",
+    "hour",
+    "day_of_week"
+  ],
+  "target_columns": [
+    "co2",
+    "pm25",
+    "tvoc",
+    "humidity"
+  ],
+  "trained_rooms": [
+    "Bureau",
+    "Chambre",
+    "Open Space",
+    "Salon"
+  ],
+  "trained_sensors": [
+    "Bureau1",
+    "Bureau2",
+    "Bureau3",
+    "Bureau4",
+    "bureau1",
+    "openspace1",
+    "salon1"
+  ]
+}

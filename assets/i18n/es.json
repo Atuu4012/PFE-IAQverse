@@ -2,6 +2,8 @@
     "brand": "IAQverse",
     "account": {
         "switch": "Cambiar de cuenta",
+        "currentUser": "Usuario Actual",
+        "otherAccount": "Otra Cuenta",
         "logout": "Cerrar sesión"
     },
     "nav": {

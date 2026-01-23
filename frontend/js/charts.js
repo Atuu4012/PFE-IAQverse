@@ -1166,14 +1166,16 @@ function initWebSocketMode() {
       }
     });
 
-    // Écouter la reconnexion pour arrêter le polling HTTP
+    // Écouter la connexion/reconnexion pour arrêter le polling HTTP
     window.wsManager.on("connected", () => {
-      console.log("✅ WebSocket reconnecté, arrêt du polling HTTP");
       if (httpPollingInterval) {
+        console.log("✅ WebSocket actif : arrêt du polling HTTP");
         clearInterval(httpPollingInterval);
         httpPollingInterval = null;
+      } else {
+        console.log("✅ WebSocket actif");
       }
-      // Recharger les données après reconnexion
+      // Recharger les données pour être sûr d'être à jour
       fetchAndUpdate();
     });
   }

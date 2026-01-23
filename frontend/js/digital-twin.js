@@ -538,9 +538,6 @@ window.syncAlertPointsToTable = function syncAlertPointsToTable() {
     const isPanelOpen = panel && !panel.classList.contains('hidden');
     const previousSubject = currentDetailsSubject;
 
-    // remove previously injected rows
-    Array.from(tbody.querySelectorAll('tr.dynamic-alert')).forEach(r => r.remove());
-
     // Get active context (enseigne + salle)
     const getActiveContext = () => {
         try {
@@ -576,25 +573,26 @@ window.syncAlertPointsToTable = function syncAlertPointsToTable() {
     const points = allActivePoints.filter(pt => {
         const ptEnseigne = pt.getAttribute('data-enseigne');
         const ptPiece = pt.getAttribute('data-piece');
-        const matches = (ptEnseigne === activeEnseigneId && ptPiece === activeRoomId);
-        return matches;
+        return (ptEnseigne === activeEnseigneId && ptPiece === activeRoomId);
     });
     
     if (!points || points.length === 0) {
+        // Clear all dynamic alerts if no points
+        Array.from(tbody.querySelectorAll('tr.dynamic-alert')).forEach(r => r.remove());
+        // Mettre à jour le compteur d'alertes
+        if (typeof window.updateAlertCountLabel === 'function') window.updateAlertCountLabel();
         return;
     }
 
     const t = (window.i18n && typeof window.i18n.t === 'function') ? window.i18n.t : (()=>undefined);
 
-    // Grouper les points par target-names (nom d'objet 3D unique) pour créer une ligne par objet
+    // Grouper les points par target-names
     const pointsByTarget = {};
-    
     points.forEach(pt => { 
         const explicitKey = pt.getAttribute('data-i18n-key');
         const targetName = pt.getAttribute('data-target-names');
         if (!explicitKey || !targetName) return;
         
-        // Clé unique basée sur le nom de l'objet 3D
         if (!pointsByTarget[targetName]) {
             pointsByTarget[targetName] = {
                 type: explicitKey,
@@ -618,25 +616,32 @@ window.syncAlertPointsToTable = function syncAlertPointsToTable() {
         typeObjects[type].push(targetName);
     });
 
+    const currentRows = new Map();
+    Array.from(tbody.querySelectorAll('tr.dynamic-alert')).forEach(tr => {
+        const id = tr.getAttribute('data-target-id');
+        if (id) currentRows.set(id, tr);
+    });
+    
     const builtRows = [];
+    const processedIds = new Set();
 
     // Traiter chaque objet distinct (par targetName)
     Object.entries(pointsByTarget).forEach(([targetName, group]) => {
         const typeKey = group.type;
         const typePoints = group.points;
+        const rowId = `row-${targetName}`;
+        processedIds.add(rowId);
         
-        // Déterminer l'emoji basé sur l'état (rouge si fermé/éteint, vert si ouvert/allumé)
+        // --- LOGIQUE D'ÉTAT ---
+        // Déterminer l'emoji basé sur l'état
         const states = typePoints.map(pt => {
             const state = pt.getAttribute('data-state');
             if (state) return state;
-            // Fallback : si pas de data-state, utiliser severity pour déduire l'état
             const severity = pt.getAttribute('data-severity');
             if (severity === 'info') {
-                // info = pas de problème = ouvert/allumé
                 const key = pt.getAttribute('data-i18n-key');
                 return (key === 'door' || key === 'window') ? 'open' : 'on';
             } else {
-                // warning/danger = problème = fermé/éteint
                 const key = pt.getAttribute('data-i18n-key');
                 return (key === 'door' || key === 'window') ? 'closed' : 'off';
             }
@@ -644,32 +649,16 @@ window.syncAlertPointsToTable = function syncAlertPointsToTable() {
         const hasClosedOrOff = states.some(s => s === 'closed' || s === 'off');
         const stateEmoji = hasClosedOrOff ? '🔴' : '🟢';
         
-        // Déterminer la classe CSS basée sur la gravité (pour les couleurs)
+        // Déterminer la classe CSS basée sur la gravité
         const severities = typePoints.map(pt => pt.getAttribute('data-severity') || 'info');
         const severityWeights = { 'danger': 0, 'warning': 1, 'info': 2 };
         const maxSeverity = severities.reduce((max, sev) => 
             severityWeights[sev] < severityWeights[max] ? sev : max, 'info');
         const severityLower = maxSeverity.toLowerCase();
-        const severityMap = {
-            'danger': { cls: 'alert-red' },
-            'warning': { cls: 'alert-yellow' },
-            'info': { cls: 'alert-green' }
-        };
-        const sev = severityMap[severityLower] || severityMap['danger'];
         
-        const tr = document.createElement('tr');
-        tr.className = `dynamic-alert ${sev.cls}`;
-
-        const tdState = document.createElement('td'); 
-        tdState.textContent = stateEmoji; // Emoji basé sur l'état
-        const tdSubj = document.createElement('td');
-        const tdAct = document.createElement('td');
-
-        // Utiliser le premier point pour les clés i18n et actions
+        // Déterminer si l'action est satisfaite (row devient verte)
         const firstPoint = typePoints[0];
         let actionKeyToCompare = firstPoint.getAttribute('data-action-key');
-        
-        // Fallback aux actions par défaut si pas d'action dynamique (pour les lignes grises)
         if (!actionKeyToCompare) {
             const defaultActions = {
                 'window': 'close',
@@ -682,35 +671,61 @@ window.syncAlertPointsToTable = function syncAlertPointsToTable() {
             actionKeyToCompare = defaultActions[typeKey];
         }
         
-        // Vérifier si l'état actuel correspond à l'action demandée (Action satisfaite)
-        // Si oui, on passe la ligne en vert (alert-success)
+        let isSatisfied = false;
         if (actionKeyToCompare) {
-            // Déterminer l'état sémantique actuel
             const currentState = hasClosedOrOff ? (typeKey === 'door' || typeKey === 'window' ? 'closed' : 'off') 
                                                 : (typeKey === 'door' || typeKey === 'window' ? 'open' : 'on');
-            
-            let isSatisfied = false;
-            // Mapping des actions aux états satisfaisants
             if (currentState === 'open' && actionKeyToCompare === 'open') isSatisfied = true;
             else if (currentState === 'closed' && actionKeyToCompare === 'close') isSatisfied = true;
-            else if (currentState === 'on' && (actionKeyToCompare === 'turn_on' || actionKeyToCompare === 'activate' || actionKeyToCompare === 'increase')) isSatisfied = true;
-            else if (currentState === 'off' && (actionKeyToCompare === 'turn_off' || actionKeyToCompare === 'deactivate' || actionKeyToCompare === 'decrease')) isSatisfied = true;
-            
-            if (isSatisfied) {
-                tr.className = `dynamic-alert alert-success`;
-            }
+            else if (currentState === 'on' && ['turn_on','activate','increase'].includes(actionKeyToCompare)) isSatisfied = true;
+            else if (currentState === 'off' && ['turn_off','deactivate','decrease'].includes(actionKeyToCompare)) isSatisfied = true;
+        }
+
+        // Classe CSS finale
+        let trClass = 'dynamic-alert';
+        if (isSatisfied) {
+            trClass += ' alert-success';
+        } else {
+            const severityMap = { 'danger': 'alert-red', 'warning': 'alert-yellow', 'info': 'alert-green' };
+            trClass += ` ${severityMap[severityLower] || 'alert-green'}`;
         }
         
-        // Pour l'affichage, on garde la logique originale pour actionKeyDyn
+        // --- CONSTRUCTION / MISE À JOUR DU DOM ---
+        let tr = currentRows.get(rowId);
+        
+        if (!tr) {
+            tr = document.createElement('tr');
+            tr.setAttribute('data-target-id', rowId);
+            
+            // Create structure once
+            const tdState = document.createElement('td'); 
+            tdState.className = "col-state";
+            const tdSubj = document.createElement('td');
+            tdSubj.className = "col-subj";
+            const tdAct = document.createElement('td');
+            tdAct.className = "col-act";
+            
+            tr.appendChild(tdState);
+            tr.appendChild(tdSubj);
+            tr.appendChild(tdAct);
+            
+            // Add handler once
+            tr.addEventListener('click', function() {
+                const subj = this.querySelector('.col-subj').textContent.trim();
+                showDetails(subj, this._detailsData);
+            });
+        }
+        
+        // Update Content
+        tr.className = trClass;
+        tr.querySelector('.col-state').textContent = stateEmoji;
+        
+        // Prepare Texts
         const actionKeyDyn = firstPoint.getAttribute('data-action-key');
-        
         const subjectKey = `digitalTwin.sample.${typeKey}.subject`;
-        const actionKey = `digitalTwin.sample.${typeKey}.action`;
-
-        // If i18n keys exist, attach data-i18n so translations update automatically
-        let subjTxt = (t && t(subjectKey)) || typeKey;
+        const actionKeyFallback = `digitalTwin.sample.${typeKey}.action`;
         
-        // Si plusieurs objets du même type, ajouter un numéro (Fenêtre 1, Fenêtre 2, etc.)
+        let subjTxt = (t && t(subjectKey)) || typeKey;
         if (typeCount[typeKey] > 1) {
             const objectIndex = typeObjects[typeKey].indexOf(targetName) + 1;
             subjTxt = `${subjTxt} ${objectIndex}`;
@@ -718,88 +733,75 @@ window.syncAlertPointsToTable = function syncAlertPointsToTable() {
         
         const dynI18nKey = actionKeyDyn ? `digitalTwin.actionVerbs.${actionKeyDyn}` : null;
         const dynActTxt = dynI18nKey && t ? t(dynI18nKey) : null;
-        const actTxtFallback = (t && t(actionKey)) || null;
-
-        // Attacher data-i18n pour les traductions
+        const actTxtFallback = (t && t(actionKeyFallback)) || null;
+        
+        const tdSubj = tr.querySelector('.col-subj');
         tdSubj.setAttribute('data-i18n', subjectKey);
-        tdSubj.textContent = subjTxt; // Texte avec numéro si plusieurs objets du même type
+        // Warning: if we just set textContent, we lose the number suffix logic on re-translate. 
+        // For now, accept that re-translation might clear the number suffix unless we handle it in i18n lib.
+        // Or we assume automatic translation won't happen every frame.
+        if (tdSubj.textContent !== subjTxt) tdSubj.textContent = subjTxt;
 
-        // Action column shows dynamic recommendation when available, else subject default
+        const tdAct = tr.querySelector('.col-act');
+        const actContent = (dynActTxt) ? dynActTxt : (actTxtFallback ? actTxtFallback : ((t && t('digitalTwin.details')) || 'Détails'));
         if (actionKeyDyn) tdAct.setAttribute('data-i18n', dynI18nKey);
-        else tdAct.setAttribute('data-i18n', actionKey);
-        tdAct.textContent = (dynActTxt) ? dynActTxt : (actTxtFallback ? actTxtFallback : ((t && t('digitalTwin.details')) || 'Détails'));
+        else tdAct.setAttribute('data-i18n', actionKeyFallback);
+        
+        if (tdAct.textContent !== actContent) tdAct.textContent = actContent;
 
-        // Préparer les détails combinés de tous les points de ce type
+        // Details Data
         let combinedDetails = null;
         try {
-            // Prendre les détails du premier point pour l'instant
             const raw = firstPoint.getAttribute('data-details');
             combinedDetails = raw ? JSON.parse(raw) : null;
         } catch(e) { combinedDetails = null; }
-        
-        // Stocker les détails dans la ligne
         tr._detailsData = combinedDetails;
-        
-        // Clicking the row should open details using the visible subject text and detail object
-        tr.addEventListener('click', () => {
-            const subj = tdSubj.textContent.trim();
-            showDetails(subj, combinedDetails);
-        });
 
-        tr.appendChild(tdState);
-        tr.appendChild(tdSubj);
-        tr.appendChild(tdAct);
-
-        // Queue row with severity weight for sorting
+        // Queue for sort
         let weight = severityWeights[severityLower];
+        if (isSatisfied) weight = 10;
         
-        // Si la ligne est verte (succès), on la met tout en bas (poids plus élevé)
-        if (tr.classList.contains('alert-success')) {
-            weight = 10; // Poids élevé pour être à la fin
-        }
-
-        console.log(`[digital-twin] Adding grouped row for ${typeKey} with severity weight ${weight}, emoji: ${stateEmoji}`);
         builtRows.push({ tr, weight });
     });
 
-    // apply translations for newly inserted nodes
-    // sort rows: danger first, then warning, then info
+    // --- REMOVAL OF STALE ROWS ---
+    currentRows.forEach((tr, id) => {
+        if (!processedIds.has(id)) {
+            tr.remove();
+        }
+    });
+
+    // --- SORTING & REORDERING ---
+    // Only re-append if order changed or new items
     builtRows.sort((a,b) => a.weight - b.weight);
     
-    // Vérifier si le sujet du panneau ouvert existe encore dans les nouvelles lignes
-    let newDetailsForSubject = null;
-    let subjectStillExists = false;
-    if (isPanelOpen && previousSubject) {
-        for (const { tr } of builtRows) {
-            const subjCell = tr.querySelector('td:nth-child(2)');
-            if (subjCell && subjCell.textContent.trim() === previousSubject) {
-                subjectStillExists = true;
-                // Récupérer les nouveaux détails de cette ligne
-                const clickHandler = tr._detailsData;
-                if (clickHandler) {
-                    newDetailsForSubject = clickHandler;
-                }
-                break;
-            }
-        }
-    }
+    // Efficient Re-ordering
+    builtRows.forEach(({ tr }) => {
+         // Appending an existing child moves it to the end.
+         // If we do this in sorted order, the DOM ends up sorted.
+         // Check if it's already in position to avoid unnecessary paint
+         if (tbody.lastElementChild !== tr) {
+             tbody.appendChild(tr);
+         }
+    });
+
+    // Remove naive _applyTranslations call to prevent text blinking/overwriting
+    // try { if (window.i18n && typeof window.i18n._applyTranslations === 'function') window.i18n._applyTranslations(tbody); } catch(e){}
     
-    builtRows.forEach(({ tr }) => tbody.appendChild(tr));
-    try { if (window.i18n && typeof window.i18n._applyTranslations === 'function') window.i18n._applyTranslations(tbody); } catch(e){}
-    
-    // Toujours mettre à jour le panneau s'il est ouvert et que le sujet existe encore
+    // --- DETAILS PANEL SYNC ---
     if (isPanelOpen && previousSubject) {
-        if (subjectStillExists && newDetailsForSubject !== null) {
-            showDetails(previousSubject, newDetailsForSubject, true); // forceRefresh = true
-        } else if (!subjectStillExists) {
-            // Si le sujet n'existe plus, fermer le panneau
-            const panel = document.getElementById('details-panel');
-            if (panel) {
-                panel.classList.add('hidden');
-                const list = document.getElementById('details-list');
-                if (list) list.innerHTML = '';
-                currentDetailsSubject = null;
-            }
+        // Find if row for this subject still exists and get new details
+        const found = builtRows.find(item => {
+            const sub = item.tr.querySelector('.col-subj');
+            return sub && sub.textContent.trim() === previousSubject;
+        });
+        
+        if (!found) {
+            closeDetailsPanel();
+        } else {
+            // Update details content in real-time
+            // Use forceRefresh=true to update even if subject is same
+            showDetails(previousSubject, found.tr._detailsData, true);
         }
     }
     

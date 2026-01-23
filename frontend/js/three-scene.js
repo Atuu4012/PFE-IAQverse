@@ -814,17 +814,6 @@ function autoGenerateAlertPoints(modelRoot) {
     'radiator': /^Radiator(?!.*(?:Valve|Tuyau)).*$/i
   };
   
-  // Collecter tous les noms d'objets pour debug
-  const allObjectNames = [];
-  modelRoot.traverse(obj => {
-    if (obj.name) {
-      allObjectNames.push(obj.name);
-    }
-  });
-  console.log('[autoGenerate] === TOUS LES OBJETS DU MODÈLE ===');
-  console.log('[autoGenerate] Nombre total d\'objets:', allObjectNames.length);
-  console.log('[autoGenerate] Noms:', allObjectNames.join(', '));
-  
   // Collecter tous les objets correspondants (stocker les objets Three.js, pas juste les noms)
   const foundObjects = {};
   Object.keys(patterns).forEach(key => foundObjects[key] = []);
@@ -843,15 +832,12 @@ function autoGenerateAlertPoints(modelRoot) {
           
           // Ne stocker que les objets parents (pas les enfants)
           if (!isChild) {
-            console.log(`[autoGenerate] ✓ Objet trouvé - Type: ${type}, Nom: "${obj.name}", isChild: ${isChild}`);
             foundObjects[type].push(obj); // Stocker l'objet Three.js complet
             
             // Définir la couleur par défaut à rouge pour ventilation et radiator
             if (type === 'ventilation' || type === 'radiator') {
               setObjectColor(obj, 0xff0000); // rouge
             }
-          } else {
-            console.log(`[autoGenerate] ✗ Objet ignoré (enfant) - Type: ${type}, Nom: "${obj.name}"`);
           }
         }
       });
@@ -895,10 +881,8 @@ function autoGenerateAlertPoints(modelRoot) {
           const isInverted = targetName.match(/Inv|Rev|Invert|Opposite/i);
           
           if (isInverted) {
-             console.log(`[autoGenerate] Inverting rotation for ${targetName}`);
+            //  console.log(`[autoGenerate] Inverting rotation for ${targetName}`);
              if (config.openAngle) config.openAngle *= -1;
-          } else {
-             console.log(`[autoGenerate] Standard rotation for ${targetName}`);
           }
           
           if (type === 'door' || type === 'window') {
@@ -965,8 +949,6 @@ function autoGenerateAlertPoints(modelRoot) {
               
               config.closeAngle = initialRotation;
               config.openAngle = initialRotation + delta;
-              
-              console.log(`[autoGenerate] Adjusted animation for ${targetName}: start=${initialRotation.toFixed(2)}, end=${config.openAngle.toFixed(2)}`);
             }
           }
           
@@ -1148,7 +1130,6 @@ function autoGenerateAlertPoints(modelRoot) {
         });
         
         alertPointsContainer.appendChild(alertPoint);
-        console.log('[autoGenerate] Added alert point:', targetName, 'with data-active:', alertPoint.getAttribute('data-active'), 'severity:', alertPoint.getAttribute('data-severity'), 'enseigne:', alertPoint.getAttribute('data-enseigne'), 'piece:', alertPoint.getAttribute('data-piece'), 'display:', alertPoint.style.display, 'z-index:', alertPoint.style.zIndex);
         
         // Note: Saved state logic removed, replaced by initialMode at creation
       });
@@ -1156,27 +1137,19 @@ function autoGenerateAlertPoints(modelRoot) {
   });
   
   const totalPoints = document.querySelectorAll('.alert-point[data-auto-generated="true"]').length;
-  console.log('[autoGenerate] Total alert points created:', totalPoints);
-  console.log('[autoGenerate] Created alert points, now syncing table');
   
   // Synchroniser le tableau avec les nouveaux alert-points (avec délai pour laisser le DOM se mettre à jour)
   setTimeout(() => {
     if (typeof window.syncAlertPointsToTable === 'function') {
-      console.log('[autoGenerate] Calling syncAlertPointsToTable');
       window.syncAlertPointsToTable();
-    } else {
-      console.error('[autoGenerate] syncAlertPointsToTable not found');
     }
     
     // Mettre à jour le compteur d'alertes après création
     if (typeof window.updateAlertCountLabel === 'function') {
       window.updateAlertCountLabel();
-    } else {
-      console.error('[three-scene] updateAlertCountLabel function not found on window');
     }
     
     // Notifier alerts-engine.js que les points sont prêts
-    console.log('[autoGenerate] Emitting alertPointsReady event');
     document.dispatchEvent(new CustomEvent('alertPointsReady', {
       detail: { enseigneId: currentEnseigneId, pieceId: currentPieceId }
     }));
@@ -1190,11 +1163,8 @@ function updateAlertPoints() {
   // Attendre au moins 2 secondes après le chargement du modèle avant de masquer les points
   const timeSinceLoad = Date.now() - modelLoadTime;
   if (!modelLoaded || timeSinceLoad < 2000) {
-    console.log(`[updateAlertPoints] Waiting for model to stabilize (${timeSinceLoad}ms elapsed)`);
     return;
   }
-
-  console.log('[updateAlertPoints] Mise à jour de', points.length, 'points');
 
   points.forEach(el => {
     el.style.position = 'absolute';
@@ -1210,7 +1180,6 @@ function updateAlertPoints() {
     }
     
     if (!target) {
-      console.log('[updateAlertPoints] Objet non trouvé pour', el.getAttribute('data-target-names'));
       el.style.display = 'none';
       return;
     }
@@ -1238,15 +1207,7 @@ function updateAlertPoints() {
     const inFrustum = frustum.containsPoint(worldPos);
     const ndc = worldPos.clone().project(camera);
     
-    console.log(`[updateAlertPoints] ${el.getAttribute('data-i18n-key')} (${target.name}):`, {
-      worldPos: { x: worldPos.x.toFixed(2), y: worldPos.y.toFixed(2), z: worldPos.z.toFixed(2) },
-      ndc: { x: ndc.x.toFixed(2), y: ndc.y.toFixed(2), z: ndc.z.toFixed(2) },
-      inFrustum,
-      cameraPos: { x: camera.position.x.toFixed(2), y: camera.position.y.toFixed(2), z: camera.position.z.toFixed(2) }
-    });
-    
     if (!inFrustum) {
-      console.log(`[updateAlertPoints] ${target.name} hors frustum, masqué`);
       el.style.display = 'none';
       el.setAttribute('data-in-view', 'false');
       return;
@@ -1254,7 +1215,6 @@ function updateAlertPoints() {
     
     // Double vérification : si les coordonnées NDC sont hors limites, masquer
     if (ndc.x < -1 || ndc.x > 1 || ndc.y < -1 || ndc.y > 1 || ndc.z < 0 || ndc.z > 1) {
-      console.log(`[updateAlertPoints] ${target.name} NDC hors limites, masqué`);
       el.style.display = 'none';
       el.setAttribute('data-in-view', 'false');
       return;
@@ -1268,8 +1228,6 @@ function updateAlertPoints() {
     
     const x = (ndc.x * 0.5 + 0.5) * rectW;
     const y = (-ndc.y * 0.5 + 0.5) * rectH;
-
-    console.log(`[updateAlertPoints] ${target.name} visible à (${x.toFixed(0)}, ${y.toFixed(0)})`);
 
     el.style.left = x + 'px';
     el.style.top = y + 'px';

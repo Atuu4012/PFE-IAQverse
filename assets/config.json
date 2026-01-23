@@ -48,6 +48,44 @@
                         "id": "piece_1769166900560",
                         "nom": "Chambre",
                         "type": "chambre",
+                        "modules": [
+                            {
+                                "id": "window_1",
+                                "name": "Fenetre Principale",
+                                "type": "window",
+                                "is_iot": true,
+                                "state": "closed"
+                            },
+                            {
+                                "id": "hvac_1",
+                                "name": "Climatisation",
+                                "type": "hvac",
+                                "is_iot": true,
+                                "state": "off",
+                                "target_temp": 21
+                            },
+                            {
+                                "id": "door_1",
+                                "name": "Porte Entrée",
+                                "type": "door",
+                                "is_iot": false,
+                                "state": "closed"
+                            },
+                            {
+                                "id": "Clim01",
+                                "name": "Clim01",
+                                "type": "ventilation",
+                                "is_iot": true,
+                                "state": "off"
+                            },
+                            {
+                                "id": "Radiator01",
+                                "name": "Radiator01",
+                                "type": "radiator",
+                                "is_iot": true,
+                                "state": "off"
+                            }
+                        ],
                         "glbModel": "/assets/rooms/ens_1762004765975_piece_1769166900560.glb"
                     }
                 ]
@@ -61,7 +99,31 @@
                         "id": "piece_1764862007013",
                         "nom": "Chambre Arthur",
                         "type": "chambre",
-                        "glbModel": "/assets/rooms/ens_boutique1_piece_1764862007013.glb"
+                        "glbModel": "/assets/rooms/ens_boutique1_piece_1764862007013.glb",
+                        "modules": [
+                            {
+                                "id": "window_1",
+                                "name": "Fenêtre",
+                                "type": "window",
+                                "is_iot": true,
+                                "state": "closed"
+                            },
+                            {
+                                "id": "hvac_1",
+                                "name": "Climatisation",
+                                "type": "hvac",
+                                "is_iot": true,
+                                "state": "off",
+                                "target_temp": 21
+                            },
+                            {
+                                "id": "door_1",
+                                "name": "Porte",
+                                "type": "door",
+                                "is_iot": false,
+                                "state": "closed"
+                            }
+                        ]
                     }
                 ]
             }

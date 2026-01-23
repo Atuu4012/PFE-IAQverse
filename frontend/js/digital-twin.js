@@ -438,6 +438,27 @@ function displayPreventiveActions(data) {
     
     let html = '';
     data.actions.forEach(action => {
+        // HIDE ACTION IF COMPLETED
+        // Check if matching module is already in the requested state
+        try {
+            const deviceType = action.device; 
+            // Map action to state
+            const targetStates = (action.action === 'open' || action.action === 'turn_on') ? ['open', 'on'] : ['closed', 'off'];
+            
+            // Find active alert points in DOM that match this device type
+            // Note: This relies on three-scene.js having rendered the points and updated their data-state
+            const allPoints = Array.from(document.querySelectorAll('.alert-point'));
+            const matchingPoints = allPoints.filter(pt => pt.getAttribute('data-i18n-key') === deviceType);
+            
+            if (matchingPoints.length > 0) {
+                 // If any of the matching devices is in the target state, consider it handled? 
+                 // Or we might want to check specific IDs if ML returned them. 
+                 // For now, if ML says "Open Window" and we have opened A window, we hide it.
+                 const isCompleted = matchingPoints.some(pt => targetStates.includes(pt.getAttribute('data-state')));
+                 if (isCompleted) return; // SKIP this action
+            }
+        } catch(e) { console.warn("Error filtering preventive actions", e); }
+
         const deviceKey = deviceI18nMap[action.device] || action.device;
         const deviceName = (t && t(`digitalTwin.sample.${deviceKey}.subject`)) || action.device;
         

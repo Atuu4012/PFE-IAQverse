@@ -315,7 +315,34 @@ def get_influx_client(
     """Retourne l'instance du client InfluxDB"""
     global _influx_client
     
-    if _influx_client is None and all([url, token, org, bucket]):
-        _influx_client = InfluxDBClient(url, token, org, bucket)
+    if _influx_client is None:
+        # Tenter de charger depuis les settings si non fournis
+        if not all([url, token, org, bucket]):
+            from .settings import settings
+            url = url or settings.INFLUXDB_URL
+            token = token or settings.INFLUXDB_TOKEN
+            org = org or settings.INFLUXDB_ORG
+            bucket = bucket or settings.INFLUXDB_BUCKET
+
+        if all([url, token, org, bucket]):
+            _influx_client = InfluxDBClient(url, token, org, bucket)
     
     return _influx_client
+
+
+def write_data(data: Any) -> bool:
+    """
+    Fonction helper pour écrire des données brutes (Point ou dict ou liste).
+    Utilisé par le simulateur.
+    """
+    client = get_influx_client()
+    if not client or not client.available:
+        return False
+        
+    try:
+        # Utiliser l'API write directe qui gère Point, dict, string, list
+        client.write_api.write(bucket=client.bucket, record=data)
+        return True
+    except Exception as e:
+        logger.error(f"Erreur write_data: {e}")
+        return False

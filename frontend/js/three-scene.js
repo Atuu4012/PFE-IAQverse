@@ -94,29 +94,41 @@ const objectAnimations = {
 
 let activeParticles = {}; // obj.uuid -> {points, positions, colors, velocities, lifetimes, maxCount, emitting}
 
-// Fonctions pour gérer la persistance de l'état des objets
-function saveObjectStates(enseigneId, pieceId) {
-  if (!enseigneId || !pieceId) return;
-  
-  const statesData = {};
-  Object.entries(objectStates).forEach(([name, stateObj]) => {
-    statesData[name] = {
-      type: stateObj.type,
-      state: stateObj.state
-    };
-  });
-  
-  const storageKey = `objectStates_${enseigneId}_${pieceId}`;
-  sessionStorage.setItem(storageKey, JSON.stringify(statesData));
+// Helper to update backend config
+async function updateModuleConfig(enseigneId, pieceId, moduleId, newState, moduleType = 'unknown') {
+    if (!enseigneId || !pieceId) return;
+    try {
+        const payload = {
+            enseigne_id: enseigneId,
+            piece_id: pieceId,
+            module_id: moduleId,
+            module_type: moduleType,
+            state: newState
+        };
+        await fetch('/api/config/module_state', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        console.log(`[three-scene] Updated module ${moduleId} state to ${newState}`);
+    } catch(e) {
+        console.error("[three-scene] Failed to update module config", e);
+    }
 }
 
-function loadObjectStates(enseigneId, pieceId) {
-  if (!enseigneId || !pieceId) return {};
+// Function to synchronize with backend configuration (replaces loadObjectStates)
+function getModuleStateFromConfig(enseigneId, pieceId, moduleId, defaultState = null) {
+  const cfg = (typeof window.getConfig === 'function') ? window.getConfig() : window.config;
   
-  const storageKey = `objectStates_${enseigneId}_${pieceId}`;
-  console.log('[loadObjectStates] Loading from key:', storageKey);
-  const saved = sessionStorage.getItem(storageKey);
-  return saved ? JSON.parse(saved) : {};
+  if (!cfg || !cfg.lieux) return defaultState;
+  
+  const ens = cfg.lieux.enseignes.find(e => e.id === enseigneId);
+  if (!ens) return defaultState;
+  const piece = ens.pieces.find(p => p.id === pieceId);
+  if (!piece || !piece.modules) return defaultState;
+  
+  const mod = piece.modules.find(m => m.id === moduleId);
+  return mod ? mod.state : defaultState;
 }
 
 function interpolateColor(startColor, endColor, factor) {
@@ -735,9 +747,7 @@ function autoGenerateAlertPoints(modelRoot) {
   const alertPointsContainer = document.getElementById('alert-points-container');
   if (!alertPointsContainer) return;
   
-  // Charger les états sauvegardés pour cette pièce
-  const savedStates = loadObjectStates(currentEnseigneId, currentPieceId);
-  console.log('[autoGenerate] Loaded saved states:', savedStates);
+  // Note: savedStates removal - we use config now
   
   // Patterns à rechercher dans les noms d'objets (ajustés selon les vrais noms du GLB)
   const patterns = {
@@ -815,6 +825,11 @@ function autoGenerateAlertPoints(modelRoot) {
         
         if (!objectStates[targetName]) {
           let animationObj = obj;
+          
+          // Initial State Resolution from Config
+          // Si non présent dans la config, getModuleStateFromConfig renverra null
+          const configState = getModuleStateFromConfig(currentEnseigneId, currentPieceId, targetName);
+          const initialMode = configState || (type === 'window' || type === 'door' ? 'closed' : 'off');
           
           // Créer une configuration spécifique pour cet objet
           // Cela permet d'adapter l'animation (direction, axe) par objet
@@ -903,14 +918,25 @@ function autoGenerateAlertPoints(modelRoot) {
           objectStates[targetName] = { 
             object: animationObj, 
             type: type, 
-            state: type === 'door' || type === 'window' ? 'closed' : 'off', 
+            state: initialMode, 
             particles: null,
             config: config
           };
           
-          // Charger l'état sauvegardé depuis sessionStorage
-          if (savedStates[targetName]) {
-            objectStates[targetName].state = savedStates[targetName].state;
+          // Appliquer l'état visuel initial (Rotation ou Couleur)
+          if (config.axis) {
+             // C'est un objet rotatif (porte/fenêtre)
+             const targetAngle = initialMode === 'open' ? config.openAngle : config.closeAngle;
+             animationObj.rotation[config.axis] = targetAngle;
+          } else if (config.colorOn) {
+             // C'est un objet à changement de couleur (radiateur/ventil)
+             const targetColor = initialMode === 'on' ? config.colorOn : config.colorOff;
+             setObjectColor(animationObj, targetColor);
+             
+             // Gérer les particules si allumé
+             if (initialMode === 'on') {
+                 createParticles(animationObj, config);
+             }
           }
         }
         
@@ -1053,8 +1079,8 @@ function autoGenerateAlertPoints(modelRoot) {
             alertPoint.setAttribute('data-bg-color', newBgColor);
             alertPoint.setAttribute('data-state', newState);
             
-            // Sauvegarder l'état dans sessionStorage
-            saveObjectStates(currentEnseigneId, currentPieceId);
+            // Sync with Backend Config (this is the single source of truth now)
+            updateModuleConfig(currentEnseigneId, currentPieceId, targetName, newState, alertType);
             
             // Rafraîchir le tableau pour mettre à jour les emojis
             if (typeof window.syncAlertPointsToTable === 'function') {
@@ -1069,26 +1095,7 @@ function autoGenerateAlertPoints(modelRoot) {
         alertPointsContainer.appendChild(alertPoint);
         console.log('[autoGenerate] Added alert point:', targetName, 'with data-active:', alertPoint.getAttribute('data-active'), 'severity:', alertPoint.getAttribute('data-severity'), 'enseigne:', alertPoint.getAttribute('data-enseigne'), 'piece:', alertPoint.getAttribute('data-piece'), 'display:', alertPoint.style.display, 'z-index:', alertPoint.style.zIndex);
         
-        // Appliquer visuellement l'état restauré
-        if (savedStates[targetName]) {
-          const config = objectStates[targetName].config || objectAnimations[type];
-          if (config) {
-            // Appliquer immédiatement l'état sans animation
-            if (config.axis) {
-              // Pour portes et fenêtres : rotation
-              const targetRotation = currentState === 'open' ? config.openAngle : config.closeAngle;
-              animationObj.rotation[config.axis] = targetRotation;
-            } else if (config.colorOn) {
-              // Pour ventilation et radiateur : couleur et particules
-              const targetColor = currentState === 'on' ? config.colorOn : config.colorOff;
-              setObjectColor(objectStates[targetName].object, targetColor);
-              
-              if (currentState === 'on' && config.particleColor) {
-                createParticles(objectStates[targetName].object, config);
-              }
-            }
-          }
-        }
+        // Note: Saved state logic removed, replaced by initialMode at creation
       });
     }
   });

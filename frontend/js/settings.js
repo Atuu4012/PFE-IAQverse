@@ -303,7 +303,11 @@ function renderEnseignes() {
     const cancelLabel = (t && t('actions.cancel')) || 'Annuler';
 
     const roomsHtml = (enseigne.pieces || []).map(piece => {
-      return `<span class="room-tag">${escapeHtml(piece.nom)} <button class="remove-btn" title="${removeLabel}" onclick="removePiece('${enseigne.id}','${piece.id}')">×</button></span>`;
+      return `<span class="room-tag">
+        ${escapeHtml(piece.nom)} 
+        <button class="edit-room-btn" title="Gérer les modules" onclick="editRoomModules('${enseigne.id}','${piece.id}')" style="background:none; border:none; cursor:pointer; font-size:12px; margin-left:5px;">⚙️</button>
+        <button class="remove-btn" title="${removeLabel}" onclick="removePiece('${enseigne.id}','${piece.id}')">×</button>
+      </span>`;
     }).join('');
 
     card.innerHTML = `

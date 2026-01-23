@@ -6,7 +6,7 @@
 let config = null;
 
 /**
- * Charge la configuration depuis le backend ou le fichier statique
+ * Charge la configuration depuis le backend
  * @returns {Promise<Object>} La configuration chargée
  */
 async function loadConfig() {

@@ -1086,14 +1086,28 @@ async function loadConfigToUI() {
 }
 
 // Restauration de l'état UI et listeners
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Charger la config dans l'UI d'abord pour avoir les préférences sauvegardées
+  await loadConfigToUI();
+
   // Section active
-  const savedSection = localStorage.getItem('lastSection') || 'compte';
+  const savedSection = (settingsConfig && settingsConfig.affichage && settingsConfig.affichage.lastSection) || 'compte';
   showSection(savedSection);
+
   document.querySelectorAll('.menu li').forEach(item => {
     item.addEventListener('click', () => {
       const id = (item.dataset && item.dataset.section) ? item.dataset.section : item.textContent.trim().toLowerCase();
-      localStorage.setItem('lastSection', id);
+      // Update local config object
+      if (!settingsConfig) settingsConfig = {};
+      if (!settingsConfig.affichage) settingsConfig.affichage = {};
+      settingsConfig.affichage.lastSection = id;
+      
+      // Save to backend silently
+      fetch('/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+          body: JSON.stringify({ affichage: { lastSection: id } })
+      }).catch(e => console.warn('Failed to save lastSection', e));
     });
   });
 
@@ -1104,24 +1118,41 @@ document.addEventListener('DOMContentLoaded', () => {
       if (d.open) {
         // Fermer tous les autres quand celui-ci s'ouvre
         allDetails.forEach(other => { if (other !== d) other.open = false; });
-        localStorage.setItem('openDetail', d.id);
+        
+        // Save open detail
+        if (!settingsConfig) settingsConfig = {};
+        if (!settingsConfig.affichage) settingsConfig.affichage = {};
+        settingsConfig.affichage.openDetail = d.id;
+        
+        fetch('/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+            body: JSON.stringify({ affichage: { openDetail: d.id } })
+        }).catch(e => console.warn('Failed to save openDetail', e));
+
       } else {
-        // Si aucun n'est ouvert, nettoyer la clé
+        // Si aucun n'est ouvert
         const anyOpen = Array.from(allDetails).some(x => x.open);
-        if (!anyOpen) localStorage.removeItem('openDetail');
+        if (!anyOpen) {
+             if (settingsConfig && settingsConfig.affichage) settingsConfig.affichage.openDetail = null;
+             fetch('/config', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                body: JSON.stringify({ affichage: { openDetail: null } })
+             }).catch(e => console.warn('Failed to save openDetail', e));
+        }
       }
     });
   });
-  const openDetail = localStorage.getItem('openDetail');
+
+  // Restore open detail
+  const openDetail = settingsConfig && settingsConfig.affichage && settingsConfig.affichage.openDetail;
   if (openDetail) {
     const el = document.getElementById(openDetail);
     if (el && el.tagName.toLowerCase() === 'details') el.open = true;
   }
 
   // Cliquer hors modale -> utils.js prend en charge .close, etc.
-
-  // Charger la config dans l'UI
-  loadConfigToUI();
 });
 
 // Re-apply displayed values (labels) when language changes so translations loaded later update UI

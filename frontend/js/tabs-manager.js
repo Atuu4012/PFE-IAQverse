@@ -32,24 +32,29 @@ async function initTabsManager() {
             console.warn('[tabs-manager] setupWsListeners failed:', e);
         }
         
-        // Restaurer l'enseigne et la pièce sauvegardées AVANT de rendre les tabs
-        const savedEnseigne = localStorage.getItem('activeEnseigne');
-        const savedRoom = localStorage.getItem('activeRoom');
+        // Removed localStorage. Using config.lieux.active / config.lieux.activeRoom instead.
+        const configActiveEnseigne = config.lieux.active;
+        const configActiveRoom = config.lieux.activeRoom;
 
         if (config.lieux.enseignes.length > 0) {
-            const defaultEnseigne = savedEnseigne ||
-                (config.lieux.enseignes.find(e => e.id === config.lieux.active) || config.lieux.enseignes[0]).id;
-
-            // Définir activeRoom AVANT d'appeler switchEnseigne pour éviter l'auto-sélection de la première pièce
-            const enseigne = config.lieux.enseignes.find(e => e.id === defaultEnseigne);
-            if (savedRoom && enseigne?.pieces?.some(p => p.id === savedRoom)) {
-                activeRoom = savedRoom;
+            // Locate the enseigne from config or default to first
+            let defaultEnseigne = configActiveEnseigne;
+            
+            // Verify it exists in the list
+            if (!config.lieux.enseignes.find(e => e.id === defaultEnseigne)) {
+                defaultEnseigne = config.lieux.enseignes[0].id;
             }
 
-                // Passer keepActiveRoom=true pour ne pas écraser activeRoom qui vient d'être restauré
-                switchEnseigne(defaultEnseigne, activeRoom !== null);
+            // Définir activeRoom s'il est valide pour cette enseigne
+            const enseigne = config.lieux.enseignes.find(e => e.id === defaultEnseigne);
+            if (configActiveRoom && enseigne?.pieces?.some(p => p.id === configActiveRoom)) {
+                activeRoom = configActiveRoom;
+            }
 
-            // Si savedRoom a été défini, émettre roomChanged explicitement
+            // Passer keepActiveRoom=true et save=false (init)
+            switchEnseigne(defaultEnseigne, activeRoom !== null, false);
+
+            // Si activeRoom a été défini, émettre roomChanged explicitement
             if (activeRoom) {
                 document.dispatchEvent(new CustomEvent('roomChanged', { 
                     detail: { roomId: activeRoom, enseigneId: defaultEnseigne } 
@@ -141,28 +146,39 @@ function renderRoomTabs(enseigneId) {
         }
     });
 
-    // Si aucune pièce n'est active, activer la première SEULEMENT si pas en cours de restauration localStorage
+    // Si aucune pièce n'est active, activer la première
     if (!activeRoom && enseigne.pieces.length > 0) {
-        // N'auto-sélectionner que si on n'est pas en train de restaurer depuis localStorage
-        // (activeRoom sera déjà défini par initTabsManager dans ce cas)
-        switchRoom(enseigne.pieces[0].id);
+        // save=true is implied for this auto-select? 
+        // Actually, if user switches enseigne, we auto-select room. Ideally we should save it.
+        switchRoom(enseigne.pieces[0].id, true);
     }
 }
 
 /**
  * Change l'enseigne active
  * @param {string} enseigneId - L'ID de l'enseigne
- * @param {boolean} keepActiveRoom - Si true, ne pas réinitialiser activeRoom (utilisé lors de la restauration depuis localStorage)
+ * @param {boolean} keepActiveRoom - Si true, ne pas réinitialiser activeRoom
+ * @param {boolean} save - Si true, sauvegarde la config sur le backend
  */
-function switchEnseigne(enseigneId, keepActiveRoom = false) {
+function switchEnseigne(enseigneId, keepActiveRoom = false, save = true) {
     // Vérifier si on change vraiment d'enseigne
     const previousEnseigne = activeEnseigne;
     
     activeEnseigne = enseigneId;
     if (!keepActiveRoom) {
-        activeRoom = null; // Réinitialiser la pièce active (sauf si on restaure depuis localStorage)
+        activeRoom = null; // Réinitialiser la pièce active
     }
-    localStorage.setItem('activeEnseigne', enseigneId);
+    
+    if (save && typeof window.saveConfig === 'function') {
+        // We only save the active enseigne here. Active room will be saved when switchRoom is called (or reset).
+        // If we reset room, maybe we should save activeRoom: null? 
+        // For now, let's just save the active Enseigne.
+        window.saveConfig({ lieux: { active: enseigneId } });
+        if (!keepActiveRoom && activeRoom === null) {
+            // Optional: clear activeRoom in config? 
+            // window.saveConfig({ lieux: { activeRoom: null } }); // If API supports it
+        }
+    }
     
     // Mettre à jour l'apparence des onglets d'enseignes
     document.querySelectorAll('.location-tab').forEach(tab => {
@@ -181,13 +197,17 @@ function switchEnseigne(enseigneId, keepActiveRoom = false) {
 /**
  * Change la pièce active
  * @param {string} roomId - L'ID de la pièce
+ * @param {boolean} save - Si true, sauvegarde la config sur le backend
  */
-function switchRoom(roomId) {
+function switchRoom(roomId, save = true) {
     // Vérifier si on change vraiment de pièce
     const previousRoom = activeRoom;
     
     activeRoom = roomId;
-    localStorage.setItem('activeRoom', roomId);
+    
+    if (save && typeof window.saveConfig === 'function') {
+        window.saveConfig({ lieux: { activeRoom: roomId } });
+    }
     
     // Mettre à jour l'apparence des onglets
     document.querySelectorAll('.room-tab').forEach(tab => {

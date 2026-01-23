@@ -142,7 +142,8 @@
                 ]
             }
         ],
-        "active": "ens_1762004765975"
+        "active": "ens_1762004765975",
+        "activeRoom": "piece_1769166900560"
     },
     "contact": {
         "email": "support@iaqverse.local",

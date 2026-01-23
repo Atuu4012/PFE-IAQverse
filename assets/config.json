@@ -21,7 +21,7 @@
         "adresse": "20 boulevard du Syndicat"
     },
     "affichage": {
-        "mode": "Sombre",
+        "mode": "Clair",
         "langue": "fr",
         "localisation": "Europe, Paris"
     },
@@ -45,10 +45,10 @@
                 "adresse": "123 rue d'Avron",
                 "pieces": [
                     {
-                        "id": "piece_1764858886827",
+                        "id": "piece_1769166900560",
                         "nom": "Chambre",
                         "type": "chambre",
-                        "glbModel": "/assets/rooms/ens_1762004765975_piece_1764858886827.glb"
+                        "glbModel": "/assets/rooms/ens_1762004765975_piece_1769166900560.glb"
                     }
                 ]
             },

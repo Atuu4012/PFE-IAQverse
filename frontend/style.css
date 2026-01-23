@@ -1706,7 +1706,7 @@ a:hover img {
   height: auto;
   background-color: var(--bg-secondary);
   color: var(--text-primary);
-  padding: 40px 20px 20px 20px;
+  padding: 20px 20px 20px 20px;
   border-radius: 10px;
   box-shadow: var(--shadow-md);
   transition: all 0.3s ease;
@@ -1748,6 +1748,11 @@ a:hover img {
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
+}
+
+.room-panel h2 {
+  margin-top: 5px;
+  margin-bottom: 10px;
 }
 
 .actions-table {
@@ -3182,6 +3187,7 @@ select.form-control::after {
 
 .panel-header h2 {
     margin: 0;
+    padding-top:5px;
 }
 
 .panel-info-btn {

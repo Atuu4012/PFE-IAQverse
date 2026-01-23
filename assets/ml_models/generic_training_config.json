@@ -29,7 +29,9 @@
     "humidity"
   ],
   "trained_rooms": [
-    "Bureau"
+    "Bureau",
+    "Chambre",
+    "Chambre Arthur"
   ],
   "trained_sensors": [
     "Bureau1",

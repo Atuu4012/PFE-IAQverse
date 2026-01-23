@@ -76,7 +76,7 @@
                                 "name": "Clim01",
                                 "type": "ventilation",
                                 "is_iot": true,
-                                "state": "off"
+                                "state": "on"
                             },
                             {
                                 "id": "Radiator01",
@@ -84,6 +84,20 @@
                                 "type": "radiator",
                                 "is_iot": true,
                                 "state": "off"
+                            },
+                            {
+                                "id": "Window01",
+                                "name": "Window01",
+                                "type": "window",
+                                "is_iot": true,
+                                "state": "closed"
+                            },
+                            {
+                                "id": "Door01",
+                                "name": "Door01",
+                                "type": "door",
+                                "is_iot": true,
+                                "state": "closed"
                             }
                         ],
                         "glbModel": "/assets/rooms/ens_1762004765975_piece_1769166900560.glb"

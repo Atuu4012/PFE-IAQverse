@@ -57,8 +57,11 @@ class WebSocketManager {
                     } else if (data.topic) {
                         this.notifyListeners(data.topic, data.data || data);
                     } else if (data.type === 'measurement') {
-                        // Nouveau format de message avec type
                         this.notifyListeners('measurements', data);
+                    } else if (data.type === 'module_update') {
+                        this.notifyListeners('modules', data);
+                    } else if (data.type === 'config_updated') {
+                        this.notifyListeners('config', data);
                     }
                 } catch (error) {
                     console.error('❌ Erreur parsing WebSocket message:', error);

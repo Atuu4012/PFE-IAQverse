@@ -430,7 +430,19 @@ async def update_module_state(update_data: Dict):
             save_config(config)
             # Notifier via WebSocket
             ws = get_websocket_manager()
+            # Update global config for consistency
             await ws.broadcast({"type": "config_updated", "config": config})
+            
+            # Broadcast specific module update for real-time animations
+            await ws.broadcast({
+                "type": "module_update",
+                "enseigne_id": enseigne_id,
+                "piece_id": piece_id,
+                "module_id": module_id,
+                "state": new_state,
+                "module_type": update_data.get("module_type", "unknown")
+            }, "modules")
+            
             return {"status": "success", "message": "Module state updated"}
         else:
             return {"status": "ignored", "message": "No matching module found"}

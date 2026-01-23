@@ -116,6 +116,61 @@ async function updateModuleConfig(enseigneId, pieceId, moduleId, newState, modul
     }
 }
 
+// Websocket Synchronization
+function setupWebsocket() {
+    // Wait for WS Manager to be available
+    if (window.wsManager) {
+        if (!window.wsManager.isConnectionActive()) {
+             window.wsManager.connect();
+        }
+        window.wsManager.subscribe(['modules']);
+        window.wsManager.on('modules', handleExternalModuleUpdate);
+        console.log('[three-scene] Listening for WS module updates');
+    } else {
+        // Retry a bit later if not loaded yet
+        setTimeout(setupWebsocket, 1000);
+    }
+}
+
+function handleExternalModuleUpdate(data) {
+    // data: { type: 'module_update', enseigne_id, piece_id, module_id, state, module_type }
+    if (data.enseigne_id !== currentEnseigneId || data.piece_id !== currentPieceId) return;
+    
+    const { module_id, state } = data;
+    const objState = objectStates[module_id];
+    
+    if (objState && objState.state !== state) {
+        console.log(`[three-scene] External update for ${module_id}: ${state}`);
+        
+        // Trigger Animation
+        animateObject(objState.object, objState.config, state);
+        
+        // Manage Particles
+        if (state === 'on') {
+            createParticles(objState.object, objState.config);
+        } else if (state === 'off') {
+            stopParticles(objState.object);
+        }
+        
+        // Update Internal State
+        objState.state = state;
+        
+        // Update UI (Alert Point)
+        const ap = document.querySelector(`.alert-point[data-target-names="${module_id}"]`);
+        if (ap) {
+            ap.setAttribute('data-state', state);
+            // Re-eval background color
+            let bgColor = 'rgba(220, 20, 60, 0.9)'; // default red
+            const isPositive = state === 'open' || state === 'on';
+            if (isPositive) bgColor = 'rgba(34, 139, 34, 0.9)'; // green
+            ap.style.backgroundColor = bgColor;
+        }
+    }
+}
+
+// Start listening
+setupWebsocket();
+
 // Function to synchronize with backend configuration (replaces loadObjectStates)
 function getModuleStateFromConfig(enseigneId, pieceId, moduleId, defaultState = null) {
   const cfg = (typeof window.getConfig === 'function') ? window.getConfig() : window.config;

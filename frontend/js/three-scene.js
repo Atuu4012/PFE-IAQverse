@@ -1128,11 +1128,11 @@ function updateAlertPoints() {
   // Attendre au moins 2 secondes après le chargement du modèle avant de masquer les points
   const timeSinceLoad = Date.now() - modelLoadTime;
   if (!modelLoaded || timeSinceLoad < 2000) {
-    console.log(`[updateAlertPoints] Waiting for model to stabilize (${timeSinceLoad}ms elapsed)`);
+    // console.log(`[updateAlertPoints] Waiting for model to stabilize (${timeSinceLoad}ms elapsed)`);
     return;
   }
 
-  console.log('[updateAlertPoints] Mise à jour de', points.length, 'points');
+  // console.log('[updateAlertPoints] Mise à jour de', points.length, 'points');
 
   points.forEach(el => {
     el.style.position = 'absolute';
@@ -1148,7 +1148,7 @@ function updateAlertPoints() {
     }
     
     if (!target) {
-      console.log('[updateAlertPoints] Objet non trouvé pour', el.getAttribute('data-target-names'));
+      // console.log('[updateAlertPoints] Objet non trouvé pour', el.getAttribute('data-target-names'));
       el.style.display = 'none';
       return;
     }
@@ -1176,15 +1176,17 @@ function updateAlertPoints() {
     const inFrustum = frustum.containsPoint(worldPos);
     const ndc = worldPos.clone().project(camera);
     
+    /*
     console.log(`[updateAlertPoints] ${el.getAttribute('data-i18n-key')} (${target.name}):`, {
       worldPos: { x: worldPos.x.toFixed(2), y: worldPos.y.toFixed(2), z: worldPos.z.toFixed(2) },
       ndc: { x: ndc.x.toFixed(2), y: ndc.y.toFixed(2), z: ndc.z.toFixed(2) },
       inFrustum,
       cameraPos: { x: camera.position.x.toFixed(2), y: camera.position.y.toFixed(2), z: camera.position.z.toFixed(2) }
     });
+    */
     
     if (!inFrustum) {
-      console.log(`[updateAlertPoints] ${target.name} hors frustum, masqué`);
+      // console.log(`[updateAlertPoints] ${target.name} hors frustum, masqué`);
       el.style.display = 'none';
       el.setAttribute('data-in-view', 'false');
       return;
@@ -1192,7 +1194,7 @@ function updateAlertPoints() {
     
     // Double vérification : si les coordonnées NDC sont hors limites, masquer
     if (ndc.x < -1 || ndc.x > 1 || ndc.y < -1 || ndc.y > 1 || ndc.z < 0 || ndc.z > 1) {
-      console.log(`[updateAlertPoints] ${target.name} NDC hors limites, masqué`);
+      // console.log(`[updateAlertPoints] ${target.name} NDC hors limites, masqué`);
       el.style.display = 'none';
       el.setAttribute('data-in-view', 'false');
       return;
@@ -1207,7 +1209,7 @@ function updateAlertPoints() {
     const x = (ndc.x * 0.5 + 0.5) * rectW;
     const y = (-ndc.y * 0.5 + 0.5) * rectH;
 
-    console.log(`[updateAlertPoints] ${target.name} visible à (${x.toFixed(0)}, ${y.toFixed(0)})`);
+    // console.log(`[updateAlertPoints] ${target.name} visible à (${x.toFixed(0)}, ${y.toFixed(0)})`);
 
     el.style.left = x + 'px';
     el.style.top = y + 'px';

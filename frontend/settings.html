@@ -13,6 +13,8 @@
     <script src="js/api.js"></script>
     <script src="js/websocket-manager.js"></script>
     <script src="js/settings.js"></script>
+    <script src="js/global-alerts.js"></script>
+    <script src="js/simulate-alert.js"></script>
   </head>
 
   <body>
@@ -251,6 +253,15 @@
                 <label data-i18n="settings.fields.adresse">Adresse postale</label>
                 <input type="text" class="form-control" data-path="syndicat.adresse">
               </div>
+
+              <!-- Feature Toggle Alert Syndicat -->
+              <div class="form-group checkbox-group" style="margin-top:20px; padding-top:15px; border-top:1px solid var(--border-color);">
+                <label class="checkbox-label">
+                    <input type="checkbox" data-path="alert_system.email_notifications">
+                    <span data-i18n="settings.fields.email_alerts_enabled">Activer les alertes email critiques</span>
+                </label>
+              </div>
+
               <div class="card-actions">
                 <button class="btn-primary" onclick="saveCard('syndicat')" data-i18n="actions.save">Save changes</button>
               </div>

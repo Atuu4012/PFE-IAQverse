@@ -48,3 +48,4 @@ document.addEventListener('roomChanged', (event) => {
 window.openModal = openModal;
 window.closeModal = closeModal;
 window.updateCharts = updateCharts;
+

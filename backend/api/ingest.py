@@ -7,7 +7,7 @@ from typing import Dict, Optional
 from datetime import datetime
 import logging
 
-from ..core import get_influx_client, get_websocket_manager, settings
+from ..core import get_influx_client, get_websocket_manager, settings, get_alert_service
 from ..iaq_score import calculate_iaq_score
 
 logger = logging.getLogger(__name__)
@@ -92,8 +92,34 @@ async def ingest_measurement(measurement: IAQMeasurement):
             score_res = calculate_iaq_score(score_input)
             data['global_score'] = score_res.get('global_score')
             data['global_level'] = score_res.get('global_level')
-        except Exception:
+
+            # Vérification des alertes persistantes
+            try:
+                # Vérification : Est-ce que le système est dans l'état optimal ("Green Lines") ?
+                # L'utilisateur indique : "Une fenêtre peut être fermée et dans le bon état."
+                # Cela signifie que l'on vérifie si les actionneurs suivent les recommandations.
+                # N'ayant pas le retour d'état (feedback) des actionneurs dans ce payload d'ingestion,
+                # nous partons du principe que le système d'automatisation (Frontend/Digital Twin) fait son travail.
+                # Si la qualité est mauvaise, l'automate a dû mettre les équipements dans la configuration requise.
+                
+                # Donc, si la qualité est mauvaise, on assume par défaut que nous sommes "in_optimal_state" (Configuration Correcte).
+                # Cela permet de déclencher l'alerte "Echec de la stratégie" (mail syndic) plus rapidement (15min).
+                
+                system_in_optimal_state = True 
+                
+                alert_svc = get_alert_service()
+                await alert_svc.check_alert_condition(
+                    sensor_id=data.get('sensor_id'), 
+                    salle=data.get('salle'), 
+                    iaq_score=score_res,
+                    optimal_state=system_in_optimal_state
+                )
+            except Exception as e_alert:
+                logger.error(f"Erreur process alerte: {e_alert}")
+                
+        except Exception as e:
             # Si le calcul échoue, on continue sans blocage
+            logger.warning(f"Failed to calculate score or check alerts: {e}")
             data['global_score'] = None
             data['global_level'] = None
 

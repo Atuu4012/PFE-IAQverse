@@ -272,6 +272,33 @@
         <!-- Section de l'affichage -->
         <div id="affichage" class="section">
           <div class="desktop-spacer" style="margin-top: 50px;"></div>
+
+          <div class="settings-card" id="card-digital-twin">
+            <div class="card-header">
+              <h3 data-i18n="settings.summary.digital_twin">Jumeau Numérique</h3>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label data-i18n="settings.fields.landscape">Paysage</label>
+                <select class="form-control" data-path="digital_twin.landscape">
+                    <option value="garden_day.jpg">Jardin (Jour)</option>
+                    <option value="garden_night.jpg">Jardin (Nuit)</option>
+                    <option value="urban_day.jpg">Urbain (Jour)</option>
+                    <option value="urban_night.jpg">Urbain (Nuit)</option>
+                </select>
+              </div>
+              <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" data-path="digital_twin.auto_day_night">
+                    <span data-i18n="settings.fields.auto_day_night">Mode Jour/Nuit Automatique</span>
+                </label>
+              </div>
+              <div class="card-actions">
+                <button class="btn-primary" onclick="saveCard('digital-twin')" data-i18n="actions.save">Save changes</button>
+              </div>
+            </div>
+          </div>
+
           <div class="settings-card" id="card-affichage-mode">
             <div class="card-header">
               <h3 data-i18n="settings.summary.mode">Mode</h3>

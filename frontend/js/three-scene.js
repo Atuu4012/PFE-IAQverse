@@ -45,6 +45,109 @@ const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
 dirLight.position.set(5, 10, 7.5);
 scene.add(dirLight);
 
+// Ajout de la sphère d'environnement (Skybox 360°)
+const textureLoader = new THREE.TextureLoader();
+let environmentSphere = null;
+let currentEnvironmentPath = '';
+
+// Fonction de mise à jour de l'environnement
+const updateEnvironment = async (configOverride = null) => {
+    let cfg = configOverride;
+    
+    // Essayer de récupérer la config si non fournie
+    if (!cfg && window.getConfig) {
+        cfg = window.getConfig();
+    }
+    // Si toujours pas de config, essayer de la charger (asynchrone)
+    if (!cfg && window.loadConfig) {
+        try {
+            cfg = await window.loadConfig();
+        } catch(e) { console.warn("Config load failed for env", e); }
+    }
+    
+    // Valeurs par défaut
+    // On essaie de déterminer le paysage par défaut sur base de ce qu'on trouve, ou un fallback sûr
+    let landscape = 'urban_day.jpg';
+    let auto = false;
+    
+    if (cfg && cfg.digital_twin) {
+        if (cfg.digital_twin.landscape) landscape = cfg.digital_twin.landscape;
+        if (typeof cfg.digital_twin.auto_day_night === 'boolean') auto = cfg.digital_twin.auto_day_night;
+    }
+    
+    // Logique automatique Jour/Nuit
+    if (auto) {
+        const hour = new Date().getHours();
+        // Jour arbitraire entre 7h et 20h
+        const isNight = hour < 7 || hour >= 20;
+        
+        // Déduction du thème (urban ou garden) depuis le nom de fichier
+        let theme = 'urban';
+        if (landscape.includes('garden')) theme = 'garden';
+        // Ajouter d'autres thèmes ici si nécessaire
+        
+        landscape = `${theme}_${isNight ? 'night' : 'day'}.jpg`;
+    }
+    
+    const path = `assets/landscapes/${landscape}`;
+    
+    // Éviter de recharger si c'est la même image
+    if (path === currentEnvironmentPath && environmentSphere) return;
+    currentEnvironmentPath = path;
+
+    textureLoader.load(
+      path, 
+      (texture) => {
+        // Configuration de l'espace colorimétrique pour un rendu correct
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+
+        // Si la sphère existe déjà, on met à jour la texture
+        if (environmentSphere) {
+            environmentSphere.material.map = texture;
+            environmentSphere.material.needsUpdate = true;
+            scene.environment = texture;
+            console.log(`Environment theme updated to: ${path}`);
+            return;
+        }
+
+        const sphereGeometry = new THREE.SphereGeometry(500, 60, 40);
+        // Inverser la géométrie sur l'axe X pour voir la texture de l'intérieur
+        sphereGeometry.scale(-0.1, 0.1, 0.1);
+
+        const sphereMaterial = new THREE.MeshBasicMaterial({
+          map: texture
+        });
+
+        environmentSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+        
+        // Position par défaut
+        // Note : Monter la sphère aligne le sol mais déplace l'horizon. 
+        environmentSphere.position.y = 0;
+
+        scene.add(environmentSphere);
+        
+        // Ajoute l'environnement pour les réflexions sur les matériaux (vitres, métal)
+        scene.environment = texture;
+        
+        console.log(`Environment sphere added: ${path}`);
+      },
+      undefined,
+      (err) => {
+        console.error('Erreur lors du chargement de la texture 360°', err);
+      }
+    );
+};
+
+// Initialiser l'environnement
+updateEnvironment();
+
+// Exposer la fonction (utile pour les mises à jour via WebSocket ou autre)
+window.updateThreeEnvironment = updateEnvironment;
+
+// Vérifier périodiquement pour le mode automatique (toutes les minutes)
+setInterval(() => updateEnvironment(), 60000);
+
 // Contrôles
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -68,27 +171,35 @@ const objectAnimations = {
     axis: 'z',  // axe Z pour tourner comme une porte
     openAngle: Math.PI / 2,  // -90° pour ouvrir dans l'autre sens
     closeAngle: 0,
-    duration: 1000
+    duration: 1000,
+    particleColor: 0xEEFFFF, // Vent frais (blanc bleuté)
+    particleCount: 25,       // MOINS DE PARTICULES (50 -> 25)
+    particleType: 'draft'    
   },
   window: {
     axis: 'y',
     openAngle: Math.PI / 4,
     closeAngle: 0,
-    duration: 800
+    duration: 800,
+    particleColor: 0xEEFFFF, // Vent frais
+    particleCount: 20,       // MOINS DE PARTICULES (40 -> 20)
+    particleType: 'draft'
   },
   ventilation: {
-    colorOn: 0x00ff00,  // vert quand allumé
-    colorOff: 0xff0000, // rouge par défaut
+    colorOn: 0x00ff00,  // vert quand allumé (Led)
+    colorOff: 0xff0000, // rouge par défaut (Led)
     duration: 500,
-    particleColor: 0x0080ff, // bleu
-    particleCount: 20
+    particleColor: 0x0080ff, // bleu (Air froid)
+    particleCount: 30,
+    particleType: 'steam'
   },
   radiator: {
-    colorOn: 0x00ff00,  // vert quand allumé
-    colorOff: 0xff0000, // rouge par défaut
+    colorOn: 0x00ff00,  // vert quand allumé (Led)
+    colorOff: 0xff0000, // rouge par défaut (Led)
     duration: 500,
-    particleColor: 0xff4000, // rouge-orange
-    particleCount: 20
+    particleColor: 0xff4000, // rouge-orange (Chaleur)
+    particleCount: 30,
+    particleType: 'steam'
   }
 };
 
@@ -127,12 +238,223 @@ function interpolateColor(startColor, endColor, factor) {
 }
 
 function setObjectColor(obj, colorHex) {
-  obj.traverse(child => {
-    if (child.isMesh && child.material) {
-      child.material.color.setHex(colorHex);
-    }
+  // Approche "LED Réaliste" : Rectangle LED sur le côté pour Clim/Radiateur
+  // AVEC FIX POSITIONNEMENT: On s'attache au Mesh principal, pas au Groupe parent
+  
+  const nameLower = obj.name ? obj.name.toLowerCase() : '';
+  const isRadiator = nameLower.includes('radiator') || nameLower.includes('radiateur') || nameLower.includes('heater') || nameLower.includes('chauffage');
+  const isAC = nameLower.includes('clim') || nameLower.includes('ac_') || nameLower.includes('aircon');
+  
+  const isTarget = isRadiator || isAC;
+
+  // Ne rien faire sur les portes/fenêtres si on appelle cette fonction
+  if (!isTarget && (nameLower.includes('door') || nameLower.includes('window'))) return;
+
+  // 1. Trouver le Mesh Principal (le plus gros volume)
+  let targetMesh = null;
+  let maxVolume = -1;
+
+  // Function helper pour traverser
+  const validMeshes = [];
+  if (obj.isMesh) validMeshes.push(obj);
+  
+  obj.traverse(c => {
+     if (c.isMesh && c.geometry) validMeshes.push(c);
   });
+
+  validMeshes.forEach(c => {
+     if (!c.geometry.boundingBox) c.geometry.computeBoundingBox();
+     const bb = c.geometry.boundingBox;
+     const sz = new THREE.Vector3();
+     bb.getSize(sz);
+     const vol = (sz.x + 0.01) * (sz.y + 0.01) * (sz.z + 0.01);
+     if (vol > maxVolume) {
+         maxVolume = vol;
+         targetMesh = c;
+     }
+  });
+  
+  // Si aucun mesh trouvé
+  if (!targetMesh) return;
+  
+   // FIX: Pour le radiateur, on force la suppression de l'ancienne LED pour recalculer la position
+  if (isRadiator) {
+      const oldLeds = [];
+      targetMesh.traverse(c => { if(c.name === 'StatusLED') oldLeds.push(c); });
+      oldLeds.forEach(l => {
+          console.log('[setObjectColor] Removing old StatusLED on radiator to force refresh');
+          l.removeFromParent();
+      });
+  }
+
+  if (isRadiator) {
+     console.log(`[setObjectColor] Radiator detected: ${obj.name}. TargetMesh: ${targetMesh.name}`);
+  }
+
+  // Vérifier si la LED existe déjà SUR LE TARGET MESH
+  let led = targetMesh.getObjectByName('StatusLED');
+
+  if (!led) {
+      // CRÉATION DE L'INDICATEUR RÉALISTE
+      // On crée un groupe qui contient : Boitier (noir) + Lumière (colorée)
+      led = new THREE.Group();
+      led.name = 'StatusLED';
+
+      // 1. Le Boitier (Fausse surface d'affichage) - Noir brillant
+      const housingGeo = new THREE.PlaneGeometry(1.2, 0.6);
+      const housingMat = new THREE.MeshStandardMaterial({ 
+          color: 0x111111, 
+          metalness: 0.8, 
+          roughness: 0.2,
+          side: THREE.DoubleSide 
+      });
+      const housing = new THREE.Mesh(housingGeo, housingMat);
+      housing.position.z = -0.01; // Légèrement derrière la lumière
+      led.add(housing);
+
+      // 2. La Lumière (Le "point" ou "chiffres")
+      // Petit rectangle lumineux
+      const lightGeo = new THREE.PlaneGeometry(0.5, 0.25);
+      const lightMat = new THREE.MeshBasicMaterial({ 
+          color: colorHex,
+          toneMapped: false, // Glow effect
+          transparent: true,
+          opacity: 0.9,
+          side: THREE.DoubleSide
+      });
+      const light = new THREE.Mesh(lightGeo, lightMat);
+      light.name = 'LightMesh';
+      light.position.z = 0.01; // Devant
+      led.add(light);
+      
+      // -- POSITIONNEMENT SUR LE MESH --
+      if (!targetMesh.geometry.boundingBox) targetMesh.geometry.computeBoundingBox();
+      const bb = targetMesh.geometry.boundingBox;
+      
+      const name = obj.name.toLowerCase();
+      const isRadiator = name.includes('radiator') || name.includes('radiateur') || name.includes('heater') || name.includes('chauffage');
+
+      const sz = new THREE.Vector3();
+      bb.getSize(sz);
+      let thinAxis = 'z';
+      if (sz.x < sz.z && sz.x < sz.y) thinAxis = 'x';
+
+      // ROTATION: 
+      if (isRadiator) {
+          if (thinAxis === 'x') led.rotation.y = Math.PI / 2;
+          else led.rotation.y = 0;
+      } else {
+          led.rotation.y = Math.PI / 2;
+      }
+      
+      // TAILLE
+      const worldSize = 0.08; 
+      const parentScale = new THREE.Vector3();
+      targetMesh.getWorldScale(parentScale);
+      if (parentScale.x < 0.001) parentScale.x = 1;
+      if (parentScale.y < 0.001) parentScale.y = 1;
+      if (parentScale.z < 0.001) parentScale.z = 1;
+
+      led.scale.set(
+          worldSize / parentScale.x,
+          worldSize / parentScale.y,
+          worldSize / parentScale.z
+      );
+
+      // PRE-CALCULS GEOMETRIE
+      const cx = (bb.max.x + bb.min.x) / 2;
+      const cy = (bb.max.y + bb.min.y) / 2;
+      const cz = (bb.max.z + bb.min.z) / 2;
+      
+      const hx = (bb.max.x - bb.min.x) / 2;
+      const hy = (bb.max.y - bb.min.y) / 2;
+      const hz = (bb.max.z - bb.min.z) / 2;
+
+      if (isRadiator) {
+          // RADIATEUR : LOGIQUE AVEC RÉGLAGE MANUEL
+          // 1. Détection Millimètres (si taille > 100)
+          const size = new THREE.Vector3();
+          bb.getSize(size);
+          const isMillimeters = Math.max(size.y, size.z) > 100;
+
+          // 2. Paramètres manuels
+          // => MODIFIEZ 'offsetZ' POUR AVANCER/RECULER LA LED
+          const offsetZ = isMillimeters ? 150 : 0.15; // 15cm vers l'avant (augmenté pour sortir du radiateur)
+          const ledSize = isMillimeters ? 100 : 0.10; // 10cm de large
+          
+          // 3. Mise à l'échelle
+          // Correction de l'étirement : si le radiateur est très large ou écrasé, 
+          // led.scale compensait trop. On force une échelle uniforme basée sur la moyenne.
+          const uniformScale = ledSize / Math.max(parentScale.x, parentScale.y, parentScale.z);
+          
+          led.scale.set(
+              uniformScale * (parentScale.x < 0.01 ? 1 : 1), // Protection contre les échelles infinies
+              uniformScale,
+              uniformScale
+          );
+          
+          // Si l'objet parent avait une échelle non uniforme très marquée (ex: x=10, y=1, z=1)
+          // diviser par parentScale.x écrasait la LED. 
+          // Ici on essaie de garder des proportions carrées pour la LED.
+          led.scale.set(
+              ledSize / (parentScale.x * 1000 || 1),
+              ledSize / (parentScale.y || 1),
+              ledSize / (parentScale.z || 1)
+          );
+
+          // Force le ratio d'aspect de la LED pour qu'elle ne soit pas étirée
+          // Si le parent est étiré en X, on compense pour ramener la LED à sa forme normale
+          if (parentScale.x > parentScale.y * 2) led.scale.x /= (parentScale.x / parentScale.y);
+          if (parentScale.z > parentScale.y * 2) led.scale.z /= (parentScale.z / parentScale.y);
+          
+          // 4. Positionnement (Reset Rotation + Position Face Z)
+          led.rotation.set(0, 0, Math.PI / 2);
+          
+          // On le place légèrement à droite et en haut, et on l'avance franchement
+          led.position.set(
+             cx * 0.3 + (size.x * 0.01), 
+             cy + (size.y * 0.01), 
+             bb.max.z - 145 + (offsetZ / (parentScale.z || 1))
+          );
+
+          // 5. Matériaux (Sans X-Ray pour le rendu final, mais remis normal)
+          const lightMesh = led.getObjectByName('LightMesh');
+          if (lightMesh) {
+             lightMesh.material.color.setHex(colorHex);
+             lightMesh.material.depthTest = true;
+             lightMesh.material.depthWrite = true;
+             lightMesh.renderOrder = 0;
+          }
+          
+      } else {
+          // CLIM : SUR LE CÔTÉ DROIT (X+), HAUT, CENTRÉ EN PROFONDEUR
+          led.position.set(
+              bb.max.x + (0.01 / parentScale.x), // Collé sur la droite
+              cy + hy * 0.9,  // Tout en haut
+              bb.max.z - hz   // Au centre de la profondeur (Z middle)
+          );
+      }
+
+      targetMesh.add(led);
+      
+  } else {
+      // MISE À JOUR COULEUR & EFFACER L'ANCIEN SI TYPE DIFFÉRENT
+      // Si on avait une sphère avant (vieux code), on la supprime
+      if (led.isMesh) { 
+          targetMesh.remove(led);
+          // On rappelle récursivement pour recréer le bon
+          setObjectColor(obj, colorHex);
+          return;
+      }
+      
+      // Sinon c'est notre groupe, on update la lumière
+      const light = led.getObjectByName('LightMesh');
+      if (light) {
+          light.material.color.setHex(colorHex);
+      }
+  }
 }
+
 
 function createParticles(obj, config) {
   if (activeParticles[obj.uuid]) {
@@ -188,22 +510,151 @@ function stopParticles(obj) {
 function updateParticles() {
   for (const uuid in activeParticles) {
     const system = activeParticles[uuid];
+    
+    // --- CALCUL DE LA MATRICE "FERMÉE" POUR LES PORTES/FENÊTRES ---
+    // Si la porte est ouverte, elle a tourné. Mais le courant d'air vient du "trou", qui est fixe.
+    // On calcule temporairement la matrice qu'aurait l'objet s'il était fermé.
+    let emissionMatrix = system.obj.matrixWorld;
+    let emissionQuaternion = system.obj.quaternion;
+    let isDraft = (system.config.particleType === 'draft');
+    
+    // Optim : ne faire ce calcul coûteux que pour le type 'draft'
+    if (isDraft && system.config.axis) {
+        const storedRot = system.obj.rotation[system.config.axis];
+        const closedAngle = system.config.closeAngle || 0;
+        
+        // Si la rotation actuelle est significativement différente de l'angle fermé
+        if (Math.abs(storedRot - closedAngle) > 0.01) {
+            // On force temporairement la rotation "fermée"
+            system.obj.rotation[system.config.axis] = closedAngle;
+            system.obj.updateMatrixWorld();
+            
+            // On capture la matrice et le quaternion du "trou"
+            emissionMatrix = system.obj.matrixWorld.clone();
+            emissionQuaternion = system.obj.quaternion.clone();
+            
+            // On restaure l'état visuel réel
+            system.obj.rotation[system.config.axis] = storedRot;
+            system.obj.updateMatrixWorld();
+        }
+    }
+
     const objPos = new THREE.Vector3();
-    system.obj.getWorldPosition(objPos);
+    objPos.setFromMatrixPosition(emissionMatrix); 
 
     // Émettre de nouvelles particules si emitting
     if (system.emitting) {
       for (let i = 0; i < 2; i++) { // émettre 2 par frame
         const idx = system.nextIndex;
-        system.positions[idx * 3] = objPos.x + (Math.random() - 0.5) * 0.5;
-        system.positions[idx * 3 + 1] = objPos.y + Math.random() * 0.5;
-        system.positions[idx * 3 + 2] = objPos.z + (Math.random() - 0.5) * 0.5;
+        
+        // GESTION DIFFÉRENTE SELON LE TYPE (Courant d'air vs Vapeur/Fumée)
+        if (system.config.particleType === 'draft') {
+            // == COURANT D'AIR (Portes / Fenêtres) == 
+            // 1. Trouver le mesh le plus grand (le panneau de la porte) pour éviter de spawner sur la poignée/seuil
+            let targetMesh = null;
+            let maxVolume = -1;
 
-        system.velocities[idx * 3] = (Math.random() - 0.5) * 0.01;
-        system.velocities[idx * 3 + 1] = Math.random() * 0.02 + 0.01;
-        system.velocities[idx * 3 + 2] = (Math.random() - 0.5) * 0.01;
+            if (system.obj.isMesh) {
+                targetMesh = system.obj;
+            } else {
+                 // On parcourt tout pour trouver le panneau principal (celui avec le plus grand volume/aire)
+                 // pour éviter les petites pièces comme les poignées ou les barres de seuil
+                 system.obj.traverse(c => {
+                   if (c.isMesh && c.geometry) {
+                       if (!c.geometry.boundingBox) c.geometry.computeBoundingBox();
+                       const bb = c.geometry.boundingBox;
+                       const sz = new THREE.Vector3();
+                       bb.getSize(sz);
+                       // Volume approximatif (avec biais pour objets plats)
+                       const metric = (sz.x + 0.1) * (sz.y + 0.1) * (sz.z + 0.1); 
+                       if (metric > maxVolume) {
+                           maxVolume = metric;
+                           targetMesh = c;
+                       }
+                   }
+                });
+            }
+            
+            // Fallback
+            if (!targetMesh && system.obj.children.length > 0) targetMesh = system.obj.children[0];
 
-        system.lifetimes[idx] = Math.random() * 200 + 100;
+            if (targetMesh && targetMesh.geometry) {
+                 if (!targetMesh.geometry.boundingBox) targetMesh.geometry.computeBoundingBox();
+                 const bb = targetMesh.geometry.boundingBox;
+                 
+                 // 2. Choisir un point aléatoire DANS le volume du Bounding Box
+                 // DÉCALAGE pour centrer parfaitement visuellement
+                 let shiftX = 0;
+                 const name = system.obj.name ? system.obj.name.toLowerCase() : '';
+                 
+                 if (name.includes('door')) {
+                     shiftX = -0.4; // Gauche pour les portes
+                 } else if (name.includes('window')) {
+                     shiftX = 0.4;  // Droite pour les fenêtres
+                 }
+
+                 const localPoint = new THREE.Vector3(
+                    bb.min.x + Math.random() * (bb.max.x - bb.min.x) + shiftX,
+                    bb.min.y + Math.random() * (bb.max.y - bb.min.y),
+                    bb.min.z + Math.random() * (bb.max.z - bb.min.z)
+                 );
+                 
+                 // 3. Convertir ce point en coordonnées Monde EN UTILISANT LA MATRICE FERMÉE
+                 // PRÉALABLE: Convertir du Mesh Space -> Pivot Space (System Obj Space)
+                 // car le Mesh peut être décalé dans le pivot (ex: charnière)
+                 
+                 // Matrice: [TargetMesh Local] -> [SystemObj Local aka Pivot]
+                 // R = inv(SystemObjWorld) * TargetMeshWorld
+                 const relativeMatrix = new THREE.Matrix4().copy(system.obj.matrixWorld).invert().multiply(targetMesh.matrixWorld);
+                 
+                 // Appliquer transformation locale
+                 localPoint.applyMatrix4(relativeMatrix);
+                 
+                 // Appliquer transformation monde (fermée)
+                 const worldPoint = localPoint.applyMatrix4(emissionMatrix);
+                 
+                 system.positions[idx * 3] = worldPoint.x;
+                 system.positions[idx * 3 + 1] = worldPoint.y;
+                 system.positions[idx * 3 + 2] = worldPoint.z;
+            } else {
+                 system.positions[idx * 3] = objPos.x;
+                 system.positions[idx * 3 + 1] = objPos.y + 1.0;
+                 system.positions[idx * 3 + 2] = objPos.z;
+            }
+
+            // Vitesse : Toujours perpendiculaire à la porte/fenêtre (EN MODE FERMÉ)
+            // MODIFICATION: Les portes ont souvent un axe différent (ex: Y au lieu de Z)
+            let axis = new THREE.Vector3(0, 0, 1);
+            if (system.obj.name && system.obj.name.toLowerCase().includes('door')) {
+                 axis.set(0, 1, 0); // Axe Y pour les portes (souvent orientées différemment)
+            }
+            
+            // On utilise le quaternion FERMÉ pour la direction
+            const windDir = axis.applyQuaternion(emissionQuaternion).normalize();
+            
+            // Vitesse DOUCE
+            const speed = 0.01 + Math.random() * 0.03; 
+            
+            system.velocities[idx * 3] = windDir.x * speed;
+            system.velocities[idx * 3 + 1] = windDir.y * speed + (Math.random() * 0.005);
+            system.velocities[idx * 3 + 2] = windDir.z * speed;
+            
+            system.lifetimes[idx] = Math.random() * 60 + 40;
+
+        } else {
+            // == FUMÉE / VAPEUR STANDARD (Radiateur / Clim) ==
+            // Émission depuis le centre de l'objet (plus classique)
+            
+            system.positions[idx * 3] = objPos.x + (Math.random() - 0.5) * 0.5;
+            system.positions[idx * 3 + 1] = objPos.y + Math.random() * 0.5;
+            system.positions[idx * 3 + 2] = objPos.z + (Math.random() - 0.5) * 0.5;
+
+            system.velocities[idx * 3] = (Math.random() - 0.5) * 0.01;
+            system.velocities[idx * 3 + 1] = Math.random() * 0.02 + 0.01; // Monte doucement
+            system.velocities[idx * 3 + 2] = (Math.random() - 0.5) * 0.01;
+
+            system.lifetimes[idx] = Math.random() * 200 + 100; // Vie longue (lent)
+        }
 
         system.nextIndex = (system.nextIndex + 1) % system.maxCount;
       }
@@ -256,50 +707,70 @@ function animateObject(obj, config, targetState) {
       targetObj.rotation[axis] = startRotation + (targetRotation - startRotation) * eased;
       if (progress < 1) {
         requestAnimationFrame(animate);
+      } else {
+         // FIN DE L'ANIMATION ROTATION (Porte / Fenêtre)
+         // Vérifier si on doit lancer des particules
+         // targetState est 'open' ou 'closed'
+         if ((targetState === 'open' || targetState === 'on') && config.particleColor) {
+             createParticles(targetObj, config);
+         } else if (targetState === 'closed' || targetState === 'off') {
+             stopParticles(targetObj);
+         }
       }
     };
     animate();
   } else if (config.colorOn) {
-    // color animation - pour les groupes, appliquer à tous les meshes enfants
+    // LED Animation (Clim / Radiateur)
     const endColor = targetState === 'on' ? new THREE.Color(config.colorOn) : new THREE.Color(config.colorOff);
     
-    // Collecter tous les meshes qui ont un material
-    const meshes = [];
-    obj.traverse(child => {
-      if (child.isMesh && child.material && child.material.color) {
-        meshes.push({
-          mesh: child,
-          startColor: child.material.color.clone()
-        });
-      }
+    // Mettre à jour l'objet pour qu'il ait la LED (création si besoin)
+    setObjectColor(obj, endColor.getHex());
+    
+    // Pour animer, on doit retrouver le maillage de la lumière dans la structure complexe NOUS-MÊME
+    // car 'led' récupéré par getObjectByName peut être le groupe
+    
+    let ledGroup = null;
+    let lightMesh = null;
+    
+    // Chercher dans les descendants du groupe principal obj
+    // Note: setObjectColor l'a mis sur le target mesh, qui est un descendant de obj
+    obj.traverse(c => {
+        if (c.name === 'StatusLED') ledGroup = c;
+        if (c.name === 'LightMesh') lightMesh = c;
     });
-    
-    if (meshes.length === 0) {
-      return;
-    }
-    
-    const startTime = Date.now();
-    const animate = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / config.duration, 1);
-      const eased = progress; // linear for simplicity
-      
-      meshes.forEach(({ mesh, startColor }) => {
-        mesh.material.color = interpolateColor(startColor, endColor, eased);
-      });
-      
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        // Après l'animation de couleur, gérer les particules
+
+    if (lightMesh) {
+        // Animation du LightMesh (PlaneGeometry coloré)
+        const startColor = lightMesh.material.color.clone();
+        const startTime = Date.now();
+        const animate = () => {
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min(elapsed / config.duration, 1);
+          const eased = progress; 
+          
+          lightMesh.material.color = interpolateColor(startColor, endColor, eased);
+          
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          } else {
+            if (targetState === 'on' && config.particleColor) {
+              createParticles(obj, config);
+            } else if (targetState === 'off') {
+              stopParticles(obj);
+            }
+          }
+        };
+        animate();
+    } else {
+        // Fallback (ex: vieux système ou bug)
+        // On essaye de trouver un mesh qui s'appelle StatusLED (cas des portes/fenetres)
+        // ou on ignore l'animation couleur
         if (targetState === 'on' && config.particleColor) {
-          createParticles(obj, config);
+            createParticles(obj, config);
         } else if (targetState === 'off') {
-          stopParticles(obj);
+            stopParticles(obj);
         }
-      }
-    };
-    animate();
+    }
   }
 }
 
@@ -334,30 +805,69 @@ function frameModel(object3d, offsetFactor = 1.5) {
     // Orienter les contrôles vers l'objet Camera
     controls.target.copy(cameraWorldPos);
   } else {
-    // Comportement par défaut : centrer sur le modèle entier
+    // Comportement par défaut pour positionner l'A.M.I
     const box = new THREE.Box3().setFromObject(object3d);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
+    
+    // Au lieu de centrer le modèle (qui déplace les murs par rapport à l'origine)
+    // On laisse le modèle à sa place d'origine (0,0,0) si possible, 
+    // OU on déplace la caméra à l'intérieur.
+    
+    // Cependant, si le modèle est très loin de l'origine dans Blender, on le ramène.
+    // On aligne le BAS du modèle sur le sol (Y=0)
+    object3d.position.y = -box.min.y;
+    
+    // On centre X et Z
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    object3d.position.x = -center.x;
+    object3d.position.z = -center.z;
+    
+    // POINT D'APPARITION : 
+    // Au lieu de (0, 1.7, 2.0), on cherche un point "sûr" sous le plafond le plus haut mais au dessus du sol.
+    // On suppose que (0,0,0) après recentrage est le centre de la pièce.
+    
+    // Désactiver la gravité temporairement pour placer la caméra
+    isGrounded = false;
+    verticalVelocity = 0;
+    
+    // CORRECTION PLAFOND ET CAMERA
+    // 1. On place la caméra au centre mais PLUS BAS (accroupi par défaut pour entrer)
+    // pour être sûr de passer sous le linteau de porte ou le plafond bas.
+    camera.position.set(0, 1.0, 1.5); 
+    controls.target.set(0, 1.0, 0);
 
-    // Centrer les objets
-    object3d.position.x = object3d.position.x - center.x;
-    object3d.position.y = object3d.position.y - center.y;
-    object3d.position.z = object3d.position.z - center.z;
+    // 2. On désactive temporairement les collisions avec le plafond pour éviter d'être repoussé sur le toit
+    // Le système enforceWallCollision s'en chargera quand on bougera.
 
-    // Position de la caméra
-    const cameraZ = maxDim * offsetFactor;
-    camera.position.set(cameraZ, cameraZ * 0.6, cameraZ);
-    camera.near = Math.max(0.1, maxDim / 100);
-    camera.far = Math.max(1000, maxDim * 10);
+    camera.near = 0.1;
+    camera.far = 1000;
     camera.updateProjectionMatrix();
 
-    // Centrer le modèle
-    controls.target.set(0, 0, 0);
+    // Reset des touches coincées (bug "avance tout seul")
+    Object.keys(keysPressed).forEach(k => keysPressed[k] = false);
+    
+    // HACK ULTIME POUR LA CAMÉRA :
+    // On force la caméra à être SOUS 2 mètres de hauteur quoi qu'il arrive au début
+    if (camera.position.y > 2.0) camera.position.y = 1.5;
   }
 
   controls.update();
 }
+
+// Sécurité globale pour les touches coincées (quand on change de fenêtre alt-tab)
+// CORRECTION SHIFT : On reset aussi quand Shift est relâché pour éviter les combos bloqués
+window.addEventListener('blur', () => {
+   Object.keys(keysPressed).forEach(k => keysPressed[k] = false);
+});
+
+// Écouteur global pour "nettoyer" l'état des touches si jamais ça coince
+window.addEventListener('keyup', (e) => {
+    // Si on relâche Shift, on considère que toutes les modificateurs sont partis
+    if (e.key === 'Shift') {
+        // Optionnel : on ne fait rien de spécial, ou on reset tout par sécurité
+        // console.log("Shift released");
+    }
+});
 
 function disposeObject(root) {
   if (!root) return;
@@ -1082,10 +1592,11 @@ function autoGenerateAlertPoints(modelRoot) {
               // Pour ventilation et radiateur : couleur et particules
               const targetColor = currentState === 'on' ? config.colorOn : config.colorOff;
               setObjectColor(objectStates[targetName].object, targetColor);
-              
-              if (currentState === 'on' && config.particleColor) {
-                createParticles(objectStates[targetName].object, config);
-              }
+            }
+
+            // Gestion des particules (pour tout le monde : clim, radiateur, porte, fenetre)
+            if ((currentState === 'on' || currentState === 'open') && config.particleColor) {
+               createParticles(objectStates[targetName].object, config);
             }
           }
         }
@@ -1229,17 +1740,121 @@ const keysPressed = {
   ArrowUp: false,
   ArrowDown: false,
   ArrowLeft: false,
-  ArrowRight: false
+  ArrowRight: false,
+  z: false,
+  q: false,
+  s: false,
+  d: false,
+  Z: false,
+  Q: false,
+  S: false,
+  D: false,
+  ' ': false, // Espace
+  c: false,
+  C: false,
+  Control: false
 };
 
 let bobbingPhase = 0;
-const WALK_SPEED = 0.08; // Vitesse de marche plus réaliste
-const BOBBING_SPEED = 0.25; // Fréquence des pas
-const BOBBING_AMOUNT = 0.025; // Amplitude du mouvement de tête
+const WALK_SPEED = 0.04; // Vitesse de marche normale
+const RUN_SPEED = 0.07; // Vitesse courir
+const CROUCH_SPEED = 0.02; // Vitesse accroupi
+
+const BOBBING_SPEED = 0.15;
+const BOBBING_AMOUNT = 0.015;
+
+// Variables physiques
+let verticalVelocity = 0;
+let isGrounded = true;
+const GRAVITY = 0.008;
+const JUMP_FORCE = 0.15;
+const PLAYER_HEIGHT_STANDING = 1.7; // Hauteur des yeux debout
+const PLAYER_HEIGHT_CROUCHING = 1.0; // Hauteur des yeux accroupi
+let currentPlayerHeight = PLAYER_HEIGHT_STANDING; // Hauteur actuelle (lissée)
 
 function updateMovement() {
-  // Si aucune touche n'est pressée, on ne fait rien
-  if (!keysPressed.ArrowUp && !keysPressed.ArrowDown && !keysPressed.ArrowLeft && !keysPressed.ArrowRight) {
+  // Vérification de toutes les touches
+  const moveForward = keysPressed.ArrowUp || keysPressed.z || keysPressed.Z;
+  const moveBackward = keysPressed.ArrowDown || keysPressed.s || keysPressed.S;
+  const moveLeft = keysPressed.ArrowLeft || keysPressed.q || keysPressed.Q;
+  const moveRight = keysPressed.ArrowRight || keysPressed.d || keysPressed.D;
+  const doJump = keysPressed[' '];
+  const doCrouch = keysPressed.c || keysPressed.C || keysPressed.Control;
+
+  // Gestion de la hauteur (Accroupi / Debout)
+  const targetHeight = doCrouch ? PLAYER_HEIGHT_CROUCHING : PLAYER_HEIGHT_STANDING;
+  // Lissage de la transition accroupi (Lerp)
+  currentPlayerHeight += (targetHeight - currentPlayerHeight) * 0.15;
+
+  // Gestion du saut
+  if (doJump && isGrounded && !doCrouch) {
+    verticalVelocity = JUMP_FORCE;
+    isGrounded = false;
+  }
+
+  // Application de la gravité
+  if (!isGrounded) {
+    verticalVelocity -= GRAVITY;
+  }
+  
+  // Test sol simple (On suppose le sol à Y=0 pour l'instant, ou on fait un raycast vers le bas)
+  // Pour plus de réalisme, on utilise un Raycast pour trouver le sol exact sous les pieds
+  let floorY = 0;
+  if (modelRoot) {
+    const floorRay = new THREE.Raycaster();
+    const rayOrigin = camera.position.clone();
+    rayOrigin.y += 2.0; // On part de haut
+    floorRay.set(rayOrigin, new THREE.Vector3(0, -1, 0));
+    floorRay.far = 10;
+    const intersects = floorRay.intersectObject(modelRoot, true);
+    // On cherche le mesh le plus haut sous nos pieds qui n'est pas le plafond ni la sphere
+    const hit = intersects.find(h => {
+        if (!h.object.isMesh || !h.object.visible) return false;
+        if (h.object.name === 'EnvironmentSphere') return false;
+        
+        // CORRECTION IMPORTANTE : Ignorer le toit/plafond pour le calcul du sol
+        const name = h.object.name.toLowerCase();
+        if (name.includes('roof') || name.includes('toit') || name.includes('ceiling') || name.includes('plafond') || name.includes('combles')) {
+            return false;
+        }
+        
+        // Si le point trouvé est TROP HAUT (au dessus de la tête), ce n'est pas un sol valide sur lequel on peut marcher
+        // (C'est surement un plafond vu de l'intérieur)
+        if (h.point.y > camera.position.y - 0.5) return false;
+        
+        return true;
+    });
+    
+    if (hit) {
+      floorY = hit.point.y;
+    }
+  }
+
+  // Vérification atterrissage
+  // La position Y de la caméra = Sol + Hauteur Joueur + Saut
+  // On calcule où on devrait être
+  let newCameraY = camera.position.y + verticalVelocity;
+  
+  // Si on est en train de toucher le sol (ou passer dessous)
+  const targetY = floorY + currentPlayerHeight;
+
+  if (newCameraY <= targetY && verticalVelocity <= 0) {
+    // Atterrissage ou marche au sol
+    newCameraY = targetY; // On se colle au sol (ou à la hauteur courante accroupi/debout)
+    verticalVelocity = 0;
+    isGrounded = true;
+  } else {
+    // En l'air
+    isGrounded = false;
+  }
+
+  // Appliquer le déplacement vertical (Gravité/Saut + Accroupissement) à la caméra et à la cible
+  const deltaY = newCameraY - camera.position.y;
+  camera.position.y += deltaY;
+  controls.target.y += deltaY;
+
+  
+  if (!moveForward && !moveBackward && !moveLeft && !moveRight) {
     return;
   }
 
@@ -1254,32 +1869,55 @@ function updateMovement() {
   
   const moveVector = new THREE.Vector3(0, 0, 0);
   
-  if (keysPressed.ArrowUp) moveVector.add(forward);
-  if (keysPressed.ArrowDown) moveVector.sub(forward);
-  if (keysPressed.ArrowRight) moveVector.add(right);
-  if (keysPressed.ArrowLeft) moveVector.sub(right);
+  if (moveForward) moveVector.add(forward);
+  if (moveBackward) moveVector.sub(forward);
+  if (moveRight) moveVector.add(right);
+  if (moveLeft) moveVector.sub(right);
   
   // Normaliser pour éviter d'aller plus vite en diagonale
   if (moveVector.lengthSq() > 0) {
       // Direction pour le raycast
       const direction = moveVector.clone().normalize();
       
-      // Appliquer la vitesse
-      moveVector.normalize().multiplyScalar(WALK_SPEED);
+      // Vitesse adaptée (accroupi vs debout)
+      const currentSpeed = doCrouch ? CROUCH_SPEED : WALK_SPEED;
+      moveVector.normalize().multiplyScalar(currentSpeed);
       
-      // Détection de collision
+      // Détection de collision AMÉLIORÉE (3 rayons : Centre, Gauche, Droite)
       let blocked = false;
       if (modelRoot) {
           const raycaster = new THREE.Raycaster();
-          // Rayon horizontal depuis la position de la caméra
-          raycaster.set(camera.position, direction);
-          raycaster.far = 0.8; // Distance de collision (80cm)
+          const p = camera.position.clone();
+          // On abaisse un peu le point de départ du rayon (taille/hanche) pour mieux détecter les meubles
+          p.y -= 0.5; 
           
-          const intersects = raycaster.intersectObject(modelRoot, true);
-          // On vérifie si on touche un Mesh visible
-          if (intersects.some(hit => hit.object.isMesh && hit.object.visible)) {
+          raycaster.far = 0.5; // Distance de collision proche (50cm)
+
+          // 1. Rayon Central
+          raycaster.set(p, direction);
+          let intersects = raycaster.intersectObject(modelRoot, true);
+          if (intersects.some(hit => hit.object.isMesh && hit.object.visible && hit.distance < 0.5)) {
               blocked = true;
-              // console.log("Collision détectée !");
+          }
+
+          // 2. Rayon Gauche (épaule gauche)
+          if (!blocked) {
+            const leftDir = direction.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4);
+            raycaster.set(p, leftDir);
+            intersects = raycaster.intersectObject(modelRoot, true);
+            if (intersects.some(hit => hit.object.isMesh && hit.object.visible && hit.distance < 0.5)) {
+                blocked = true;
+            }
+          }
+
+          // 3. Rayon Droite (épaule droite)
+          if (!blocked) {
+            const rightDir = direction.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 4);
+            raycaster.set(p, rightDir);
+            intersects = raycaster.intersectObject(modelRoot, true);
+            if (intersects.some(hit => hit.object.isMesh && hit.object.visible && hit.distance < 0.5)) {
+                blocked = true;
+            }
           }
       }
       
@@ -1287,17 +1925,81 @@ function updateMovement() {
           camera.position.add(moveVector);
           controls.target.add(moveVector);
           
-          // Effet de marche (Head Bobbing)
-          // On calcule la différence de hauteur à appliquer pour cette frame
-          const oldBob = Math.sin(bobbingPhase) * BOBBING_AMOUNT;
-          bobbingPhase += BOBBING_SPEED;
-          const newBob = Math.sin(bobbingPhase) * BOBBING_AMOUNT;
-          const bobDelta = newBob - oldBob;
-          
-          camera.position.y += bobDelta;
-          controls.target.y += bobDelta;
+          // Effet de marche (Head Bobbing) - Désactivé si en l'air
+          if (isGrounded) {
+             const oldBob = Math.sin(bobbingPhase) * BOBBING_AMOUNT;
+             bobbingPhase += BOBBING_SPEED;
+             const newBob = Math.sin(bobbingPhase) * BOBBING_AMOUNT;
+             const bobDelta = newBob - oldBob;
+             
+             camera.position.y += bobDelta;
+             controls.target.y += bobDelta;
+          }
       }
   }
+}
+
+// Fonction de collision universelle (empêche de traverser en tournant ou reculant)
+function enforceWallCollision() {
+    if (!modelRoot) return;
+
+    // Stratégie améliorée : on crée une "colonne" de collision sous la caméra
+    // On vérifie plusieurs hauteurs relatives à la caméra pour être sûr de toucher
+    // à la fois les meubles bas (lits) et les murs/fenêtres, quel que soit l'angle de vue.
+    
+    // Offsets négatifs = sous la caméra.
+    // Si la caméra est à ~1.7m (hauteur yeux), on teste :
+    // - 0.5m dessous (niv 1.2m -> Torse / Fenêtre)
+    // - 1.0m dessous (niv 0.7m -> Table / Hanches)
+    // - 1.5m dessous (niv 0.2m -> Lit bas / Tibias)
+    const heightOffsets = [0.5, 1.0, 1.5]; 
+    
+    const minDistance = 0.5; // Rayon du corps (50cm)
+
+    // 16 Rayons autour (tous les 22.5°) pour ne pas avoir d'angle mort
+    const rayCount = 16;
+    const allRays = [];
+    for (let i = 0; i < rayCount; i++) {
+        const angle = (i / rayCount) * Math.PI * 2;
+        allRays.push(new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle)));
+    }
+
+    const collisionRay = new THREE.Raycaster();
+    
+    for (const offset of heightOffsets) {
+        // Point de départ du rayon
+        const p = camera.position.clone();
+        p.y -= offset; 
+
+        // Sécurité : on ne teste pas sous le sol (Y < 0.1)
+        if (p.y < 0.1) continue;
+
+        for (const dir of allRays) {
+            collisionRay.set(p, dir);
+            collisionRay.far = minDistance;
+            
+            const intersects = collisionRay.intersectObject(modelRoot, true);
+            
+            // On ne percute que les objets visibles (Mesh)
+            // On ignore la sphère d'environnement
+            const hit = intersects.find(h => {
+                 return h.object.isMesh && h.object.visible && h.object.name !== 'EnvironmentSphere';
+            });
+            
+            if (hit) {
+                // Répulsion immédiate
+                const pushDist = minDistance - hit.distance;
+                
+                // On repousse horizontalement uniquement (sur X et Z)
+                // pour ne pas faire sauter la caméra
+                const pushVec = dir.clone().negate().multiplyScalar(pushDist);
+                pushVec.y = 0; 
+                
+                camera.position.add(pushVec);
+                controls.target.add(pushVec);
+            }
+        }
+    }
 }
 
 function preventCameraClipping() {
@@ -1336,6 +2038,7 @@ function animate() {
   requestAnimationFrame(animate);
   updateMovement(); // Appliquer les mouvements fluides
   controls.update();
+  enforceWallCollision(); // NOUVEAU: Empêche de rester coincé dans un mur après rotation
   preventCameraClipping(); // Empêcher la caméra de traverser les murs en reculant/zoomant
   updateAlertPoints();
   updateParticles();
@@ -1377,16 +2080,33 @@ window.addEventListener('keydown', (e) => {
     frameModel(modelRoot, 1.1);
   }
 
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-      e.preventDefault(); // Empêcher le scroll de la page
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'z', 'q', 's', 'd', 'Z', 'Q', 'S', 'D', ' ', 'c', 'C', 'Control'].includes(e.key)) {
+      // Pour les flèches et espace, on empêche le scroll
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+        e.preventDefault(); 
+      }
       keysPressed[e.key] = true;
   }
 });
 
+// CORRECTION BUG SHIFT/TOUCHE BLOQUEE : 
+// Si on appuie sur Z puis Shift puis relâche Z, parfois l'événement keyup de Z n'est pas détecté correctement
+// ou la touche reste "active". 
+// On modifie le keyup pour être plus robuste et gérer les majuscules/minuscules indifféremment.
+
 window.addEventListener('keyup', (e) => {
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-      keysPressed[e.key] = false;
+  const k = e.key;
+  // On désactive à la fois la version minuscule et majuscule pour être sûr
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(k)) {
+      keysPressed[k] = false;
   }
+  
+  if (k.toLowerCase() === 'z') { keysPressed['z'] = false; keysPressed['Z'] = false; }
+  if (k.toLowerCase() === 'q') { keysPressed['q'] = false; keysPressed['Q'] = false; }
+  if (k.toLowerCase() === 's') { keysPressed['s'] = false; keysPressed['S'] = false; }
+  if (k.toLowerCase() === 'd') { keysPressed['d'] = false; keysPressed['D'] = false; }
+  if (k.toLowerCase() === 'c') { keysPressed['c'] = false; keysPressed['C'] = false; }
+  if (k === 'Control') keysPressed['Control'] = false;
 });
 
 // Bouton pour centrer le modèle

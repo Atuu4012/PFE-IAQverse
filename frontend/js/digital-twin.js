@@ -878,3 +878,33 @@ function closeLegendModal() {
     }
 }
 
+// Listener pour les mises à jour de configuration (ex: changement de paysage)
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof WebSocketManager !== 'undefined') {
+        const ws = new WebSocketManager();
+        ws.connect();
+        
+        const handleConfigUpdate = (data) => {
+            if (data && data.config) {
+                console.log('🔄 Config updated via WS', data.config);
+                // Mettre à jour le cache global
+                if (window.setConfig) window.setConfig(data.config);
+                
+                // Mettre à jour l'environnement 3D si la fonction est disponible
+                if (window.updateThreeEnvironment) {
+                    window.updateThreeEnvironment(data.config);
+                }
+            }
+        };
+
+        ws.listeners.set('config_updated', handleConfigUpdate);
+        
+        // Ecouter aussi sur le topic 'all' si nécessaire
+        ws.listeners.set('all', (data) => {
+             if (data.type === 'config_updated') {
+                 handleConfigUpdate(data);
+             }
+        });
+    }
+});
+

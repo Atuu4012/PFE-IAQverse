@@ -9,14 +9,43 @@ def calculate_iaq_score(data: dict) -> dict:
     Calcule un score global IAQ de 0 à 100 (100 = excellent)
     
     Args:
-        data: dict avec co2, pm25, tvoc, temperature, humidity
+        data: dict avec co2, pm25, tvoc, temperature, humidity, occupants (optionnel)
         
     Returns:
         dict avec global_score et global_level
     """
+    
+    # Récupérer le nombre d'occupants (défaut 0 si non fourni ou nul)
+    occupants = data.get("occupants", 0)
+    if occupants is None:
+        occupants = 0
+    else:
+        try:
+            occupants = int(float(occupants))
+        except ValueError:
+            occupants = 0
+            
+    # Facteur de tolérance CO2 par occupant (ppm)
+    # Plus il y a de monde, plus on tolère un niveau élevé
+    CO2_TOLERANCE_PER_PERSON = 100 
+    
     # Seuils recommandés (OMS, ANSES, EPA)
+    # Ajustement dynamique du seuil CO2
+    base_co2_excellent = 600
+    base_co2_good = 1000
+    base_co2_moderate = 1400
+    base_co2_poor = 2000
+    
+    # Application du facteur d'occupation
+    co2_adjustment = occupants * CO2_TOLERANCE_PER_PERSON
+    
     THRESHOLDS = {
-        "co2": {"excellent": 600, "good": 1000, "moderate": 1400, "poor": 2000},
+        "co2": {
+            "excellent": base_co2_excellent + co2_adjustment, 
+            "good": base_co2_good + co2_adjustment, 
+            "moderate": base_co2_moderate + co2_adjustment, 
+            "poor": base_co2_poor + co2_adjustment
+        },
         "pm25": {"excellent": 12, "good": 25, "moderate": 50, "poor": 100},
         "tvoc": {"excellent": 200, "good": 300, "moderate": 500, "poor": 1000},
         "humidity": {"excellent": (40, 50), "good": (30, 60), "moderate": (20, 70)},

@@ -256,6 +256,37 @@ def consolider_tous_les_fichiers(dossier_r1, frequence_echantillonnage=None):
         nombre_lignes = len(df_combine[df_combine['capteur_id'] == capteur])
         logger.info(f"  - {capteur}: {nombre_lignes:,} lignes")
 
+    # AJOUT SIMULATION OCCUPANTS
+    # Simuler le nombre d'occupants stable par heure pour avoir des entiers cohérents
+    # (Heures de bureau : 8h-19h, Lundi-Vendredi)
+    np.random.seed(42)
+    
+    # Créer une clé unique par heure (ex: "2023-05-26 08") pour grouper
+    # Cela évite que l'occupation change chaque minute
+    df_combine['hour_key'] = df_combine['timestamp'].dt.strftime('%Y%m%d%H')
+    
+    hours = df_combine['timestamp'].dt.hour
+    weekdays = df_combine['timestamp'].dt.dayofweek
+    
+    # Masque: 8h-19h en semaine (0-4)
+    is_working_time = (hours >= 8) & (hours < 19) & (weekdays < 5)
+    
+    # Liste des heures travaillées uniques
+    working_hour_keys = df_combine.loc[is_working_time, 'hour_key'].unique()
+    
+    # Générer une occupation aléatoire (1 à 5) pour CHAQUE HEURE (et non chaque minute)
+    occupancy_per_hour = {
+        key: np.random.randint(1, 6) for key in working_hour_keys
+    }
+    
+    # Appliquer le mapping (0 par défaut la nuit/weekend)
+    df_combine['occupants'] = df_combine['hour_key'].map(occupancy_per_hour).fillna(0).astype(int)
+    
+    # Supprimer la clé temporaire
+    df_combine = df_combine.drop(columns=['hour_key'])
+        
+    logger.info(f"Simulation occupants ajoutée (stable par heure).")
+
     # Rééchantillonnage si demandé
     if frequence_echantillonnage:
         df_combine = reechantillonner_donnees(df_combine, frequence_echantillonnage)
@@ -296,8 +327,12 @@ def reechantillonner_donnees(dataframe, frequence):
         # Définir le timestamp comme index pour le rééchantillonnage
         df_capteur = df_capteur.set_index('timestamp')
         
-        # Rééchantillonner les colonnes numériques (calcul de la moyenne)
+        # Rééchantillonnage
         colonnes_numeriques = ['co2', 'pm25', 'tvoc', 'temperature', 'humidity']
+        # Ajouter occupants si présent
+        if 'occupants' in df_capteur.columns:
+            colonnes_numeriques.append('occupants')
+
         df_reechantillonne = df_capteur[colonnes_numeriques].resample(frequence).mean()
         
         # Restaurer les colonnes non-numériques
@@ -308,7 +343,11 @@ def reechantillonner_donnees(dataframe, frequence):
         # Remettre le timestamp en colonne normale
         df_reechantillonne = df_reechantillonne.reset_index()
         
-        # Supprimer les lignes où toutes les mesures sont NaN après rééchantillonnage
+        # Arrondir les occupants à l'entier le plus proche (car resample().mean() crée des floats)
+        if 'occupants' in df_reechantillonne.columns:
+             df_reechantillonne['occupants'] = df_reechantillonne['occupants'].fillna(0).round().astype(int)
+
+        # Supprimer les lignes où toutes les mesures sont NaN après rééchantillonnage (sauf occupants)
         colonnes_mesures = ['co2', 'pm25', 'tvoc', 'temperature', 'humidity']
         df_reechantillonne = df_reechantillonne.dropna(subset=colonnes_mesures, how='all')
         
@@ -330,15 +369,14 @@ def sauvegarder_dataset(dataframe, dossier_sortie, nom_fichier="preprocessed_dat
     # Chemin complet du fichier
     chemin_sortie = dossier_sortie / nom_fichier
     
-    # Sauvegarder avec QUOTE_MINIMAL (guillemets uniquement si nécessaire)
-    # quoting=1 = QUOTE_MINIMAL (évite les guillemets sur les nombres)
-    # Utiliser quotechar='"' et escapechar=None par défaut
+    # Sauvegarder avec QUOTE_MINIMAL
+    # On spécifie le format des flottants, mais pandas laissera les entiers tels quels
     dataframe.to_csv(
         chemin_sortie, 
         index=False, 
         sep=',',
-        quoting=1,  # QUOTE_MINIMAL - guillemets uniquement pour strings avec virgules
-        float_format='%.6f'  # Limiter la précision des flottants
+        quoting=1,
+        float_format='%.6f' 
     )
     
     logger.info(f"✓ Dataset sauvegardé: {chemin_sortie}")
@@ -356,7 +394,7 @@ def generer_statistiques(dataframe):
         "salles": dataframe['salle'].unique().tolist(),
         "capteurs": sorted(dataframe['capteur_id'].unique().tolist()),
         "valeurs_manquantes": dataframe.isnull().sum().to_dict(),
-        "statistiques_mesures": dataframe[['co2', 'pm25', 'tvoc', 'temperature', 'humidity']].describe().to_dict()
+        "statistiques_mesures": dataframe.select_dtypes(include=[np.number]).describe().to_dict()
     }
     return stats
 

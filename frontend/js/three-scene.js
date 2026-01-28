@@ -41,9 +41,17 @@ const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 2000);
 // Lumières
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambientLight);
+
 const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
 dirLight.position.set(5, 10, 7.5);
+dirLight.castShadow = true; // Activer les ombres pour le soleil/lune
 scene.add(dirLight);
+
+// Lumière intérieure (Plafonnier) - Chaude, initialement éteinte ou faible
+const roomLight = new THREE.PointLight(0xffaa55, 0, 15); // Couleur chaude, intensité 0, distance 15m
+roomLight.position.set(0, 3, 0); // Au plafond, au centre
+roomLight.decay = 2;
+scene.add(roomLight);
 
 // Ajout de la sphère d'environnement (Skybox 360°)
 const textureLoader = new THREE.TextureLoader();
@@ -91,6 +99,39 @@ const updateEnvironment = async (configOverride = null) => {
     
     const path = `assets/landscapes/${landscape}`;
     
+    // Mise à jour de l'éclairage en fonction du mode (Jour/Nuit)
+    // On déduit le mode du nom de fichier (contient "night" ou non)
+    const isNightMode = landscape.includes('night');
+    
+    if (isNightMode) {
+        // Mode Nuit : Ambiance sombre et bleutée, Lune, Lumière intérieure allumée fort
+        
+        // Ambient: Bleu nuit très sombre
+        ambientLight.color.setHSL(0.66, 0.6, 0.2); 
+        ambientLight.intensity = 0.3;
+        
+        // Directional (Lune): Bleu/Gris, rasant
+        dirLight.color.setHSL(0.6, 0.4, 0.6);
+        dirLight.intensity = 0.4;
+        
+        // Intérieur: Chaud et intense (On allume la lumière)
+        roomLight.intensity = 1.2;
+        
+    } else {
+        // Mode Jour : Lumière naturelle forte, Soleil
+        
+        // Ambient: Blanc/Bleu ciel lumineux
+        ambientLight.color.setHSL(0.6, 0.2, 0.8);
+        ambientLight.intensity = 0.8;
+        
+        // Directional (Soleil): Blanc chaud
+        dirLight.color.setHSL(0.1, 0.3, 0.95);
+        dirLight.intensity = 1.0;
+        
+        // Intérieur: Éteint ou très faible (lumière du jour suffit)
+        roomLight.intensity = 0; 
+    }
+
     // Éviter de recharger si c'est la même image
     if (path === currentEnvironmentPath && environmentSphere) return;
     currentEnvironmentPath = path;
@@ -1767,9 +1808,9 @@ const BOBBING_AMOUNT = 0.015;
 let verticalVelocity = 0;
 let isGrounded = true;
 const GRAVITY = 0.008;
-const JUMP_FORCE = 0.15;
+const JUMP_FORCE = 0.10;
 const PLAYER_HEIGHT_STANDING = 1.7; // Hauteur des yeux debout
-const PLAYER_HEIGHT_CROUCHING = 1.0; // Hauteur des yeux accroupi
+const PLAYER_HEIGHT_CROUCHING = 1.2; // Hauteur des yeux accroupi
 let currentPlayerHeight = PLAYER_HEIGHT_STANDING; // Hauteur actuelle (lissée)
 
 function updateMovement() {

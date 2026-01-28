@@ -245,6 +245,56 @@ const objectAnimations = {
 };
 
 let activeParticles = {}; // obj.uuid -> {points, positions, colors, velocities, lifetimes, maxCount, emitting}
+let invisibleWalls = []; // Stockage des murs invisibles
+
+// Fonction pour créer un mur invisible (collision)
+function createInvisibleWall(obj) {
+    // On attend que la matrice monde soit à jour
+    obj.updateWorldMatrix(true, false);
+    
+    // Créer une boîte englobante pour récupérer la taille et position
+    const box = new THREE.Box3().setFromObject(obj);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+
+    // Si l'objet est trop petit, ignorer
+    if (size.length() < 0.1) return;
+
+    // Créer un mesh invisible
+    // On s'assure d'une épaisseur minimale pour bloquer le passage
+    const thickness = 0.5; // 50cm d'épaisseur
+    
+    // On détermine l'orientation principale pour l'épaisseur
+    // C'est une approximation AABB, donc le mur sera toujours aligné aux axes XYZ
+    // On crée un mur un peu plus grand que l'échelle pour bien boucher
+    const geometry = new THREE.BoxGeometry(size.x, size.y, Math.max(size.z, thickness));
+    
+    // Matériel invisible MAIS détectable (visible: true + opacity: 0)
+    // Cela permet au Raycaster de le détecter sans modifier le code de filtrage
+    const material = new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+        visible: true, // Doit être visible pour le Raycaster standard
+        transparent: true,
+        opacity: 0.0, // Totalement transparent
+        depthWrite: false, // Ne pas écrire dans le Z-buffer
+        side: THREE.DoubleSide
+    });
+    
+    const wall = new THREE.Mesh(geometry, material);
+    
+    // Positionner au centre de l'objet
+    wall.position.copy(center);
+    
+    // Nommage pour identification
+    wall.name = "invisible_wall_" + obj.name;
+    
+    // Ajouter à la scène directement (ne bougera pas si la porte s'ouvre)
+    scene.add(wall);
+    invisibleWalls.push(wall);
+    console.log(`[Collision] Mur invisible ajouté pour: ${obj.name}`);
+}
 
 // Fonctions pour gérer la persistance de l'état des objets
 function saveObjectStates(enseigneId, pieceId) {
@@ -976,6 +1026,14 @@ function loadPieceModel(roomId) {
       }
     });
     activeParticles = {};
+    
+    // Nettoyer les murs invisibles
+    invisibleWalls.forEach(w => {
+        scene.remove(w);
+        if (w.geometry) w.geometry.dispose();
+        if (w.material) w.material.dispose();
+    });
+    invisibleWalls = [];
 
     isLoading = true;
     
@@ -1006,6 +1064,15 @@ function loadPieceModel(roomId) {
         // Aggressively fix ALL shader issues by replacing materials and validating geometry
         modelRoot.traverse((child) => {
           if (child.isMesh) {
+            
+            // --- NEW: Gestion des collisions invisibles ---
+            // Créer un mur invisible derrière les portes et fenêtres pour empêcher le passage (conceptuel)
+            const nLower = child.name.toLowerCase();
+            if (nLower.includes('door') || nLower.includes('porte') || nLower.includes('window') || nLower.includes('fenetre') || nLower.includes('vitre')) {
+                createInvisibleWall(child);
+            }
+            // ---------------------------------------------
+
             // Step 1: Fix geometry issues - keep ALL UV maps for complex textures
             if (child.geometry) {
               try {
@@ -2007,6 +2074,9 @@ function enforceWallCollision() {
 
     const collisionRay = new THREE.Raycaster();
     
+    // Construire la liste des objets à vérifier (Modèle + Murs invisibles)
+    const objectsToCheck = [modelRoot, ...invisibleWalls];
+
     for (const offset of heightOffsets) {
         // Point de départ du rayon
         const p = camera.position.clone();
@@ -2019,7 +2089,8 @@ function enforceWallCollision() {
             collisionRay.set(p, dir);
             collisionRay.far = minDistance;
             
-            const intersects = collisionRay.intersectObject(modelRoot, true);
+            // Vérifier les collisions sur TOUS les objets
+            const intersects = collisionRay.intersectObjects(objectsToCheck, true);
             
             // On ne percute que les objets visibles (Mesh)
             // On ignore la sphère d'environnement
@@ -2058,10 +2129,16 @@ function preventCameraClipping() {
   raycaster.set(controls.target, dir);
   raycaster.far = dist; // Vérifier seulement jusqu'à la caméra
 
-  const intersects = raycaster.intersectObject(modelRoot, true);
+  // Vérifier contre TOUS les objets : Modèle + Murs invisibles
+  const objectsToCheck = [modelRoot, ...invisibleWalls];
+  const intersects = raycaster.intersectObjects(objectsToCheck, true);
   
-  // Trouver le premier obstacle visible (mur, meuble...)
-  const hit = intersects.find(h => h.object.isMesh && h.object.visible);
+  // Trouver le premier obstacle visible (mur, meuble...) OU un mur invisible
+  const hit = intersects.find(h => {
+      // Les murs invisibles ont opacity: 0 mais visible: true, donc ils passent le test visible
+      // On s'assure juste que c'est bien un Mesh
+      return h.object.isMesh && h.object.visible;
+  });
 
   if (hit) {
       // Si on rencontre un obstacle, on place la caméra juste devant

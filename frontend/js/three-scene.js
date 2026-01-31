@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Reflector } from 'three/addons/objects/Reflector.js';
 
 // Initialisation du conteneur
 const container = document.getElementById('blender-viewer');
@@ -165,6 +166,7 @@ const updateEnvironment = async (configOverride = null) => {
         // Position par défaut
         // Note : Monter la sphère aligne le sol mais déplace l'horizon. 
         environmentSphere.position.y = 0;
+        environmentSphere.name = 'EnvironmentSphere'; // Nom pour identification
 
         scene.add(environmentSphere);
         
@@ -246,6 +248,7 @@ const objectAnimations = {
 
 let activeParticles = {}; // obj.uuid -> {points, positions, colors, velocities, lifetimes, maxCount, emitting}
 let invisibleWalls = []; // Stockage des murs invisibles
+let mirrors = []; // Stockage des miroirs (CubeCamera pour reflets locaux)
 
 // Fonction pour créer un mur invisible (collision)
 function createInvisibleWall(obj) {
@@ -971,6 +974,105 @@ function disposeObject(root) {
   });
 }
 
+// Fonction pour configurer les miroirs avec CubeCamera (reflets locaux)
+function setupMirrors(root) {
+  // Nettoyer les anciens miroirs
+  mirrors.forEach(mirrorData => {
+    if (mirrorData.cubeCamera && mirrorData.cubeCamera.parent) {
+      mirrorData.cubeCamera.parent.remove(mirrorData.cubeCamera);
+    }
+    if (mirrorData.renderTarget) {
+      mirrorData.renderTarget.dispose();
+    }
+  });
+  mirrors = [];
+
+  root.traverse((child) => {
+    if (child.isMesh) {
+      const name = child.name;
+      // Détecter Mirror_001, Mirror_002, etc.
+      if (name && name.match(/^Mirror_\d{3}$/i)) {
+        console.log('[Mirror] Détecté:', name);
+        
+        try {
+          // Créer un CubeRenderTarget pour capturer l'environnement local
+          const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(256, {
+            format: THREE.RGBFormat,
+            generateMipmaps: true,
+            minFilter: THREE.LinearMipmapLinearFilter
+          });
+          
+          // Créer la CubeCamera pour capturer la scène depuis le miroir
+          const cubeCamera = new THREE.CubeCamera(0.1, 100, cubeRenderTarget);
+          
+          // Positionner la caméra au centre du miroir
+          child.add(cubeCamera);
+          cubeCamera.position.set(0, 0, 0);
+          
+          // Créer un matériau réfléchissant utilisant la capture locale
+          const mirrorMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            metalness: 1.0,
+            roughness: 0.02,
+            envMap: cubeRenderTarget.texture,
+            envMapIntensity: 1.0,
+            side: THREE.DoubleSide
+          });
+          
+          // Remplacer le matériau
+          if (Array.isArray(child.material)) {
+            child.material.forEach(m => m.dispose());
+          } else if (child.material) {
+            child.material.dispose();
+          }
+          
+          child.material = mirrorMaterial;
+          child.visible = true;
+          
+          // Stocker les données du miroir
+          mirrors.push({
+            mesh: child,
+            cubeCamera: cubeCamera,
+            renderTarget: cubeRenderTarget
+          });
+          
+          console.log('[Mirror] CubeCamera configurée pour:', name);
+          
+        } catch (error) {
+          console.error('[Mirror] Erreur lors de la création du miroir pour', name, error);
+        }
+      }
+    }
+  });
+  
+  console.log(`[Mirror] ${mirrors.length} miroir(s) configuré(s)`);
+}
+
+// Fonction pour mettre à jour les reflets des miroirs
+function updateMirrorReflections() {
+  if (mirrors.length === 0) return;
+  
+  mirrors.forEach(mirrorData => {
+    const { mesh, cubeCamera } = mirrorData;
+    
+    // Cacher le miroir lui-même pour éviter qu'il se voie
+    mesh.visible = false;
+    
+    // Cacher temporairement la skybox pour ne capturer que l'intérieur
+    const envSphereVisible = environmentSphere ? environmentSphere.visible : false;
+    if (environmentSphere) environmentSphere.visible = false;
+    
+    // Mettre à jour la CubeCamera (capture la scène)
+    cubeCamera.update(renderer, scene);
+    
+    // Restaurer la visibilité
+    mesh.visible = true;
+    if (environmentSphere) environmentSphere.visible = envSphereVisible;
+  });
+  
+  console.log('[Mirror] Reflets mis à jour pour', mirrors.length, 'miroir(s)');
+}
+
 function loadPieceModel(roomId) {
   // Prevent concurrent loads
   if (isLoading) {
@@ -1150,20 +1252,37 @@ function loadPieceModel(roomId) {
 
                     if (!hasProblematicFeatures) {
                       // Material seems safe, try to use it with some fixes
-                      const safeMat = mat.clone();
+                      let finalMat = mat.clone();
 
                       // Ensure basic properties are set
-                      if (!safeMat.color) {
-                        safeMat.color = new THREE.Color(0xcccccc);
+                      if (!finalMat.color) {
+                        finalMat.color = new THREE.Color(0xcccccc);
                       }
-                      if (safeMat.transparent === undefined) {
-                        safeMat.transparent = false;
+                      
+                      // --- FIX TRANSPARENCE VITRES (Mode Safe) ---
+                      const nameLower = child.name.toLowerCase();
+                      const matNameLower = mat && mat.name ? mat.name.toLowerCase() : '';
+                      const isGlass = nameLower.includes('window') || nameLower.includes('fenetre') || nameLower.includes('vitre') || nameLower.includes('glass') || 
+                                      matNameLower.includes('glass') || matNameLower.includes('vitre') || matNameLower.includes('window');
+
+                      if (isGlass) {
+                          finalMat.transparent = true;
+                          finalMat.opacity = 0.45; // Semi-transparent
+                          finalMat.roughness = 0.05; // Très lisse
+                          finalMat.metalness = 0.9; // Réfléchissant
+                          finalMat.side = THREE.DoubleSide;
+                          // finalMat.depthWrite = false; // Parfois nécessaire, parfois bugué. On tente sans d'abord si safeMat
                       }
-                      if (safeMat.side === undefined) {
-                        safeMat.side = THREE.FrontSide;
+                      // ------------------------------------------
+
+                      if (finalMat.transparent === undefined) {
+                        finalMat.transparent = false;
+                      }
+                      if (finalMat.side === undefined) {
+                         finalMat.side = THREE.FrontSide;
                       }
 
-                      newMaterials.push(safeMat);
+                      newMaterials.push(finalMat);
                       return;
                     }
                   }
@@ -1219,6 +1338,24 @@ function loadPieceModel(roomId) {
                     }
                   }
 
+                  // --- FIX TRANSPARENCE VITRES (Mode Fallback) ---
+                  const nameLower = child.name.toLowerCase();
+                  const matNameLower = mat && mat.name ? mat.name.toLowerCase() : '';
+                  const isGlass = nameLower.includes('window') || nameLower.includes('fenetre') || nameLower.includes('vitre') || nameLower.includes('glass') || 
+                                  matNameLower.includes('glass') || matNameLower.includes('vitre') || matNameLower.includes('window');
+                  
+                  let isTransparent = false;
+                  let opacity = 1.0;
+                  
+                  if (isGlass) {
+                      isTransparent = true;
+                      opacity = 0.45;
+                  } else if (mat && (mat.transparent || mat.opacity < 1.0)) {
+                      isTransparent = true;
+                      opacity = mat.opacity;
+                  }
+                  // ---------------------------------------------
+
                   // Create material with preserved textures
                   const newMat = new THREE.MeshStandardMaterial({
                     color: color,
@@ -1228,9 +1365,12 @@ function loadPieceModel(roomId) {
                     metalnessMap: metalnessMap,
                     aoMap: aoMap,
                     emissiveMap: emissiveMap,
-                    roughness: map ? 0.8 : 0.7, // Slightly rougher if no texture
-                    metalness: 0.0,
-                    side: THREE.DoubleSide
+                    roughness: map ? 0.8 : (isGlass ? 0.05 : 0.7), // Slightly rougher if no texture, smooth if glass
+                    metalness: isGlass ? 0.9 : 0.0,
+                    side: THREE.DoubleSide,
+                    transparent: isTransparent,
+                    opacity: opacity,
+                    depthWrite: !isGlass // Disable depth write for glass to avoid occlusion issues
                   });
 
                   newMaterials.push(newMat);
@@ -1260,6 +1400,10 @@ function loadPieceModel(roomId) {
         });
         
         scene.add(modelRoot);
+        
+        // Configurer les miroirs (CubeCamera)
+        setupMirrors(modelRoot);
+        
         frameModel(modelRoot, 1.1);
         
         // Marquer que le modèle est chargé
@@ -1268,6 +1412,11 @@ function loadPieceModel(roomId) {
         
         // Générer automatiquement les alert-points pour les objets numérotés
         autoGenerateAlertPoints(modelRoot);
+        
+        // Mettre à jour les reflets des miroirs après un court délai
+        setTimeout(() => {
+          updateMirrorReflections();
+        }, 200);
         
         // Start animation loop only once
         if (!animationStarted) {
@@ -1777,9 +1926,18 @@ function updateAlertPoints() {
 
     // Ajuster la position pour certains types d'objets
     const i18nKey = el.getAttribute('data-i18n-key');
-    if (i18nKey === 'door') {
-      // Remonter le point de la porte d'environ 1.0 unités dans l'espace 3D
-      worldPos.y += 1.0;
+    if (i18nKey === 'door' || i18nKey === 'window') {
+      // Pour les portes et fenêtres, calculer le centre de la bounding box
+      // Cela permet de positionner le point au milieu, quelle que soit la taille
+      const bbox = new THREE.Box3().setFromObject(target);
+      bbox.getCenter(worldPos);
+      
+      // Ajustement léger pour placer le point un peu plus haut (au niveau de la poignée)
+      // On utilise la hauteur de la porte pour calculer un offset proportionnel
+      const size = new THREE.Vector3();
+      bbox.getSize(size);
+      // Placer le point à environ 45% de la hauteur (position typique d'une poignée)
+      worldPos.y = bbox.min.y + (size.y * 0.45);
     } else if (i18nKey === 'ventilation' || i18nKey === 'radiator') {
       // Pour ventilation et radiateur, utiliser le centre de la bounding box
       const bbox = new THREE.Box3().setFromObject(target);

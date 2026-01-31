@@ -719,8 +719,8 @@ async def post_rows_periodically(interval: int = INTERVAL_SECONDS, loop_forever:
         # Pré-traitement de la deuxième moitié pour la Boutique
         for row in rows_boutique:
             row['enseigne'] = "Boutique"
-            row['salle'] = "Chambre Arthur"
-            row['capteur_id'] = "Arthur1"
+            row['salle'] = "Bureau"
+            row['capteur_id'] = "Bureau1"
             
         logger.info(f"Dataset split: {len(rows_maison)} rows for Maison, {len(rows_boutique)} rows for Boutique")
 

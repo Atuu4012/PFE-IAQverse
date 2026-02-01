@@ -189,6 +189,10 @@ function switchRoom(roomId) {
     activeRoom = roomId;
     localStorage.setItem('activeRoom', roomId);
     
+    // Sauvegarder aussi dans sessionStorage pour occupants-display.js
+    sessionStorage.setItem('activePieceId', roomId);
+    sessionStorage.setItem('activeEnseigneId', activeEnseigne);
+    
     // Mettre à jour l'apparence des onglets
     document.querySelectorAll('.room-tab').forEach(tab => {
         tab.classList.toggle('active', tab.dataset.id === roomId);
@@ -198,6 +202,11 @@ function switchRoom(roomId) {
     document.dispatchEvent(new CustomEvent('roomChanged', { 
         detail: { roomId, enseigneId: activeEnseigne } 
     }));
+    
+    // Mettre à jour l'affichage des occupants si la fonction existe
+    if (typeof window.fetchOccupantsFromAPI === 'function') {
+        setTimeout(() => window.fetchOccupantsFromAPI(), 100);
+    }
 }
 
 /**

@@ -17,6 +17,7 @@
   <script src="js/dashboard.js"></script>
   <script src="js/global-alerts.js"></script>
   <script src="js/simulate-alert.js"></script>
+  <script src="js/occupants-display.js"></script>
   <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
 </head>
 <body>
@@ -101,6 +102,17 @@
   <main class="grid">
     <!-- Score panel: affiche le score de la salle active -->
     <div id="room-score-panel" class="score-panel" aria-live="polite">
+      <!-- Badge nombre d'occupants -->
+      <div class="occupants-badge" id="occupants-badge" style="display: none;" title="Nombre d'occupants">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <span id="occupants-count">0</span>
+      </div>
+      
       <div class="score-legend">
         <div class="legend-item">
           <span class="legend-badge badge-a">A</span>

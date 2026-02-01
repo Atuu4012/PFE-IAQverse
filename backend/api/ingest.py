@@ -39,6 +39,7 @@ class LegacyIAQData(BaseModel):
     tvoc: Optional[float] = None
     temperature: Optional[float] = None
     humidity: Optional[float] = None
+    occupants: Optional[int] = None
     enseigne: Optional[str] = "Maison"
     salle: Optional[str] = "Bureau"
     capteur_id: Optional[str] = None

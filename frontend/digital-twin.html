@@ -22,6 +22,7 @@
     <script src="js/alerts-engine.js"></script>
     <script src="js/global-alerts.js"></script>
     <script src="js/simulate-alert.js"></script>
+    <script src="js/occupants-display.js"></script>
     <script async src="https://unpkg.com/es-module-shims/dist/es-module-shims.js"></script>
     <script type="importmap">
     {
@@ -175,6 +176,17 @@
 
             <!-- Les alert-points sont maintenant au-dessus du canvas -->
             <div id="alert-points-container"></div>
+            
+            <!-- Badge nombre d'occupants (en haut à gauche) -->
+            <div class="occupants-badge-twin" id="occupants-badge-twin" style="display: none;" title="Nombre d'occupants">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <span id="occupants-count-twin">0</span>
+            </div>
             
             <!-- Overlay des données en temps réel -->
             <div id="iaq-overlay" class="iaq-overlay">

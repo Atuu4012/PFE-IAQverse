@@ -750,6 +750,115 @@ a:hover img {
   font-size: 16px;
 }
 
+/* ====== BADGES NOMBRE D'OCCUPANTS ====== */
+/* Badge pour index.html (dans le score panel) */
+.occupants-badge {
+  position: absolute;
+  top: 50%;
+  left: 180px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: linear-gradient(135deg, rgba(44, 62, 80, 0.12), rgba(60, 82, 106, 0.12));
+  padding: 8px 12px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(44, 62, 80, 0.25);
+  box-shadow: 0 2px 8px rgba(44, 62, 80, 0.15);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  cursor: help;
+  z-index: 10;
+}
+
+.occupants-badge:hover {
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 0 4px 12px rgba(44, 62, 80, 0.25);
+  border-color: rgba(60, 82, 106, 0.4);
+  background: linear-gradient(135deg, rgba(44, 62, 80, 0.18), rgba(60, 82, 106, 0.18));
+}
+
+.occupants-badge svg {
+  color: #3c526a;
+  flex-shrink: 0;
+}
+
+.occupants-badge #occupants-count {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2c3e50;
+  line-height: 1;
+}
+
+/* Mode sombre pour le badge occupants (index.html) - style bleu comme les onglets */
+[data-theme="sombre"] .occupants-badge {
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.25), rgba(41, 128, 185, 0.25));
+  border-color: rgba(52, 152, 219, 0.5);
+  box-shadow: 0 2px 12px rgba(52, 152, 219, 0.3);
+}
+
+[data-theme="sombre"] .occupants-badge:hover {
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.35), rgba(41, 128, 185, 0.35));
+  border-color: rgba(52, 152, 219, 0.6);
+  box-shadow: 0 4px 16px rgba(52, 152, 219, 0.4);
+}
+
+[data-theme="sombre"] .occupants-badge svg {
+  color: #5dade2;
+}
+
+[data-theme="sombre"] .occupants-badge #occupants-count {
+  color: #74c0f4;
+}
+
+/* Badge pour digital-twin.html (dans le viewer 3D) */
+.occupants-badge-twin {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 150;
+  transition: all 0.3s ease;
+  cursor: help;
+}
+
+[data-theme="sombre"] .occupants-badge-twin {
+  background: rgba(37, 41, 48, 0.9);
+}
+
+.occupants-badge-twin:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.occupants-badge-twin svg {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.occupants-badge-twin #occupants-count-twin {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+[data-theme="sombre"] .occupants-badge-twin svg {
+  color: #a8b2c1;
+}
+
+[data-theme="sombre"] .occupants-badge-twin #occupants-count-twin {
+  color: #fff;
+}
+
 .predicted-trend.up {
   color: var(--success-color);
 }
@@ -3054,19 +3163,24 @@ select.form-control::after {
     position: absolute;
     top: 10px;
     left: 10px;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(255, 255, 255, 0.9);
     padding: 10px;
-    border-radius: 8px;
-    color: #fff;
+    border-radius: 6px;
+    color: var(--text-primary);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 0.85rem;
     z-index: 900; /* Above canvas, below loader */
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     display: flex;
     flex-direction: column;
     gap: 5px;
     min-width: 120px;
     pointer-events: none; /* Let clicks pass through */
+}
+
+[data-theme="sombre"] .iaq-overlay {
+    background: rgba(37, 41, 48, 0.9);
+    color: #fff;
 }
 
 .iaq-item {
@@ -3077,21 +3191,33 @@ select.form-control::after {
 
 .iaq-label {
     font-weight: 600;
-    color: #ccc;
+    color: var(--text-secondary);
     margin-right: 10px;
 }
 
 .iaq-value {
     font-weight: bold;
-    color: #fff;
+    color: var(--text-primary);
 }
 
 .iaq-unit {
     font-size: 0.75rem;
-    color: #aaa;
+    color: var(--text-muted);
     margin-left: 4px;
     width: 35px;
     text-align: right;
+}
+
+[data-theme="sombre"] .iaq-label {
+    color: #a8b2c1;
+}
+
+[data-theme="sombre"] .iaq-value {
+    color: #fff;
+}
+
+[data-theme="sombre"] .iaq-unit {
+    color: #8791a0;
 }
 
 

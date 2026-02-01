@@ -22,6 +22,7 @@
     "scoreFeature": "Score IAQ en temps réel",
     "predictionFeature": "Prédiction du score dans 30 minutes",
     "alertsFeature": "Alertes automatiques sur les onglets",
+    "occupants": "occupants",
     "score": {
       "title": "Score de qualité de l'air",
       "label": "Score global",

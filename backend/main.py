@@ -655,7 +655,8 @@ async def add_iaq_record(payload: dict):
                         "pm25": rec.get("pm25", 0),
                         "tvoc": rec.get("tvoc", 0),
                         "temperature": rec.get("temperature", 0),
-                        "humidity": rec.get("humidity", 0)
+                        "humidity": rec.get("humidity", 0),
+                        "occupants": rec.get("occupants", 0)
                     }
                 }
                 influx.write_measurement(influx_data)
@@ -678,6 +679,10 @@ async def add_iaq_record(payload: dict):
         rec["global_level"] = score_data["global_level"]
     except Exception as e:
         logger.warning(f"Erreur calcul score temps réel: {e}")
+    
+    # S'assurer que occupants est présent dans rec (par défaut 0 si absent)
+    if "occupants" not in rec or rec["occupants"] is None:
+        rec["occupants"] = 0
 
     # Diffusion WebSocket
     if settings.WEBSOCKET_ENABLED:

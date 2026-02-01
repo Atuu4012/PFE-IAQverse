@@ -120,10 +120,15 @@ def get_iaq_data(
                         score_data = calculate_iaq_score(clean_predictions)
                         record["global_score"] = score_data["global_score"]
                         record["global_level"] = score_data["global_level"]
+                        
+                        # S'assurer que occupants est inclus (par défaut 0 si non présent)
+                        if "occupants" not in record or record["occupants"] is None:
+                            record["occupants"] = 0
                     except Exception as e:
                         logger.warning(f"Erreur calcul score: {e}")
                         record["global_score"] = None
                         record["global_level"] = "unknown"
+                        record["occupants"] = 0
                 
                 logger.info(f"✅ Données récupérées depuis InfluxDB: {len(influx_data)} points (step={step})")
                 return influx_data

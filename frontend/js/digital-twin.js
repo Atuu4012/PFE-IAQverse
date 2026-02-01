@@ -114,7 +114,7 @@ function showDetails(sujet, detail, forceRefresh = false) {
             const li = document.createElement('li');
             li.className = 'issue-action';
             const actionLabel = t && t(`digitalTwin.actionVerbs.${actionKey}`);
-            li.innerHTML = `<strong>${t('digitalTwin.recommendedAction') || 'Action recommandée'} :</strong> ${actionLabel || actionKey}`;
+            li.innerHTML = `<strong>${(t && t('digitalTwin.tip.recommendedAction')) || 'Action recommandée'} :</strong> ${actionLabel || actionKey}`;
             list.appendChild(li);
         }
     } else {
@@ -647,7 +647,7 @@ window.syncAlertPointsToTable = function syncAlertPointsToTable() {
             }
         });
         const hasClosedOrOff = states.some(s => s === 'closed' || s === 'off');
-        const stateEmoji = hasClosedOrOff ? '🔴' : '🟢';
+        // REMPLACÉ: Utilisation d'indicateurs CSS au lieu d'emojis
         
         // Déterminer la classe CSS basée sur la gravité
         const severities = typePoints.map(pt => pt.getAttribute('data-severity') || 'info');
@@ -655,8 +655,23 @@ window.syncAlertPointsToTable = function syncAlertPointsToTable() {
         const maxSeverity = severities.reduce((max, sev) => 
             severityWeights[sev] < severityWeights[max] ? sev : max, 'info');
         const severityLower = maxSeverity.toLowerCase();
+        const severityMap = {
+            'danger': { cls: 'alert-red' },
+            'warning': { cls: 'alert-yellow' },
+            'info': { cls: 'alert-green' }
+        };
+        const sev = severityMap[severityLower] || severityMap['danger'];
+
+        let tr = currentRows.get(rowId);
+
+        const tdState = document.createElement('td'); 
+        // NOUVEAU STYLE : Indicateur visuel
+        const indicator = document.createElement('div');
+        indicator.className = hasClosedOrOff ? 'status-indicator status-red' : 'status-indicator status-green';
+        tdState.appendChild(indicator);
         
-        // Déterminer si l'action est satisfaite (row devient verte)
+
+        // Utiliser le premier point pour les clés i18n et actions
         const firstPoint = typePoints[0];
         let actionKeyToCompare = firstPoint.getAttribute('data-action-key');
         if (!actionKeyToCompare) {
@@ -691,8 +706,6 @@ window.syncAlertPointsToTable = function syncAlertPointsToTable() {
         }
         
         // --- CONSTRUCTION / MISE À JOUR DU DOM ---
-        let tr = currentRows.get(rowId);
-        
         if (!tr) {
             tr = document.createElement('tr');
             tr.setAttribute('data-target-id', rowId);
@@ -718,7 +731,19 @@ window.syncAlertPointsToTable = function syncAlertPointsToTable() {
         
         // Update Content
         tr.className = trClass;
-        tr.querySelector('.col-state').textContent = stateEmoji;
+
+        // Mise à jour de l'indicateur de statut (remplace stateEmoji)
+        const colState = tr.querySelector('.col-state');
+        if (colState) {
+            let indicator = colState.querySelector('.status-indicator');
+            // Si l'indicateur n'existe pas (ancienne ligne ou texte pur), on nettoie et on crée
+            if (!indicator) {
+                colState.textContent = ''; 
+                indicator = document.createElement('div');
+                colState.appendChild(indicator);
+            }
+            indicator.className = hasClosedOrOff ? 'status-indicator status-red' : 'status-indicator status-green';
+        }
         
         // Prepare Texts
         const actionKeyDyn = firstPoint.getAttribute('data-action-key');
@@ -759,8 +784,13 @@ window.syncAlertPointsToTable = function syncAlertPointsToTable() {
 
         // Queue for sort
         let weight = severityWeights[severityLower];
-        if (isSatisfied) weight = 10;
         
+        // Si la ligne est verte (succès), on la met tout en bas (poids plus élevé)
+        if (tr.classList.contains('alert-success')) {
+            weight = 10; // Poids élevé pour être à la fin
+        }
+
+        console.log(`[digital-twin] Adding grouped row for ${typeKey} with severity weight ${weight}`);
         builtRows.push({ tr, weight });
     });
 

@@ -73,6 +73,7 @@
             "technologies": "Tecnologie",
             "type": "Tipo",
             "manage_brands": "Gestisci sedi",
+            "digital_twin": "Gemello Digitale",
             "subscription": "Il tuo abbonamento",
             "contact": "Contatti"
         },
@@ -100,7 +101,16 @@
             "alertes": "Allarmi",
             "rappels": "Promemoria",
             "newsletters": "Newsletter",
-            "current_plan": "Piano attuale"
+            "current_plan": "Piano attuale",
+            "landscape": "Paesaggio",
+            "auto_day_night": "Modalità Giorno/Notte Automatica",
+            "email_alerts_enabled": "Attiva avvisi email critici",
+            "landscape_options": {
+                "urban_night": "Urbano (Notte)",
+                "urban_day": "Urbano (Giorno)",
+                "garden_night": "Giardino (Notte)",
+                "garden_day": "Giardino (Giorno)"
+            }
         },
         "plans": {
             "basic": {
@@ -256,6 +266,30 @@
             "humidity": {
                 "subject": "Umidità",
                 "action": "Regolare"
+            },
+            "air_purifier": {
+                "subject": "Purificatore d'aria",
+                "action": "Accendere"
+            },
+            "air_conditioning": {
+                "subject": "Aria condizionata",
+                "action": "Accendere"
+            },
+            "heating": {
+                "subject": "Riscaldamento",
+                "action": "Regolare"
+            },
+            "cooling": {
+                "subject": "Raffreddamento",
+                "action": "Regolare"
+            },
+            "humidifier": {
+                "subject": "Umidificatore",
+                "action": "Accendere"
+            },
+            "dehumidifier": {
+                "subject": "Deumidificatore",
+                "action": "Accendere"
             }
         },
         "actionVerbs": {

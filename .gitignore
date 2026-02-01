@@ -33,3 +33,6 @@ backups/
 # OS
 .DS_Store
 Thumbs.db
+
+#Config.json
+assets/config.json

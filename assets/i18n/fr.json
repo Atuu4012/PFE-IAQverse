@@ -74,6 +74,7 @@
       "technologies": "Technologies",
       "type": "Type",
       "manage_brands": "Gestion des enseignes",
+      "digital_twin": "Jumeau Numérique",
       "subscription": "Votre abonnement",
       "contact": "Contact"
     },
@@ -101,7 +102,16 @@
       "alertes": "Alertes",
       "rappels": "Rappels",
       "newsletters": "Newsletters",
-      "current_plan": "Plan actuel"
+      "current_plan": "Plan actuel",
+      "landscape": "Paysage",
+      "auto_day_night": "Mode Jour/Nuit Automatique",
+      "email_alerts_enabled": "Activer les alertes email critiques",
+      "landscape_options": {
+        "urban_night": "Urbain (Nuit)",
+        "urban_day": "Urbain (Jour)",
+        "garden_night": "Jardin (Nuit)",
+        "garden_day": "Jardin (Jour)"
+      }
     },
     "plans": {
       "basic": {

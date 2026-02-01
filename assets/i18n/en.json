@@ -74,6 +74,7 @@
       "technologies": "Technologies",
       "type": "Type",
       "manage_brands": "Manage locations",
+      "digital_twin": "Digital Twin",
       "subscription": "Your subscription",
       "contact": "Contact"
     },
@@ -101,7 +102,16 @@
       "alertes": "Alerts",
       "rappels": "Reminders",
       "newsletters": "Newsletters",
-      "current_plan": "Current plan"
+      "current_plan": "Current plan",
+      "landscape": "Landscape",
+      "auto_day_night": "Automatic Day/Night Mode",
+      "email_alerts_enabled": "Enable critical email alerts",
+      "landscape_options": {
+        "urban_night": "Urban (Night)",
+        "urban_day": "Urban (Day)",
+        "garden_night": "Garden (Night)",
+        "garden_day": "Garden (Day)"
+      }
     },
     "plans": {
       "basic": {
@@ -255,6 +265,30 @@
       "humidity": {
         "subject": "Humidity",
         "action": "Regulate"
+      },
+      "air_purifier": {
+        "subject": "Air Purifier",
+        "action": "Turn on"
+      },
+      "air_conditioning": {
+        "subject": "Air Conditioning",
+        "action": "Turn on"
+      },
+      "heating": {
+        "subject": "Heating",
+        "action": "Adjust"
+      },
+      "cooling": {
+        "subject": "Cooling",
+        "action": "Adjust"
+      },
+      "humidifier": {
+        "subject": "Humidifier",
+        "action": "Turn on"
+      },
+      "dehumidifier": {
+        "subject": "Dehumidifier",
+        "action": "Turn on"
       }
     },
     "actionVerbs": {

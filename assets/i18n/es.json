@@ -73,6 +73,7 @@
             "technologies": "Tecnologías",
             "type": "Tipo",
             "manage_brands": "Gestionar ubicaciones",
+            "digital_twin": "Gemelo Digital",
             "subscription": "Su suscripción",
             "contact": "Contacto"
         },
@@ -100,7 +101,16 @@
             "alertes": "Alertas",
             "rappels": "Recordatorios",
             "newsletters": "Boletines",
-            "current_plan": "Plan actual"
+            "current_plan": "Plan actual",
+            "landscape": "Paisaje",
+            "auto_day_night": "Modo Día/Noche Automático",
+            "email_alerts_enabled": "Activar alertas críticas por correo",
+            "landscape_options": {
+                "urban_night": "Urbano (Noche)",
+                "urban_day": "Urbano (Día)",
+                "garden_night": "Jardín (Noche)",
+                "garden_day": "Jardín (Día)"
+            }
         },
         "plans": {
             "basic": {
@@ -257,6 +267,30 @@
             "humidity": {
                 "subject": "Humedad",
                 "action": "Regular"
+            },
+            "air_purifier": {
+                "subject": "Purificador de aire",
+                "action": "Activar"
+            },
+            "air_conditioning": {
+                "subject": "Aire acondicionado",
+                "action": "Activar"
+            },
+            "heating": {
+                "subject": "Calefacción",
+                "action": "Ajustar"
+            },
+            "cooling": {
+                "subject": "Refrigeración",
+                "action": "Ajustar"
+            },
+            "humidifier": {
+                "subject": "Humidificador",
+                "action": "Activar"
+            },
+            "dehumidifier": {
+                "subject": "Deshumidificador",
+                "action": "Activar"
             }
         },
         "actionVerbs": {

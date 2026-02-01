@@ -70,7 +70,7 @@
                                 "name": "Clim01",
                                 "type": "ventilation",
                                 "is_iot": true,
-                                "state": "off"
+                                "state": "on"
                             },
                             {
                                 "id": "Radiator01",
@@ -78,6 +78,20 @@
                                 "type": "radiator",
                                 "is_iot": true,
                                 "state": "off"
+                            },
+                            {
+                                "id": "Door01",
+                                "name": "Door01",
+                                "type": "door",
+                                "is_iot": true,
+                                "state": "open"
+                            },
+                            {
+                                "id": "Purifier01",
+                                "name": "Purifier01",
+                                "type": "air_purifier",
+                                "is_iot": true,
+                                "state": "on"
                             }
                         ]
                     }

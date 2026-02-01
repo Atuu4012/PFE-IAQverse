@@ -322,229 +322,447 @@ def get_preventive_actions(
 
 
 def _generate_actions_from_ml_risk_analysis(
-    current_values: dict, 
-    predicted_values: dict, 
+    current_values: dict,
+    predicted_values: dict,
     risk_analysis: dict,
-    forecast_minutes: int = 30
+    forecast_minutes: int = 30,
 ) -> list:
     """
     Génère des actions préventives à partir de l'analyse de risque ML.
     Transforme les actions du ML (format technique) en format frontend (avec valeurs prédites).
     """
-    actions = []
-    
-    # Mapping des métriques ML vers les dispositifs frontend
-    DEVICE_MAPPING = {
-        "co2": {
-            "device": "window",
-            "action": "open",
-            "parameter": "CO₂",
-            "unit": "ppm",
-            "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"}
-        },
-        "pm25": {
-            "device": "window",
-            "action": "open",
-            "parameter": "PM2.5",
-            "unit": "µg/m³",
-            "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"}
-        },
-        "tvoc": {
-            "device": "ventilation",
-            "action": "increase",
-            "parameter": "TVOC",
-            "unit": "ppb",
-            "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"}
-        }
-    }
-    
-    # Extraire les actions du risk_analysis
+    device_mapping = _get_ml_device_mapping()
     actions_needed = risk_analysis.get("actions_needed", [])
     metrics = risk_analysis.get("metrics", {})
-    
+
+    actions: list = []
     for action_item in actions_needed:
         metric = action_item.get("metric")
-        
-        if metric not in DEVICE_MAPPING:
-            continue
-        
-        device_info = DEVICE_MAPPING[metric]
         metric_data = metrics.get(metric, {})
-        
-        current_val = metric_data.get("current_value", 0)
-        predicted_val = metric_data.get("predicted_value", 0)
-        current_level = metric_data.get("current_level", "good")
-        predicted_level = metric_data.get("predicted_level", "good")
-        
-        # Déterminer la priorité basée sur le niveau le plus critique
-        priority_map = device_info.get("priority_map", {})
-        if current_level in ["critical", "danger"]:
-            priority = "urgent"  # Situation actuelle critique
-        elif predicted_level in ["critical", "danger"]:
-            priority = priority_map.get(predicted_level, "high")  # Va devenir critique
+
+        # Cas particuliers
+        if metric == "temperature":
+            device_entries = _get_temperature_devices(metric_data)
+        elif metric == "humidity":
+            device_entries = _get_humidity_devices(metric_data)
+        elif metric in device_mapping:
+            device_entries = device_mapping[metric]
+            if isinstance(device_entries, dict):
+                device_entries = [device_entries]
         else:
-            priority = priority_map.get(current_level, "medium")
-        
-        # Construire l'action avec valeurs actuelles et prédites
-        action = {
-            "device": device_info["device"],
-            "action": device_info["action"],
-            "parameter": device_info["parameter"],
-            "current_value": round(current_val, 1),
-            "predicted_value": round(predicted_val, 1),
-            "unit": device_info["unit"],
-            "priority": priority,
-            "level": current_level if current_level in ["critical", "danger"] else predicted_level,
-            "trend": metric_data.get("trend", "stable"),
-            "change_percent": metric_data.get("change_percent", 0),
-            "reason": action_item.get("action", "Action recommandée"),
-            "forecast_minutes": forecast_minutes,
-            "is_ml_action": True
-        }
-        
-        actions.append(action)
-    
-    # Trier par priorité (urgent > high > medium > low)
+            continue
+
+        if not device_entries:
+            continue
+
+        actions.extend(
+            _build_actions_for_metric(
+                metric_data=metric_data,
+                device_entries=device_entries,
+                action_label=action_item.get("action", "Action recommandée"),
+                forecast_minutes=forecast_minutes,
+            )
+        )
+
     priority_order = {"urgent": 0, "high": 1, "medium": 2, "low": 3}
     actions.sort(key=lambda x: priority_order.get(x.get("priority", "low"), 99))
-    
     return actions
 
+
+def _get_ml_device_mapping() -> dict:
+    """Mapping des métriques ML vers les dispositifs frontend."""
+    return {
+        "co2": [
+            {
+                "device": "window",
+                "action": "open",
+                "parameter": "CO₂",
+                "unit": "ppm",
+                "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"},
+            },
+            {
+                "device": "door",
+                "action": "open",
+                "parameter": "CO₂",
+                "unit": "ppm",
+                "priority_map": {"warning": "low", "critical": "medium", "danger": "high"},
+            },
+        ],
+        "pm25": [
+            {
+                "device": "air_purifier",
+                "action": "turn_on",
+                "parameter": "PM2.5",
+                "unit": "µg/m³",
+                "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"},
+            },
+            {
+                "device": "window",
+                "action": "open",
+                "parameter": "PM2.5",
+                "unit": "µg/m³",
+                "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"},
+            },
+        ],
+        "tvoc": [
+            {
+                "device": "air_purifier",
+                "action": "turn_on",
+                "parameter": "TVOC",
+                "unit": "ppb",
+                "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"},
+            },
+            {
+                "device": "ventilation",
+                "action": "increase",
+                "parameter": "TVOC",
+                "unit": "ppb",
+                "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"},
+            },
+        ],
+    }
+
+
+def _get_temperature_devices(metric_data: dict) -> list:
+    """Détermine les dispositifs à utiliser pour la température."""
+    current_val = metric_data.get("current_value", 0)
+    predicted_val = metric_data.get("predicted_value", 0)
+    predicted_level = metric_data.get("predicted_level", "good")
+
+    if predicted_val > 25 or (current_val > 25 and predicted_level != "good"):
+        return [
+            {
+                "device": "ventilation",  # Clim
+                "action": "increase",
+                "parameter": "Température",
+                "unit": "°C",
+                "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"},
+            },
+            {
+                "device": "window",
+                "action": "open",
+                "parameter": "Température",
+                "unit": "°C",
+                "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"},
+            },
+        ]
+
+    if predicted_val < 19 or (current_val < 19 and predicted_level != "good"):
+        return [
+            {
+                "device": "radiator",
+                "action": "increase",
+                "parameter": "Température",
+                "unit": "°C",
+                "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"},
+            }
+        ]
+
+    return []
+
+
+def _get_humidity_devices(metric_data: dict) -> list:
+    """Détermine les dispositifs à utiliser pour l'humidité."""
+    predicted_val = metric_data.get("predicted_value", 0)
+    if predicted_val <= 65:
+        return []
+
+    return [
+        {
+            "device": "ventilation",
+            "action": "increase",
+            "parameter": "Humidité",
+            "unit": "%",
+            "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"},
+        },
+        {
+            "device": "window",  # Aérer pour chasser l'humidité
+            "action": "open",
+            "parameter": "Humidité",
+            "unit": "%",
+            "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"},
+        },
+    ]
+
+
+def _build_actions_for_metric(
+    metric_data: dict,
+    device_entries: list,
+    action_label: str,
+    forecast_minutes: int,
+) -> list:
+    """Construit la liste d'actions pour une métrique donnée."""
+    actions = []
+    current_val = metric_data.get("current_value", 0)
+    predicted_val = metric_data.get("predicted_value", 0)
+    current_level = metric_data.get("current_level", "good")
+    predicted_level = metric_data.get("predicted_level", "good")
+
+    for device_info in device_entries:
+        priority_map = device_info.get("priority_map", {})
+        if current_level in ["critical", "danger"]:
+            priority = "urgent"
+        elif predicted_level in ["critical", "danger"]:
+            priority = priority_map.get(predicted_level, "high")
+        else:
+            priority = priority_map.get(current_level, "medium")
+
+        actions.append(
+            {
+                "device": device_info["device"],
+                "action": device_info["action"],
+                "parameter": device_info["parameter"],
+                "current_value": round(current_val, 1),
+                "predicted_value": round(predicted_val, 1),
+                "unit": device_info["unit"],
+                "priority": priority,
+                "level": current_level if current_level in ["critical", "danger"] else predicted_level,
+                "trend": metric_data.get("trend", "stable"),
+                "change_percent": metric_data.get("change_percent", 0),
+                "reason": action_label,
+                "forecast_minutes": forecast_minutes,
+                "is_ml_action": True,
+            }
+        )
+    return actions
 
 def _generate_actions_from_current_data(enseigne: str, salle: Optional[str], sensor_id: Optional[str]):
     """
     Génère des actions préventives basées uniquement sur les données actuelles et les seuils.
     """
     try:
-        # Obtenir les données actuelles
-        current_data = None
-        if iaq_database:
-            for item in reversed(iaq_database):
-                if item.get("enseigne") == enseigne:
-                    if salle is None or item.get("salle") == salle:
-                        if sensor_id is None or item.get("sensor_id") == sensor_id:
-                            current_data = item
-                            break
-        
+        current_data = _find_current_data(enseigne, salle, sensor_id)
+
         if not current_data:
             return {"actions": [], "error": "No current data available", "is_fallback": True}
-        
-        THRESHOLDS = {
+
+        thresholds = {
             "co2": {"warning": 600, "danger": 900},
             "pm25": {"warning": 10, "danger": 25},
             "tvoc": {"warning": 200, "danger": 600},
             "temperature": {"cold": 18, "hot": 24},
-            "humidity": {"dry": 30, "humid": 70}
+            "humidity": {"dry": 30, "humid": 70},
         }
-        
+
         actions = []
-        
-        # Vérifier CO2
-        current_co2 = float(current_data.get("co2", 0))
-        if current_co2 >= THRESHOLDS["co2"]["warning"]:
-            priority = "high" if current_co2 >= THRESHOLDS["co2"]["danger"] else "medium"
-            actions.append({
-                "device": "window",
-                "action": "open",
-                "parameter": "CO₂",
-                "current_value": round(current_co2, 1),
-                "threshold": THRESHOLDS["co2"]["warning"],
-                "unit": "ppm",
-                "priority": priority,
-                "reason": f"Le CO₂ actuel ({current_co2:.0f} ppm) dépasse le seuil recommandé"
-            })
-        
-        # Vérifier PM2.5
-        current_pm = float(current_data.get("pm25", 0))
-        if current_pm >= THRESHOLDS["pm25"]["warning"]:
-            priority = "high" if current_pm >= THRESHOLDS["pm25"]["danger"] else "medium"
-            actions.append({
-                "device": "window",
-                "action": "open",
-                "parameter": "PM2.5",
-                "current_value": round(current_pm, 1),
-                "threshold": THRESHOLDS["pm25"]["warning"],
-                "unit": "µg/m³",
-                "priority": priority,
-                "reason": f"Les particules fines ({current_pm:.1f} µg/m³) dépassent le seuil recommandé"
-            })
-        
-        # Vérifier TVOC
-        current_tvoc = float(current_data.get("tvoc", 0))
-        if current_tvoc >= THRESHOLDS["tvoc"]["warning"]:
-            priority = "high" if current_tvoc >= THRESHOLDS["tvoc"]["danger"] else "medium"
-            actions.append({
-                "device": "ventilation",
-                "action": "increase",
-                "parameter": "TVOC",
-                "current_value": round(current_tvoc, 1),
-                "threshold": THRESHOLDS["tvoc"]["warning"],
-                "unit": "ppb",
-                "priority": priority,
-                "reason": f"Les COV ({current_tvoc:.0f} ppb) dépassent le seuil recommandé"
-            })
-        
-        # Vérifier température
-        current_temp = float(current_data.get("temperature", 20))
-        if current_temp < THRESHOLDS["temperature"]["cold"]:
-            actions.append({
+        actions.extend(_evaluate_co2_actions(current_data, thresholds))
+        actions.extend(_evaluate_pm25_actions(current_data, thresholds))
+        actions.extend(_evaluate_tvoc_actions(current_data, thresholds))
+        actions.extend(_evaluate_temperature_actions(current_data, thresholds))
+        actions.extend(_evaluate_humidity_actions(current_data, thresholds))
+        actions.extend(_evaluate_multi_param_actions(current_data, thresholds))
+
+        priority_order = {"high": 0, "medium": 1, "low": 2}
+        actions.sort(key=lambda x: priority_order.get(x.get("priority", "low"), 99))
+
+        logger.info(f"Generated {len(actions)} fallback actions for {enseigne}/{salle}")
+
+        return {
+            "actions": actions,
+            "forecast_minutes": 0,
+            "timestamp": datetime.now().isoformat(),
+            "is_fallback": True,
+            "method": "threshold_based_fallback",
+        }
+
+    except Exception as e:
+        logger.error(f"Error generating fallback actions: {e}")
+        return {"actions": [], "error": str(e), "is_fallback": True}
+
+
+def _find_current_data(enseigne: str, salle: Optional[str], sensor_id: Optional[str]):
+    """Retrouve la dernière mesure correspondant aux filtres donnés."""
+    current_data = None
+    if iaq_database:
+        for item in reversed(iaq_database):
+            if item.get("enseigne") != enseigne:
+                continue
+            if salle is not None and item.get("salle") != salle:
+                continue
+            if sensor_id is not None and item.get("sensor_id") != sensor_id:
+                continue
+            current_data = item
+            break
+    return current_data
+
+
+def _evaluate_co2_actions(current_data: dict, thresholds: dict) -> list:
+    actions = []
+    current_co2 = float(current_data.get("co2", 0))
+    if current_co2 < thresholds["co2"]["warning"]:
+        return actions
+
+    priority = "high" if current_co2 >= thresholds["co2"]["danger"] else "medium"
+    actions.append(
+        {
+            "device": "window",
+            "action": "open",
+            "parameter": "CO₂",
+            "current_value": round(current_co2, 1),
+            "threshold": thresholds["co2"]["warning"],
+            "unit": "ppm",
+            "priority": priority,
+            "reason": f"Le CO₂ actuel ({current_co2:.0f} ppm) dépasse le seuil recommandé",
+        },
+        {
+            "device": "door",
+            "action": "open",
+            "parameter": "CO₂",
+            "current_value": round(current_co2, 1),
+            "threshold": thresholds["co2"]["warning"],
+            "unit": "ppm",
+            "priority": "low" if priority == "medium" else "medium",
+            "reason": "Ouvrir la porte aide à ventiler le CO₂",
+        }
+    )
+    return actions
+
+
+def _evaluate_pm25_actions(current_data: dict, thresholds: dict) -> list:
+    actions = []
+    current_pm = float(current_data.get("pm25", 0))
+    if current_pm < thresholds["pm25"]["warning"]:
+        return actions
+
+    priority = "high" if current_pm >= thresholds["pm25"]["danger"] else "medium"
+    actions.append(
+        {
+            "device": "air_purifier",
+            "action": "turn_on",
+            "parameter": "PM2.5",
+            "current_value": round(current_pm, 1),
+            "threshold": thresholds["pm25"]["warning"],
+            "unit": "µg/m³",
+            "priority": priority,
+            "reason": f"Les particules fines ({current_pm:.1f} µg/m³) dépassent le seuil recommandé",
+        },
+        {
+            "device": "window",
+            "action": "open",
+            "parameter": "PM2.5",
+            "current_value": round(current_pm, 1),
+            "threshold": thresholds["pm25"]["warning"],
+            "unit": "µg/m³",
+            "priority": priority,
+            "reason": f"Aération recommandée pour évacuer les particules fines ({current_pm:.1f} µg/m³)",
+        }
+    )
+    return actions
+
+
+def _evaluate_tvoc_actions(current_data: dict, thresholds: dict) -> list:
+    actions = []
+    current_tvoc = float(current_data.get("tvoc", 0))
+    if current_tvoc < thresholds["tvoc"]["warning"]:
+        return actions
+
+    priority = "high" if current_tvoc >= thresholds["tvoc"]["danger"] else "medium"
+    actions.append(
+        {
+            "device": "ventilation",
+            "action": "increase",
+            "parameter": "TVOC",
+            "current_value": round(current_tvoc, 1),
+            "threshold": thresholds["tvoc"]["warning"],
+            "unit": "ppb",
+            "priority": priority,
+            "reason": f"Les COV ({current_tvoc:.0f} ppb) nécessitent une ventilation accrue",
+        },
+        {
+            "device": "air_purifier",
+            "action": "turn_on",
+            "parameter": "TVOC",
+            "current_value": round(current_tvoc, 1),
+            "threshold": thresholds["tvoc"]["warning"],
+            "unit": "ppb",
+            "priority": priority,
+            "reason": f"Traitement complémentaire des polluants chimiques ({current_tvoc:.0f} ppb)",
+        }
+    )
+    return actions
+
+
+def _evaluate_temperature_actions(current_data: dict, thresholds: dict) -> list:
+    actions = []
+    current_temp = float(current_data.get("temperature", 20))
+    if current_temp < thresholds["temperature"]["cold"]:
+        actions.append(
+            {
                 "device": "radiator",
                 "action": "increase",
                 "parameter": "Température",
                 "current_value": round(current_temp, 1),
-                "threshold": THRESHOLDS["temperature"]["cold"],
+                "threshold": thresholds["temperature"]["cold"],
                 "unit": "°C",
                 "priority": "medium",
-                "reason": f"La température ({current_temp:.1f}°C) est trop basse"
-            })
-        elif current_temp > THRESHOLDS["temperature"]["hot"]:
-            actions.append({
+                "reason": f"La température ({current_temp:.1f}°C) est trop basse",
+            }
+        )
+    elif current_temp > thresholds["temperature"]["hot"]:
+        actions.append(
+            {
                 "device": "window",
                 "action": "open",
                 "parameter": "Température",
                 "current_value": round(current_temp, 1),
-                "threshold": THRESHOLDS["temperature"]["hot"],
+                "threshold": thresholds["temperature"]["hot"],
                 "unit": "°C",
                 "priority": "medium",
-                "reason": f"La température ({current_temp:.1f}°C) est trop élevée"
-            })
-        
-        # Vérifier humidité
-        current_hum = float(current_data.get("humidity", 50))
-        if current_hum < THRESHOLDS["humidity"]["dry"]:
-            actions.append({
+                "reason": f"La température ({current_temp:.1f}°C) est trop élevée",
+            }
+        )
+    return actions
+
+
+def _evaluate_humidity_actions(current_data: dict, thresholds: dict) -> list:
+    actions = []
+    current_hum = float(current_data.get("humidity", 50))
+    if current_hum < thresholds["humidity"]["dry"]:
+        actions.append(
+            {
                 "device": "window",
                 "action": "close",
                 "parameter": "Humidité",
                 "current_value": round(current_hum, 1),
-                "threshold": THRESHOLDS["humidity"]["dry"],
+                "threshold": thresholds["humidity"]["dry"],
                 "unit": "%",
                 "priority": "low",
-                "reason": f"L'humidité ({current_hum:.1f}%) est trop basse"
-            })
-        elif current_hum > THRESHOLDS["humidity"]["humid"]:
-            actions.append({
+                "reason": f"L'humidité ({current_hum:.1f}%) est trop basse",
+            }
+        )
+    elif current_hum > thresholds["humidity"]["humid"]:
+        actions.append(
+            {
                 "device": "ventilation",
                 "action": "increase",
                 "parameter": "Humidité",
                 "current_value": round(current_hum, 1),
-                "threshold": THRESHOLDS["humidity"]["humid"],
+                "threshold": thresholds["humidity"]["humid"],
                 "unit": "%",
                 "priority": "low",
-                "reason": f"L'humidité ({current_hum:.1f}%) est trop élevée"
-            })
-        
-        # Vérifier si plusieurs paramètres sont mauvais → Ouvrir la porte pour circulation d'air
-        bad_params_count = 0
-        if current_co2 >= THRESHOLDS["co2"]["warning"]:
-            bad_params_count += 1
-        if current_pm >= THRESHOLDS["pm25"]["warning"]:
-            bad_params_count += 1
-        if current_tvoc >= THRESHOLDS["tvoc"]["warning"]:
-            bad_params_count += 1
-        
-        if bad_params_count >= 2:
-            actions.append({
+                "reason": f"L'humidité ({current_hum:.1f}%) est trop élevée",
+            }
+        )
+    return actions
+
+
+def _evaluate_multi_param_actions(current_data: dict, thresholds: dict) -> list:
+    actions = []
+    current_co2 = float(current_data.get("co2", 0))
+    current_pm = float(current_data.get("pm25", 0))
+    current_tvoc = float(current_data.get("tvoc", 0))
+
+    bad_params_count = 0
+    if current_co2 >= thresholds["co2"]["warning"]:
+        bad_params_count += 1
+    if current_pm >= thresholds["pm25"]["warning"]:
+        bad_params_count += 1
+    if current_tvoc >= thresholds["tvoc"]["warning"]:
+        bad_params_count += 1
+
+    if bad_params_count >= 2:
+        actions.append(
+            {
                 "device": "door",
                 "action": "open",
                 "parameter": "Qualité de l'air",
@@ -552,28 +770,10 @@ def _generate_actions_from_current_data(enseigne: str, salle: Optional[str], sen
                 "threshold": 2,
                 "unit": "paramètres",
                 "priority": "high",
-                "reason": f"Plusieurs paramètres de qualité d'air sont dégradés (CO₂, PM2.5, TVOC)"
-            })
-        
-        # Trier par priorité
-        priority_order = {"high": 0, "medium": 1, "low": 2}
-        actions.sort(key=lambda x: priority_order.get(x.get("priority", "low"), 99))
-        
-        logger.info(f"Generated {len(actions)} fallback actions for {enseigne}/{salle}")
-        
-        return {
-            "actions": actions,
-            "forecast_minutes": 0,
-            "timestamp": datetime.now().isoformat(),
-            "is_fallback": True,
-            "method": "threshold_based_fallback"
-        }
-        
-    except Exception as e:
-        logger.error(f"Error generating fallback actions: {e}")
-        return {"actions": [], "error": str(e), "is_fallback": True}
-
-
+                "reason": "Plusieurs paramètres de qualité d'air sont dégradés (CO₂, PM2.5, TVOC)",
+            }
+        )
+    return actions
 
 
 # ============================================================================

@@ -363,20 +363,23 @@ function makeCommonLayout(title, yTitle) {
     // Increase bottom margin to avoid truncating date labels
     margin: {
       t: 40,
-      r: isSmallScreen ? 60 : 100,
-      b: isSmallScreen ? 110 : 130,
-      l: 50,
+      r: isSmallScreen ? 30 : 100,
+      b: isSmallScreen ? 80 : 130,
+      l: isSmallScreen ? 40 : 50,
     },
     xaxis: {
       title: isSmallScreen ? "" : timeLabel,
       type: "date",
-      showticklabels: !isSmallScreen,
+      showticklabels: true,
+      automargin: true,
+      tickformat: isSmallScreen ? "%H:%M" : undefined,
       color: isDark ? "#a8b2c1" : "#2c3e50",
       gridcolor: isDark ? "#3a4049" : "#e2e8f0",
     },
     title: { text: title, font: { color: isDark ? "#e4e7eb" : "#2c3e50" } },
     yaxis: {
-      title: yTitle,
+      title: isSmallScreen ? "" : yTitle,
+      automargin: true,
       color: isDark ? "#a8b2c1" : "#2c3e50",
       gridcolor: isDark ? "#3a4049" : "#e2e8f0",
     },
@@ -456,9 +459,9 @@ function initEmptyCharts() {
       // responsive minimum margins
       const isSmallScreen =
         typeof window !== "undefined" && window.innerWidth <= 820;
-      const minR = isSmallScreen ? 70 : 140; // increase desktop right margin to avoid truncation
-      const minL = isSmallScreen ? 60 : 100;
-      const minB = isSmallScreen ? 90 : 120; // reserve space for legend + gap
+      const minR = isSmallScreen ? 60 : 140; // Increased right margin
+      const minL = isSmallScreen ? 40 : 100;
+      const minB = isSmallScreen ? 130 : 120; // Increased bottom margin for legend
       // retirer le titre 'Heure' pour libérer de l'espace pour la légende tout en gardant les ticks visibles
       base.xaxis = Object.assign({}, base.xaxis, {
         title: "",
@@ -466,9 +469,10 @@ function initEmptyCharts() {
       });
       // ensure yaxis2 uses same color as primary yaxis for title/ticks
       const y2 = {
-        title: humidityTitle,
+        title: isSmallScreen ? "" : humidityTitle,
         overlaying: "y",
         side: "right",
+        automargin: true,
         color: base.yaxis && base.yaxis.color,
       };
       // position legend: bottom; increase the gap from the plot by lowering 'y'
@@ -477,8 +481,8 @@ function initEmptyCharts() {
             orientation: "h",
             x: 0.5,
             xanchor: "center",
-            y: -0.12,
-            yanchor: "bottom",
+            y: -0.2,
+            yanchor: "top",
           } // plus d'espace sous le graphe en mobile
         : {
             orientation: "h",
@@ -488,7 +492,7 @@ function initEmptyCharts() {
             yanchor: "bottom",
           }; // plus d'espace sous le graphe desktop
       return Object.assign(base, {
-        margin: { r: minR, l: minL, b: minB },
+        margin: { r: minR, l: minL, b: minB, t: 40 },
         yaxis2: y2,
         legend: legend,
       });
@@ -685,8 +689,8 @@ function updateChartsWithData(data) {
   );
   const isSmallScreen =
     typeof window !== "undefined" && window.innerWidth <= 820;
-  const minComfortR = isSmallScreen ? 70 : 140;
-  const minComfortB = isSmallScreen ? 90 : 120;
+  const minComfortR = isSmallScreen ? 60 : 140;
+  const minComfortB = isSmallScreen ? 130 : 120;
   baseComfortLayout.margin = Object.assign({}, baseComfortLayout.margin, {
     r: Math.max(
       (baseComfortLayout.margin && baseComfortLayout.margin.r) || 50,
@@ -696,13 +700,15 @@ function updateChartsWithData(data) {
       (baseComfortLayout.margin && baseComfortLayout.margin.b) || 50,
       minComfortB
     ),
+    l: isSmallScreen ? 40 : 50,
   });
   baseComfortLayout.yaxis2 = Object.assign(
     {},
     {
-      title: (t && t("charts.humidityY")) || "Humidité (%)",
+      title: isSmallScreen ? "" : ((t && t("charts.humidityY")) || "Humidité (%)"),
       overlaying: "y",
       side: "right",
+      automargin: true,
     },
     { color: baseComfortLayout.yaxis && baseComfortLayout.yaxis.color }
   );
@@ -712,7 +718,7 @@ function updateChartsWithData(data) {
     showticklabels: true,
   });
   const legend = isSmallScreen
-    ? { orientation: "h", x: 0.5, xanchor: "center", y: -0.12, yanchor: "top" }
+    ? { orientation: "h", x: 0.5, xanchor: "center", y: -0.2, yanchor: "top" }
     : { orientation: "h", x: 0.5, xanchor: "center", y: -0.18, yanchor: "top" }; // plus d'espace sous le graphe desktop
 
   // Suppression des bandes de zones (OMS) pour un affichage épuré

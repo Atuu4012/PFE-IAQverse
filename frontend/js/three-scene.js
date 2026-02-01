@@ -16,8 +16,9 @@ if (initLoader) {
 
 if (container) {
   if (!container.style.position) container.style.position = 'relative';
-  if (!container.style.width) container.style.width = '700px';
-  if (!container.style.height) container.style.height = '400px';
+  // Supprimé pour laisser le CSS gérer la taille responsive
+  // if (!container.style.width) container.style.width = '700px';
+  // if (!container.style.height) container.style.height = '400px';
 }
 
 const width = (container && container.clientWidth) || 700;
@@ -239,6 +240,14 @@ const objectAnimations = {
     particleCount: 30,
     particleType: 'steam'
   },
+  air_purifier: {
+    colorOn: 0x00ff00,  // vert quand allumé
+    colorOff: 0xff0000, // rouge par défaut
+    duration: 500,
+    particleColor: 0x00ffff, // Cyan (Air purifié)
+    particleCount: 25,
+    particleType: 'steam'
+  },
   radiator: {
     colorOn: 0x00ff00,  // vert quand allumé (Led)
     colorOff: 0xff0000, // rouge par défaut (Led)
@@ -408,8 +417,9 @@ function setObjectColor(obj, colorHex) {
   const nameLower = obj.name ? obj.name.toLowerCase() : '';
   const isRadiator = nameLower.includes('radiator') || nameLower.includes('radiateur') || nameLower.includes('heater') || nameLower.includes('chauffage');
   const isAC = nameLower.includes('clim') || nameLower.includes('ac_') || nameLower.includes('aircon');
+  const isPurifier = nameLower.includes('purifier') || nameLower.includes('epurateur');
   
-  const isTarget = isRadiator || isAC;
+  const isTarget = isRadiator || isAC || isPurifier;
 
   // Ne rien faire sur les portes/fenêtres si on appelle cette fonction
   if (!isTarget && (nameLower.includes('door') || nameLower.includes('window'))) return;
@@ -590,6 +600,47 @@ function setObjectColor(obj, colorHex) {
              lightMesh.renderOrder = 0;
           }
           
+      } else if (isPurifier) {
+          // --- CONFIGURATION PURIFICATEUR (LED) ---
+          // Modifiez ces valeurs pour ajuster l'affichage
+          const ALIGN_Y_PERCENT = 0.97;  // Hauteur (0=bas, 1=haut)
+          const FORWARD_OFFSET = 1;     // Avancée en cm (profondeur)
+          const HORIZONTAL_OFFSET = -4.5;  // Décalage horizontal en cm (Négatif = Gauche, Positif = Droite)
+          const LED_SCALE = 0.8;        // Taille
+          
+          // ROTATION (en degrés) : Changez ces valeurs pour tourner la LED
+          const ROT_X = 90;     // Essayez 90 ou -90 si elle est couchée
+          const ROT_Y = 210;    // Essayez 90 ou -90 pour tourner sur le côté
+          const ROT_Z = 90;
+          // ----------------------------------------
+
+          led.rotation.set(
+              ROT_X * (Math.PI/180), 
+              ROT_Y * (Math.PI/180), 
+              ROT_Z * (Math.PI/180)
+          );
+
+          // 1. Gestion Echelle (Support des modèles en mm et en mètres)
+          const size = new THREE.Vector3();
+          bb.getSize(size);
+          const isLargeScale = Math.max(size.y, size.z) > 50; // Seuil détection mm
+
+          // Taille de base : 12cm ou 120mm
+          const baseSize = isLargeScale ? 120 : 0.12; 
+          const finalScale = (baseSize * LED_SCALE) / Math.max(parentScale.x, parentScale.y, parentScale.z);
+          led.scale.set(finalScale, finalScale, finalScale);
+          
+          // 2. Positionnement
+          // Conversion de l'offset (cm -> unité locale)
+          const cmToUnits = isLargeScale ? 10 : 0.01;
+          const zOffsetUnits = FORWARD_OFFSET * cmToUnits;
+          const xOffsetUnits = HORIZONTAL_OFFSET * cmToUnits;
+
+          led.position.set(
+              cx + (xOffsetUnits / (parentScale.x || 1)), // Décalage horizontal
+              bb.min.y + (size.y * ALIGN_Y_PERCENT), // Hauteur relative
+              bb.max.z + (zOffsetUnits / (parentScale.z || 1)) - 0.18 // Avancé devant
+          );
       } else {
           // CLIM : SUR LE CÔTÉ DROIT (X+), HAUT, CENTRÉ EN PROFONDEUR
           led.position.set(
@@ -620,6 +671,28 @@ function setObjectColor(obj, colorHex) {
 }
 
 
+// Texture de fumée générée dynamiquement
+let _smokeTexture = null;
+function getSmokeTexture() {
+  if (_smokeTexture) return _smokeTexture;
+  
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  
+  const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(255, 255, 255, 1)'); 
+  grad.addColorStop(0.3, 'rgba(255, 255, 255, 0.4)');
+  grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 64, 64);
+  
+  _smokeTexture = new THREE.CanvasTexture(canvas);
+  return _smokeTexture;
+}
+
 function createParticles(obj, config) {
   if (activeParticles[obj.uuid]) {
     // Si le système existe déjà, juste remettre emitting à true
@@ -627,77 +700,173 @@ function createParticles(obj, config) {
     return;
   }
 
-  const maxCount = config.particleCount;
-  const geometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(maxCount * 3);
-  const colors = new Float32Array(maxCount * 3);
-
-  // initialiser à des positions hors vue
+  const maxCount = config.particleCount || 30;
+  
+  // Groupe conteneur (plus propre que des points individuels)
+  const particleGroup = new THREE.Group();
+  particleGroup.name = `particles_${obj.name}`;
+  scene.add(particleGroup);
+  
+  const texture = getSmokeTexture();
+  const particles = [];
+  
+  // Créer un pool de Sprites
+  // On utilise des Sprites au lieu de Points pour avoir :
+  // 1. Rotation de texture (plus naturel)
+  // 2. Transparence individuelle propre
+  // 3. Mise à l'échelle individuelle
   for (let i = 0; i < maxCount; i++) {
-    positions[i * 3] = 0;
-    positions[i * 3 + 1] = -100; // hors vue
-    positions[i * 3 + 2] = 0;
-    const color = new THREE.Color(config.particleColor);
-    colors[i * 3] = color.r;
-    colors[i * 3 + 1] = color.g;
-    colors[i * 3 + 2] = color.b;
+      const material = new THREE.SpriteMaterial({ 
+          map: texture, 
+          color: config.particleColor, 
+          transparent: true, 
+          opacity: 0,
+          depthWrite: false, // Important pour la "fumée"
+          blending: THREE.AdditiveBlending // Effet lumineux/gazeux
+      });
+      
+      const sprite = new THREE.Sprite(material);
+      sprite.visible = false; // Caché par défaut
+      particleGroup.add(sprite);
+      
+      particles.push({
+          mesh: sprite,
+          velocity: new THREE.Vector3(),
+          age: 0,
+          life: 0,
+          active: false
+      });
   }
 
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-  const material = new THREE.PointsMaterial({ size: 0.05, vertexColors: true, transparent: true });
-  const points = new THREE.Points(geometry, material);
-  scene.add(points);
-
   activeParticles[obj.uuid] = {
-    points,
-    positions,
-    colors,
-    velocities: new Float32Array(maxCount * 3),
-    lifetimes: new Float32Array(maxCount),
+    group: particleGroup,
+    particles: particles,
     maxCount,
     emitting: true,
     obj,
     config,
-    nextIndex: 0
+    spawnTimer: 0
   };
 }
 
 function stopParticles(obj) {
   if (activeParticles[obj.uuid]) {
     activeParticles[obj.uuid].emitting = false;
-    // attendre que toutes les particules meurent
   }
+}
+
+function spawnParticle(system, p, emissionMatrix, emissionQuaternion, objPos) {
+    p.active = true;
+    p.age = 0;
+    p.mesh.visible = true;
+    
+    // GESTION DIFFÉRENTE SELON LE TYPE (Courant d'air vs Vapeur/Fumée)
+    if (system.config.particleType === 'draft') {
+        // == COURANT D'AIR (Portes / Fenêtres) == 
+        let targetMesh = null;
+        let maxVolume = -1;
+
+        if (system.obj.isMesh) {
+            targetMesh = system.obj;
+        } else {
+             system.obj.traverse(c => {
+               if (c.isMesh && c.geometry) {
+                   if (!c.geometry.boundingBox) c.geometry.computeBoundingBox();
+                   const bb = c.geometry.boundingBox;
+                   const sz = new THREE.Vector3();
+                   bb.getSize(sz);
+                   const metric = (sz.x + 0.1) * (sz.y + 0.1) * (sz.z + 0.1); 
+                   if (metric > maxVolume) {
+                       maxVolume = metric;
+                       targetMesh = c;
+                   }
+               }
+            });
+        }
+        
+        if (!targetMesh && system.obj.children.length > 0) targetMesh = system.obj.children[0];
+
+        if (targetMesh && targetMesh.geometry) {
+             if (!targetMesh.geometry.boundingBox) targetMesh.geometry.computeBoundingBox();
+             const bb = targetMesh.geometry.boundingBox;
+             
+             let shiftX = 0;
+             const name = system.obj.name ? system.obj.name.toLowerCase() : '';
+             
+             if (name.includes('door')) shiftX = -0.4;
+             else if (name.includes('window')) shiftX = 0.4;
+
+             const localPoint = new THREE.Vector3(
+                bb.min.x + Math.random() * (bb.max.x - bb.min.x) + shiftX,
+                bb.min.y + Math.random() * (bb.max.y - bb.min.y),
+                bb.min.z + Math.random() * (bb.max.z - bb.min.z)
+             );
+             
+             const relativeMatrix = new THREE.Matrix4().copy(system.obj.matrixWorld).invert().multiply(targetMesh.matrixWorld);
+             localPoint.applyMatrix4(relativeMatrix);
+             const worldPoint = localPoint.applyMatrix4(emissionMatrix);
+             
+             p.mesh.position.copy(worldPoint);
+        } else {
+             p.mesh.position.set(objPos.x, objPos.y + 1.0, objPos.z);
+        }
+
+        let axis = new THREE.Vector3(0, 0, 1);
+        if (system.obj.name && system.obj.name.toLowerCase().includes('door')) {
+             axis.set(0, 1, 0); 
+        }
+        
+        const windDir = axis.applyQuaternion(emissionQuaternion).normalize();
+        const speed = 0.02 + Math.random() * 0.04; 
+        
+        p.velocity.set(
+            windDir.x * speed,
+            windDir.y * speed + (Math.random() * 0.005 - 0.0025),
+            windDir.z * speed
+        );
+        
+        // Durée particule (plus courte pour aspect rapide)
+        p.life = Math.random() * 40 + 30;
+
+    } else {
+        // == FUMÉE / VAPEUR STANDARD (Radiateur / Clim) ==
+        p.mesh.position.set(
+            objPos.x + (Math.random() - 0.5) * 0.5,
+            objPos.y + Math.random() * 0.3,
+            objPos.z + (Math.random() - 0.5) * 0.5
+        );
+
+        p.velocity.set(
+            (Math.random() - 0.5) * 0.015,
+            Math.random() * 0.025 + 0.01,
+            (Math.random() - 0.5) * 0.015
+        );
+
+        p.life = Math.random() * 120 + 60; // Vie longue
+    }
+    
+    // Rotation initiale aléatoire de la texture
+    p.mesh.material.rotation = Math.random() * Math.PI * 2;
 }
 
 function updateParticles() {
   for (const uuid in activeParticles) {
     const system = activeParticles[uuid];
     
-    // --- CALCUL DE LA MATRICE "FERMÉE" POUR LES PORTES/FENÊTRES ---
-    // Si la porte est ouverte, elle a tourné. Mais le courant d'air vient du "trou", qui est fixe.
-    // On calcule temporairement la matrice qu'aurait l'objet s'il était fermé.
+    // --- CALCUL DE LA MATRICE "FERMÉE" (Optimisé) ---
     let emissionMatrix = system.obj.matrixWorld;
     let emissionQuaternion = system.obj.quaternion;
-    let isDraft = (system.config.particleType === 'draft');
+    const isDraft = (system.config.particleType === 'draft');
     
-    // Optim : ne faire ce calcul coûteux que pour le type 'draft'
     if (isDraft && system.config.axis) {
         const storedRot = system.obj.rotation[system.config.axis];
         const closedAngle = system.config.closeAngle || 0;
         
-        // Si la rotation actuelle est significativement différente de l'angle fermé
         if (Math.abs(storedRot - closedAngle) > 0.01) {
-            // On force temporairement la rotation "fermée"
             system.obj.rotation[system.config.axis] = closedAngle;
             system.obj.updateMatrixWorld();
-            
-            // On capture la matrice et le quaternion du "trou"
             emissionMatrix = system.obj.matrixWorld.clone();
             emissionQuaternion = system.obj.quaternion.clone();
-            
-            // On restaure l'état visuel réel
             system.obj.rotation[system.config.axis] = storedRot;
             system.obj.updateMatrixWorld();
         }
@@ -706,150 +875,65 @@ function updateParticles() {
     const objPos = new THREE.Vector3();
     objPos.setFromMatrixPosition(emissionMatrix); 
 
-    // Émettre de nouvelles particules si emitting
+    // Émettre de nouvelles particules
     if (system.emitting) {
-      for (let i = 0; i < 2; i++) { // émettre 2 par frame
-        const idx = system.nextIndex;
+        // Taux d'émission : 1 particule toutes les frames ou toutes les 2 frames selon densité voulue
+        const rate = isDraft ? 2 : 1; 
         
-        // GESTION DIFFÉRENTE SELON LE TYPE (Courant d'air vs Vapeur/Fumée)
-        if (system.config.particleType === 'draft') {
-            // == COURANT D'AIR (Portes / Fenêtres) == 
-            // 1. Trouver le mesh le plus grand (le panneau de la porte) pour éviter de spawner sur la poignée/seuil
-            let targetMesh = null;
-            let maxVolume = -1;
-
-            if (system.obj.isMesh) {
-                targetMesh = system.obj;
-            } else {
-                 // On parcourt tout pour trouver le panneau principal (celui avec le plus grand volume/aire)
-                 // pour éviter les petites pièces comme les poignées ou les barres de seuil
-                 system.obj.traverse(c => {
-                   if (c.isMesh && c.geometry) {
-                       if (!c.geometry.boundingBox) c.geometry.computeBoundingBox();
-                       const bb = c.geometry.boundingBox;
-                       const sz = new THREE.Vector3();
-                       bb.getSize(sz);
-                       // Volume approximatif (avec biais pour objets plats)
-                       const metric = (sz.x + 0.1) * (sz.y + 0.1) * (sz.z + 0.1); 
-                       if (metric > maxVolume) {
-                           maxVolume = metric;
-                           targetMesh = c;
-                       }
-                   }
-                });
+        for(let k=0; k<rate; k++) {
+            // Trouver premier inactif
+            const p = system.particles.find(p => !p.active);
+            if (p) {
+                spawnParticle(system, p, emissionMatrix, emissionQuaternion, objPos);
             }
-            
-            // Fallback
-            if (!targetMesh && system.obj.children.length > 0) targetMesh = system.obj.children[0];
-
-            if (targetMesh && targetMesh.geometry) {
-                 if (!targetMesh.geometry.boundingBox) targetMesh.geometry.computeBoundingBox();
-                 const bb = targetMesh.geometry.boundingBox;
-                 
-                 // 2. Choisir un point aléatoire DANS le volume du Bounding Box
-                 // DÉCALAGE pour centrer parfaitement visuellement
-                 let shiftX = 0;
-                 const name = system.obj.name ? system.obj.name.toLowerCase() : '';
-                 
-                 if (name.includes('door')) {
-                     shiftX = -0.4; // Gauche pour les portes
-                 } else if (name.includes('window')) {
-                     shiftX = 0.4;  // Droite pour les fenêtres
-                 }
-
-                 const localPoint = new THREE.Vector3(
-                    bb.min.x + Math.random() * (bb.max.x - bb.min.x) + shiftX,
-                    bb.min.y + Math.random() * (bb.max.y - bb.min.y),
-                    bb.min.z + Math.random() * (bb.max.z - bb.min.z)
-                 );
-                 
-                 // 3. Convertir ce point en coordonnées Monde EN UTILISANT LA MATRICE FERMÉE
-                 // PRÉALABLE: Convertir du Mesh Space -> Pivot Space (System Obj Space)
-                 // car le Mesh peut être décalé dans le pivot (ex: charnière)
-                 
-                 // Matrice: [TargetMesh Local] -> [SystemObj Local aka Pivot]
-                 // R = inv(SystemObjWorld) * TargetMeshWorld
-                 const relativeMatrix = new THREE.Matrix4().copy(system.obj.matrixWorld).invert().multiply(targetMesh.matrixWorld);
-                 
-                 // Appliquer transformation locale
-                 localPoint.applyMatrix4(relativeMatrix);
-                 
-                 // Appliquer transformation monde (fermée)
-                 const worldPoint = localPoint.applyMatrix4(emissionMatrix);
-                 
-                 system.positions[idx * 3] = worldPoint.x;
-                 system.positions[idx * 3 + 1] = worldPoint.y;
-                 system.positions[idx * 3 + 2] = worldPoint.z;
-            } else {
-                 system.positions[idx * 3] = objPos.x;
-                 system.positions[idx * 3 + 1] = objPos.y + 1.0;
-                 system.positions[idx * 3 + 2] = objPos.z;
-            }
-
-            // Vitesse : Toujours perpendiculaire à la porte/fenêtre (EN MODE FERMÉ)
-            // MODIFICATION: Les portes ont souvent un axe différent (ex: Y au lieu de Z)
-            let axis = new THREE.Vector3(0, 0, 1);
-            if (system.obj.name && system.obj.name.toLowerCase().includes('door')) {
-                 axis.set(0, 1, 0); // Axe Y pour les portes (souvent orientées différemment)
-            }
-            
-            // On utilise le quaternion FERMÉ pour la direction
-            const windDir = axis.applyQuaternion(emissionQuaternion).normalize();
-            
-            // Vitesse DOUCE
-            const speed = 0.01 + Math.random() * 0.03; 
-            
-            system.velocities[idx * 3] = windDir.x * speed;
-            system.velocities[idx * 3 + 1] = windDir.y * speed + (Math.random() * 0.005);
-            system.velocities[idx * 3 + 2] = windDir.z * speed;
-            
-            system.lifetimes[idx] = Math.random() * 60 + 40;
-
-        } else {
-            // == FUMÉE / VAPEUR STANDARD (Radiateur / Clim) ==
-            // Émission depuis le centre de l'objet (plus classique)
-            
-            system.positions[idx * 3] = objPos.x + (Math.random() - 0.5) * 0.5;
-            system.positions[idx * 3 + 1] = objPos.y + Math.random() * 0.5;
-            system.positions[idx * 3 + 2] = objPos.z + (Math.random() - 0.5) * 0.5;
-
-            system.velocities[idx * 3] = (Math.random() - 0.5) * 0.01;
-            system.velocities[idx * 3 + 1] = Math.random() * 0.02 + 0.01; // Monte doucement
-            system.velocities[idx * 3 + 2] = (Math.random() - 0.5) * 0.01;
-
-            system.lifetimes[idx] = Math.random() * 200 + 100; // Vie longue (lent)
         }
-
-        system.nextIndex = (system.nextIndex + 1) % system.maxCount;
-      }
     }
 
     // Mettre à jour les particules existantes
     let activeCount = 0;
-    for (let i = 0; i < system.maxCount; i++) {
-      if (system.lifetimes[i] > 0) {
-        activeCount++;
-        system.positions[i * 3] += system.velocities[i * 3];
-        system.positions[i * 3 + 1] += system.velocities[i * 3 + 1];
-        system.positions[i * 3 + 2] += system.velocities[i * 3 + 2];
-        system.lifetimes[i]--;
+    system.particles.forEach(p => {
+        if (p.active) {
+            activeCount++;
+            
+            // Physique
+            p.mesh.position.add(p.velocity);
+            
+            // Age
+            p.age++;
+            const lifeRatio = p.age / p.life;
+            
+            if (lifeRatio >= 1) {
+                p.active = false;
+                p.mesh.visible = false;
+            } else {
+                // Rendu Réaliste : Scale + Opacity
+                
+                // Opacité : Fade In rapide -> Fade Out lent
+                // Max opacité selon config par défaut c'était vertexColors, ici on hardcode ou on pourrait paramétrer
+                const maxOpacity = 0.5; // Assez transparent pour la fumée
+                
+                if (lifeRatio < 0.2) {
+                    p.mesh.material.opacity = (lifeRatio / 0.2) * maxOpacity;
+                } else {
+                    p.mesh.material.opacity = (1 - ((lifeRatio - 0.2) / 0.8)) * maxOpacity;
+                }
+                
+                // Taille : Grossit progressivement (diffusion)
+                const startSize = 0.15;
+                const endSize = 0.6;
+                const scale = startSize + (endSize - startSize) * lifeRatio;
+                p.mesh.scale.set(scale, scale, scale);
+                
+                // Rotation : Tourne doucement en montant
+                p.mesh.material.rotation += 0.02;
+            }
+        }
+    });
 
-        // Garder la couleur originale, ne pas fade to gray
-        // Les particules disparaissent naturellement en montant
-      } else {
-        // cacher
-        system.positions[i * 3 + 1] = -100;
-      }
-    }
-
-    system.points.geometry.attributes.position.needsUpdate = true;
-    system.points.geometry.attributes.color.needsUpdate = true;
-
-    // Si plus emitting et plus de particules actives, supprimer
+    // Nettoyage si fini
     if (!system.emitting && activeCount === 0) {
-      scene.remove(system.points);
-      system.points.geometry.dispose();
-      system.points.material.dispose();
+      scene.remove(system.group);
+      system.particles.forEach(p => p.mesh.material.dispose());
       delete activeParticles[uuid];
     }
   }
@@ -1143,6 +1227,51 @@ function updateMirrorReflections() {
   console.log('[Mirror] Reflets mis à jour pour', mirrors.length, 'miroir(s)');
 }
 
+/**
+ * Corrige les cibles des lumières après un clonage de scène.
+ * Gère deux cas :
+ * 1. La cible existe dans la hiérarchie clonée (on reconnecte).
+ * 2. La cible est une copie détachée (créée par Light.clone). On l'ajoute à la scène
+ *    pour qu'elle ait des coordonnées valides (sinon elle reste à 0,0,0 sans matrixWorld).
+ */
+function fixLightTargets(clonedRoot) {
+  clonedRoot.traverse((child) => {
+    if ((child.isSpotLight || child.isDirectionalLight) && child.target) {
+      
+      let targetFound = false;
+
+      // Cas 1: Reconnexion par nom si possible (le plus propre)
+      if (child.target.name) {
+        const newTarget = clonedRoot.getObjectByName(child.target.name);
+        if (newTarget) {
+          child.target = newTarget;
+          targetFound = true;
+          // console.log(`[FixLights] Cible recombinée pour ${child.name} -> ${newTarget.name}`);
+        }
+      }
+
+      // Cas 2: Si la cible n'a pas été retrouvée ou n'a pas de nom,
+      // et qu'elle n'a pas de parent (elle est détachée à cause du clone),
+      // on l'attache à la racine ou au parent de la lumière pour qu'elle "existe" dans le graphe.
+      if (!targetFound && !child.target.parent) {
+          // On l'ajoute au parent de la lumière pour qu'elle suive les transformations locales,
+          // ou à la racine clonée si préférable. Le parent de la lumière est souvent le meilleur choix
+          // pour conserver la position relative si la lumière est dans un groupe.
+          
+          if (child.parent) {
+              child.parent.add(child.target);
+          } else {
+              clonedRoot.add(child.target);
+          }
+          
+          // Force la mise à jour de la matrice pour éviter le bug de "lumière vers 0,0,0" au premier frame
+          child.target.updateMatrixWorld(true); 
+          // console.log(`[FixLights] Cible orpheline attachée pour ${child.name}`);
+      }
+    }
+  });
+}
+
 function loadPieceModel(roomId) {
   // Prevent concurrent loads
   if (isLoading) {
@@ -1191,10 +1320,19 @@ function loadPieceModel(roomId) {
     
     // Nettoyer les particules actives
     Object.values(activeParticles).forEach(system => {
+      if (system.group) {
+        scene.remove(system.group);
+      }
+      if (system.particles) {
+          system.particles.forEach(p => {
+              if (p.mesh.material) p.mesh.material.dispose();
+          });
+      }
+      // Cas legacy (compatibilité ancien système si besoin)
       if (system.points) {
         scene.remove(system.points);
-        system.points.geometry.dispose();
-        system.points.material.dispose();
+        if (system.points.geometry) system.points.geometry.dispose();
+        if (system.points.material) system.points.material.dispose();
       }
     });
     activeParticles = {};
@@ -1235,6 +1373,9 @@ function loadPieceModel(roomId) {
       // Récupérer le modèle du cache et le cloner
       const cachedModel = modelCache.get(glbPath);
       modelRoot = cachedModel.clone();
+      
+      // Fixer les cibles des lumières après le clonage
+      fixLightTargets(modelRoot);
       
       scene.add(modelRoot);
       
@@ -1636,6 +1777,7 @@ function autoGenerateAlertPoints(modelRoot) {
     'window': /^Window(?!.*(?:Handle|Frame|Vitre|Glass|Poignee|Cadre)).*$/i,
     'door': /^Door(?!.*(?:Handle|Frame|Cadre|Poignee)).*$/i,
     'ventilation': /Clim/i, // Cherche "Clim" n'importe où dans le nom
+    'air_purifier': /^Purifier.*$/i,
     'radiator': /^Radiator(?!.*(?:Valve|Tuyau)).*$/i
   };
   
@@ -1660,7 +1802,7 @@ function autoGenerateAlertPoints(modelRoot) {
             foundObjects[type].push(obj); // Stocker l'objet Three.js complet
             
             // Définir la couleur par défaut à rouge pour ventilation et radiator
-            if (type === 'ventilation' || type === 'radiator') {
+            if (type === 'ventilation' || type === 'radiator' || type === 'air_purifier') {
               setObjectColor(obj, 0xff0000); // rouge
             }
           }
@@ -1679,6 +1821,7 @@ function autoGenerateAlertPoints(modelRoot) {
     'window': { top: '20%', left: '30%' },
     'door': { top: '30%', left: '10%' }, // Remonté pour être au milieu de la porte
     'ventilation': { top: '10%', left: '50%' },
+    'air_purifier': { top: '50%', left: '50%' },
     'radiator': { top: '80%', left: '20%' }
   };
   
@@ -1831,7 +1974,7 @@ function autoGenerateAlertPoints(modelRoot) {
         let bgColor = '';
         if (type === 'door' || type === 'window') {
           bgColor = currentState === 'closed' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(34, 139, 34, 0.9)';
-        } else if (type === 'ventilation' || type === 'radiator') {
+        } else if (type === 'ventilation' || type === 'radiator' || type === 'air_purifier') {
           bgColor = currentState === 'off' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(34, 139, 34, 0.9)';
         } else {
           bgColor = 'rgba(220, 20, 60, 0.9)';
@@ -1858,7 +2001,7 @@ function autoGenerateAlertPoints(modelRoot) {
             if (val && val !== nameKey) translatedName = val;
             else {
                 // Fallback simple
-                const map = { 'window': 'Fenêtre', 'door': 'Porte', 'ventilation': 'Ventilation', 'radiator': 'Radiateur' };
+                const map = { 'window': 'Fenêtre', 'door': 'Porte', 'ventilation': 'Ventilation', 'radiator': 'Radiateur', 'air_purifier': 'Purificateur' };
                 translatedName = map[type] || type;
             }
         }
@@ -1868,6 +2011,7 @@ function autoGenerateAlertPoints(modelRoot) {
           'window': ['CO₂', 'PM2.5', 'Temp', 'Hum'],
           'door': ['CO₂'],
           'ventilation': ['CO₂', 'PM2.5', 'TVOC', 'Hum'],
+          'air_purifier': ['PM2.5', 'TVOC'],
           'radiator': ['Temp', 'Hum']
         };
         
@@ -1934,7 +2078,7 @@ function autoGenerateAlertPoints(modelRoot) {
             let newBgColor = '';
             if (alertType === 'door' || alertType === 'window') {
               newBgColor = newState === 'closed' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(34, 139, 34, 0.9)';
-            } else if (alertType === 'ventilation' || alertType === 'radiator') {
+            } else if (alertType === 'ventilation' || alertType === 'radiator' || alertType === 'air_purifier') {
               newBgColor = newState === 'off' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(34, 139, 34, 0.9)';
             }
             alertPoint.style.background = newBgColor;
@@ -2472,3 +2616,85 @@ if (frameBtn) {
 // Exporter vers le scope global pour usage par d'autres scripts
 window.loadPieceModel = loadPieceModel;
 window.frameModel = frameModel;
+
+// Initialisation des contrôles tactiles pour mobile
+function initMobileControls() {
+    const controls = {
+        'ctrl-fwd': ['z', 'Z', 'ArrowUp'],
+        'ctrl-back': ['s', 'S', 'ArrowDown'],
+        'ctrl-left': ['q', 'Q', 'ArrowLeft'],
+        'ctrl-right': ['d', 'D', 'ArrowRight'],
+        'ctrl-jump': [' '], // Espace
+        'ctrl-crouch': ['c', 'C', 'Control']
+    };
+    
+    // Gestion du toggle des contrôles
+    const toggleBtn = document.getElementById('toggle-controls-btn');
+    const controlsZone = document.getElementById('mobile-joystick-zone');
+    
+    if (toggleBtn && controlsZone) {
+        toggleBtn.addEventListener('click', () => {
+             controlsZone.classList.toggle('collapsed');
+             // Optionnel: changer l'icône ou l'opacité
+             if (controlsZone.classList.contains('collapsed')) {
+                 toggleBtn.style.opacity = '1'; // Ensure visible
+                 toggleBtn.classList.add('collapsed-indicator');
+             } else {
+                 toggleBtn.classList.remove('collapsed-indicator');
+             }
+        });
+
+         // Initial state: Hidden (collapsed)
+         controlsZone.classList.add('collapsed');
+         toggleBtn.classList.add('collapsed-indicator');
+    }
+
+    Object.entries(controls).forEach(([id, keys]) => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            const start = (e) => {
+                // IMPORTANT: preventDefault on touchstart avoids mouse emulation events
+                // but we also need it to prevent scrolling if the user misses the button slightly
+                // or drags. 
+                // e.preventDefault(); // Moved to event listener options or specific handler
+                
+                btn.classList.add('active');
+                keys.forEach(k => { if(keysPressed.hasOwnProperty(k) || true) keysPressed[k] = true; });
+            };
+            
+            const end = (e) => {
+                // e.preventDefault();
+                btn.classList.remove('active');
+                keys.forEach(k => { if(keysPressed.hasOwnProperty(k) || true) keysPressed[k] = false; });
+            };
+            
+            // Mouse events for testing on desktop
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('mouseup', end);
+            btn.addEventListener('mouseleave', end);
+            
+            // Touch events
+            btn.addEventListener('touchstart', (e) => { 
+                e.preventDefault(); // Prevent scroll/zoom
+                start(e); 
+            }, {passive: false});
+            
+            btn.addEventListener('touchend', (e) => { 
+                e.preventDefault(); 
+                end(e); 
+            });
+            
+            btn.addEventListener('touchcancel', (e) => { 
+                e.preventDefault(); 
+                end(e); 
+            });
+        }
+    });
+}
+
+// Initialiser les contrôles une fois le script chargé ou DOM prêt
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMobileControls);
+} else {
+    initMobileControls();
+}

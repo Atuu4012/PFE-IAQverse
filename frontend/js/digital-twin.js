@@ -621,7 +621,7 @@ window.syncAlertPointsToTable = function syncAlertPointsToTable() {
             }
         });
         const hasClosedOrOff = states.some(s => s === 'closed' || s === 'off');
-        const stateEmoji = hasClosedOrOff ? '🔴' : '🟢';
+        // REMPLACÉ: Utilisation d'indicateurs CSS au lieu d'emojis
         
         // Déterminer la classe CSS basée sur la gravité (pour les couleurs)
         const severities = typePoints.map(pt => pt.getAttribute('data-severity') || 'info');
@@ -640,7 +640,10 @@ window.syncAlertPointsToTable = function syncAlertPointsToTable() {
         tr.className = `dynamic-alert ${sev.cls}`;
 
         const tdState = document.createElement('td'); 
-        tdState.textContent = stateEmoji; // Emoji basé sur l'état
+        // NOUVEAU STYLE : Indicateur visuel
+        const indicator = document.createElement('div');
+        indicator.className = hasClosedOrOff ? 'status-indicator status-red' : 'status-indicator status-green';
+        tdState.appendChild(indicator);
         const tdSubj = document.createElement('td');
         const tdAct = document.createElement('td');
 
@@ -737,7 +740,7 @@ window.syncAlertPointsToTable = function syncAlertPointsToTable() {
             weight = 10; // Poids élevé pour être à la fin
         }
 
-        console.log(`[digital-twin] Adding grouped row for ${typeKey} with severity weight ${weight}, emoji: ${stateEmoji}`);
+        console.log(`[digital-twin] Adding grouped row for ${typeKey} with severity weight ${weight}`);
         builtRows.push({ tr, weight });
     });
 

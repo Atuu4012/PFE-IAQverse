@@ -1957,27 +1957,7 @@ function autoGenerateAlertPoints(modelRoot) {
         alertPointsContainer.appendChild(alertPoint);
         console.log('[autoGenerate] Added alert point:', targetName, 'with data-active:', alertPoint.getAttribute('data-active'), 'severity:', alertPoint.getAttribute('data-severity'), 'enseigne:', alertPoint.getAttribute('data-enseigne'), 'piece:', alertPoint.getAttribute('data-piece'), 'display:', alertPoint.style.display, 'z-index:', alertPoint.style.zIndex);
         
-        // Appliquer visuellement l'état restauré
-        if (savedStates[targetName]) {
-          const config = objectStates[targetName].config || objectAnimations[type];
-          if (config) {
-            // Appliquer immédiatement l'état sans animation
-            if (config.axis) {
-              // Pour portes et fenêtres : rotation
-              const targetRotation = currentState === 'open' ? config.openAngle : config.closeAngle;
-              animationObj.rotation[config.axis] = targetRotation;
-            } else if (config.colorOn) {
-              // Pour ventilation et radiateur : couleur et particules
-              const targetColor = currentState === 'on' ? config.colorOn : config.colorOff;
-              setObjectColor(objectStates[targetName].object, targetColor);
-            }
-
-            // Gestion des particules (pour tout le monde : clim, radiateur, porte, fenetre)
-            if ((currentState === 'on' || currentState === 'open') && config.particleColor) {
-               createParticles(objectStates[targetName].object, config);
-            }
-          }
-        }
+        // Note: Saved state logic removed, replaced by initialMode at creation
       });
     }
   });

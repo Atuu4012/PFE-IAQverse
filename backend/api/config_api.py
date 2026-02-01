@@ -2,6 +2,7 @@
 API endpoints pour la configuration de l'application
 """
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from pydantic import BaseModel
 from pathlib import Path
 from typing import List, Dict
 import logging

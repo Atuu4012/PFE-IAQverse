@@ -768,7 +768,7 @@ a:hover img {
   box-shadow: 0 2px 8px rgba(44, 62, 80, 0.15);
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
-  cursor: help;
+  cursor: default;
   z-index: 10;
 }
 
@@ -827,7 +827,7 @@ a:hover img {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 150;
   transition: all 0.3s ease;
-  cursor: help;
+  cursor: default;
 }
 
 [data-theme="sombre"] .occupants-badge-twin {

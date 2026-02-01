@@ -114,7 +114,7 @@ function showDetails(sujet, detail, forceRefresh = false) {
             const li = document.createElement('li');
             li.className = 'issue-action';
             const actionLabel = t && t(`digitalTwin.actionVerbs.${actionKey}`);
-            li.innerHTML = `<strong>${t('digitalTwin.recommendedAction') || 'Action recommandée'} :</strong> ${actionLabel || actionKey}`;
+            li.innerHTML = `<strong>${(t && t('digitalTwin.tip.recommendedAction')) || 'Action recommandée'} :</strong> ${actionLabel || actionKey}`;
             list.appendChild(li);
         }
     } else {

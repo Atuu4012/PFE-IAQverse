@@ -73,6 +73,7 @@
             "technologies": "Technologien",
             "type": "Typ",
             "manage_brands": "Standorte verwalten",
+            "digital_twin": "Digitaler Zwilling",
             "subscription": "Ihr Abonnement",
             "contact": "Kontakt"
         },
@@ -100,7 +101,16 @@
             "alertes": "Warnungen",
             "rappels": "Erinnerungen",
             "newsletters": "Newsletter",
-            "current_plan": "Aktueller Plan"
+            "current_plan": "Aktueller Plan",
+            "landscape": "Landschaft",
+            "auto_day_night": "Automatischer Tag-/Nachtmodus",
+            "email_alerts_enabled": "Kritische E-Mail-Warnungen aktivieren",
+            "landscape_options": {
+                "urban_night": "Städtisch (Nacht)",
+                "urban_day": "Städtisch (Tag)",
+                "garden_night": "Garten (Nacht)",
+                "garden_day": "Garten (Tag)"
+            }
         },
         "plans": {
             "basic": {
@@ -257,6 +267,30 @@
             "humidity": {
                 "subject": "Luftfeuchtigkeit",
                 "action": "Regulieren"
+            },
+            "air_purifier": {
+                "subject": "Luftreiniger",
+                "action": "Einschalten"
+            },
+            "air_conditioning": {
+                "subject": "Klimaanlage",
+                "action": "Einschalten"
+            },
+            "heating": {
+                "subject": "Heizung",
+                "action": "Einstellen"
+            },
+            "cooling": {
+                "subject": "Kühlung",
+                "action": "Einstellen"
+            },
+            "humidifier": {
+                "subject": "Luftbefeuchter",
+                "action": "Einschalten"
+            },
+            "dehumidifier": {
+                "subject": "Luftentfeuchter",
+                "action": "Einschalten"
             }
         },
         "actionVerbs": {

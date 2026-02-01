@@ -303,13 +303,13 @@ function renderEnseignes() {
     const cancelLabel = (t && t('actions.cancel')) || 'Annuler';
 
     const roomsHtml = (enseigne.pieces || []).map(piece => {
-      return `<span class="room-tag">${escapeHtml(piece.nom)} <button class="remove-btn" title="${removeLabel}" onclick="removePiece('${enseigne.id}','${piece.id}')">×</button></span>`;
+      return `<span class="room-tag">${escapeHtml(piece.nom)} <button class="remove-btn" onclick="removePiece('${enseigne.id}','${piece.id}')">×</button></span>`;
     }).join('');
 
     card.innerHTML = `
       <div class="actions">
-        <button class="edit-btn" title="${editLabel}" onclick="editEnseigne('${enseigne.id}')"><img src="/assets/icons/edit.png" alt="${editLabel}"></button>
-        <button class="remove-btn" title="${removeLabel}" onclick="removeEnseigne('${enseigne.id}')"><img src="/assets/icons/delete.png" alt="${removeLabel}"></button>
+        <button class="edit-btn" onclick="editEnseigne('${enseigne.id}')"><img src="/assets/icons/edit.png" alt="${editLabel}"></button>
+        <button class="remove-btn" onclick="removeEnseigne('${enseigne.id}')"><img src="/assets/icons/delete.png" alt="${removeLabel}"></button>
       </div>
       <h3>${escapeHtml(enseigne.nom || '—')}</h3>
       <p class="muted">${escapeHtml(enseigne.adresse || '')}</p>

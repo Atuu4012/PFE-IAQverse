@@ -141,15 +141,15 @@
                                 "name": "Clim 01001",
                                 "type": "ventilation",
                                 "is_iot": true,
-                                "state": "off"
+                                "state": "on"
                             }
                         ]
                     }
                 ]
             }
         ],
-        "active": "ens_1762004765975",
-        "activeRoom": "piece_1769949382850"
+        "active": "boutique1",
+        "activeRoom": "piece_1769949399048"
     },
     "contact": {
         "email": "support@iaqverse.local",

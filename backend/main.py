@@ -280,16 +280,32 @@ def get_preventive_actions(
             
             logger.info(f"ML prediction generated {len(actions)} actions for {enseigne}/{salle}")
             
+            # Calcul du score IAQ si manquant (pour avoir une réponse complète)
+            predicted_score = prediction_result.get("predicted_score")
+            predicted_level = None
+            if predicted_score is None and predicted_values:
+                try:
+                    from .iaq_score import calculate_iaq_score
+                    score_data = calculate_iaq_score(predicted_values)
+                    predicted_score = score_data["global_score"]
+                    predicted_level = score_data["global_level"]
+                except ImportError:
+                    pass
+
+            # Structure simplifiée et claire pour le Frontend
             return {
-                "actions": actions,
-                "current_values": current_values,
-                "predicted_values": predicted_values,
-                "predicted_score": prediction_result.get("predicted_score"),
-                "forecast_minutes": prediction_result.get("forecast_minutes", 30),
                 "timestamp": datetime.now().isoformat(),
-                "is_ml_prediction": True,
-                "method": "ml_risk_analysis",
-                "risk_analysis": risk_analysis
+                "status": {
+                    "overall_risk": risk_analysis.get("overall_status", "unknown"),
+                    "predicted_score": predicted_score,
+                    "predicted_level": predicted_level
+                },
+                "forecast": {
+                    "minutes": prediction_result.get("forecast_minutes", 30),
+                    "model_used": "LSTM" if prediction_result.get("model") == "LSTM" else "Generic"
+                },
+                "metrics": risk_analysis.get("metrics", {}), # Contient Detail (Current vs Predicted + Trend)
+                "actions": actions
             }
                 
         except Exception as e:

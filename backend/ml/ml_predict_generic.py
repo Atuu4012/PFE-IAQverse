@@ -123,10 +123,8 @@ class RealtimeGenericPredictor:
         # 2. Fallback: Modèle Standard
         # Charger la configuration
         config_path = self.model_dir / "generic_training_config.json"
-        if not config_path.exists():
-            # Si ni l'un ni l'autre n'existe
-            if not hasattr(self, 'config') or self.config is None:
-                raise FileNotFoundError(f"Configuration non trouvée: {config_path}")
+        if not config_path.exists() and (not hasattr(self, 'config') or self.config is None):
+            raise FileNotFoundError(f"Configuration non trouvée: {config_path}")
         
         with open(config_path, 'r', encoding='utf-8') as f:
             self.config = json.load(f)
@@ -272,7 +270,8 @@ class RealtimeGenericPredictor:
             Dict avec les prédictions et recommandations
         """
         # Récupérer les données récentes directement de iaq_database
-        df = self.fetch_recent_data_direct(enseigne, salle, sensor_id, limit=100)
+        # Limit augmenté à 300 pour supporter les lookbacks larges du LSTM (ex: 144 steps = 12h)
+        df = self.fetch_recent_data_direct(enseigne, salle, sensor_id, limit=300)
         
         if df.empty or len(df) < 3:
             return {

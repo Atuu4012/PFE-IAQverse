@@ -239,6 +239,14 @@ const objectAnimations = {
     particleCount: 30,
     particleType: 'steam'
   },
+  air_purifier: {
+    colorOn: 0x00ff00,  // vert quand allumé
+    colorOff: 0xff0000, // rouge par défaut
+    duration: 500,
+    particleColor: 0x00ffff, // Cyan (Air purifié)
+    particleCount: 25,
+    particleType: 'steam'
+  },
   radiator: {
     colorOn: 0x00ff00,  // vert quand allumé (Led)
     colorOff: 0xff0000, // rouge par défaut (Led)
@@ -341,8 +349,9 @@ function setObjectColor(obj, colorHex) {
   const nameLower = obj.name ? obj.name.toLowerCase() : '';
   const isRadiator = nameLower.includes('radiator') || nameLower.includes('radiateur') || nameLower.includes('heater') || nameLower.includes('chauffage');
   const isAC = nameLower.includes('clim') || nameLower.includes('ac_') || nameLower.includes('aircon');
+  const isPurifier = nameLower.includes('purifier') || nameLower.includes('epurateur');
   
-  const isTarget = isRadiator || isAC;
+  const isTarget = isRadiator || isAC || isPurifier;
 
   // Ne rien faire sur les portes/fenêtres si on appelle cette fonction
   if (!isTarget && (nameLower.includes('door') || nameLower.includes('window'))) return;
@@ -523,6 +532,47 @@ function setObjectColor(obj, colorHex) {
              lightMesh.renderOrder = 0;
           }
           
+      } else if (isPurifier) {
+          // --- CONFIGURATION PURIFICATEUR (LED) ---
+          // Modifiez ces valeurs pour ajuster l'affichage
+          const ALIGN_Y_PERCENT = 0.97;  // Hauteur (0=bas, 1=haut)
+          const FORWARD_OFFSET = 1;     // Avancée en cm (profondeur)
+          const HORIZONTAL_OFFSET = -4.5;  // Décalage horizontal en cm (Négatif = Gauche, Positif = Droite)
+          const LED_SCALE = 0.8;        // Taille
+          
+          // ROTATION (en degrés) : Changez ces valeurs pour tourner la LED
+          const ROT_X = 90;     // Essayez 90 ou -90 si elle est couchée
+          const ROT_Y = 210;    // Essayez 90 ou -90 pour tourner sur le côté
+          const ROT_Z = 90;
+          // ----------------------------------------
+
+          led.rotation.set(
+              ROT_X * (Math.PI/180), 
+              ROT_Y * (Math.PI/180), 
+              ROT_Z * (Math.PI/180)
+          );
+
+          // 1. Gestion Echelle (Support des modèles en mm et en mètres)
+          const size = new THREE.Vector3();
+          bb.getSize(size);
+          const isLargeScale = Math.max(size.y, size.z) > 50; // Seuil détection mm
+
+          // Taille de base : 12cm ou 120mm
+          const baseSize = isLargeScale ? 120 : 0.12; 
+          const finalScale = (baseSize * LED_SCALE) / Math.max(parentScale.x, parentScale.y, parentScale.z);
+          led.scale.set(finalScale, finalScale, finalScale);
+          
+          // 2. Positionnement
+          // Conversion de l'offset (cm -> unité locale)
+          const cmToUnits = isLargeScale ? 10 : 0.01;
+          const zOffsetUnits = FORWARD_OFFSET * cmToUnits;
+          const xOffsetUnits = HORIZONTAL_OFFSET * cmToUnits;
+
+          led.position.set(
+              cx + (xOffsetUnits / (parentScale.x || 1)), // Décalage horizontal
+              bb.min.y + (size.y * ALIGN_Y_PERCENT), // Hauteur relative
+              bb.max.z + (zOffsetUnits / (parentScale.z || 1)) - 0.18 // Avancé devant
+          );
       } else {
           // CLIM : SUR LE CÔTÉ DROIT (X+), HAUT, CENTRÉ EN PROFONDEUR
           led.position.set(
@@ -1076,6 +1126,51 @@ function updateMirrorReflections() {
   console.log('[Mirror] Reflets mis à jour pour', mirrors.length, 'miroir(s)');
 }
 
+/**
+ * Corrige les cibles des lumières après un clonage de scène.
+ * Gère deux cas :
+ * 1. La cible existe dans la hiérarchie clonée (on reconnecte).
+ * 2. La cible est une copie détachée (créée par Light.clone). On l'ajoute à la scène
+ *    pour qu'elle ait des coordonnées valides (sinon elle reste à 0,0,0 sans matrixWorld).
+ */
+function fixLightTargets(clonedRoot) {
+  clonedRoot.traverse((child) => {
+    if ((child.isSpotLight || child.isDirectionalLight) && child.target) {
+      
+      let targetFound = false;
+
+      // Cas 1: Reconnexion par nom si possible (le plus propre)
+      if (child.target.name) {
+        const newTarget = clonedRoot.getObjectByName(child.target.name);
+        if (newTarget) {
+          child.target = newTarget;
+          targetFound = true;
+          // console.log(`[FixLights] Cible recombinée pour ${child.name} -> ${newTarget.name}`);
+        }
+      }
+
+      // Cas 2: Si la cible n'a pas été retrouvée ou n'a pas de nom,
+      // et qu'elle n'a pas de parent (elle est détachée à cause du clone),
+      // on l'attache à la racine ou au parent de la lumière pour qu'elle "existe" dans le graphe.
+      if (!targetFound && !child.target.parent) {
+          // On l'ajoute au parent de la lumière pour qu'elle suive les transformations locales,
+          // ou à la racine clonée si préférable. Le parent de la lumière est souvent le meilleur choix
+          // pour conserver la position relative si la lumière est dans un groupe.
+          
+          if (child.parent) {
+              child.parent.add(child.target);
+          } else {
+              clonedRoot.add(child.target);
+          }
+          
+          // Force la mise à jour de la matrice pour éviter le bug de "lumière vers 0,0,0" au premier frame
+          child.target.updateMatrixWorld(true); 
+          // console.log(`[FixLights] Cible orpheline attachée pour ${child.name}`);
+      }
+    }
+  });
+}
+
 function loadPieceModel(roomId) {
   // Prevent concurrent loads
   if (isLoading) {
@@ -1168,6 +1263,9 @@ function loadPieceModel(roomId) {
       // Récupérer le modèle du cache et le cloner
       const cachedModel = modelCache.get(glbPath);
       modelRoot = cachedModel.clone();
+      
+      // Fixer les cibles des lumières après le clonage
+      fixLightTargets(modelRoot);
       
       scene.add(modelRoot);
       
@@ -1571,6 +1669,7 @@ function autoGenerateAlertPoints(modelRoot) {
     'window': /^Window(?!.*(?:Handle|Frame|Vitre|Glass|Poignee|Cadre)).*$/i,
     'door': /^Door(?!.*(?:Handle|Frame|Cadre|Poignee)).*$/i,
     'ventilation': /Clim/i, // Cherche "Clim" n'importe où dans le nom
+    'air_purifier': /^Purifier.*$/i,
     'radiator': /^Radiator(?!.*(?:Valve|Tuyau)).*$/i
   };
   
@@ -1607,7 +1706,7 @@ function autoGenerateAlertPoints(modelRoot) {
             foundObjects[type].push(obj); // Stocker l'objet Three.js complet
             
             // Définir la couleur par défaut à rouge pour ventilation et radiator
-            if (type === 'ventilation' || type === 'radiator') {
+            if (type === 'ventilation' || type === 'radiator' || type === 'air_purifier') {
               setObjectColor(obj, 0xff0000); // rouge
             }
           } else {
@@ -1628,6 +1727,7 @@ function autoGenerateAlertPoints(modelRoot) {
     'window': { top: '20%', left: '30%' },
     'door': { top: '30%', left: '10%' }, // Remonté pour être au milieu de la porte
     'ventilation': { top: '10%', left: '50%' },
+    'air_purifier': { top: '50%', left: '50%' },
     'radiator': { top: '80%', left: '20%' }
   };
   
@@ -1768,7 +1868,7 @@ function autoGenerateAlertPoints(modelRoot) {
         let bgColor = '';
         if (type === 'door' || type === 'window') {
           bgColor = currentState === 'closed' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(34, 139, 34, 0.9)';
-        } else if (type === 'ventilation' || type === 'radiator') {
+        } else if (type === 'ventilation' || type === 'radiator' || type === 'air_purifier') {
           bgColor = currentState === 'off' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(34, 139, 34, 0.9)';
         } else {
           bgColor = 'rgba(220, 20, 60, 0.9)';
@@ -1795,7 +1895,7 @@ function autoGenerateAlertPoints(modelRoot) {
             if (val && val !== nameKey) translatedName = val;
             else {
                 // Fallback simple
-                const map = { 'window': 'Fenêtre', 'door': 'Porte', 'ventilation': 'Ventilation', 'radiator': 'Radiateur' };
+                const map = { 'window': 'Fenêtre', 'door': 'Porte', 'ventilation': 'Ventilation', 'radiator': 'Radiateur', 'air_purifier': 'Purificateur' };
                 translatedName = map[type] || type;
             }
         }
@@ -1805,6 +1905,7 @@ function autoGenerateAlertPoints(modelRoot) {
           'window': ['CO₂', 'PM2.5', 'Temp', 'Hum'],
           'door': ['CO₂'],
           'ventilation': ['CO₂', 'PM2.5', 'TVOC', 'Hum'],
+          'air_purifier': ['PM2.5', 'TVOC'],
           'radiator': ['Temp', 'Hum']
         };
         
@@ -1871,7 +1972,7 @@ function autoGenerateAlertPoints(modelRoot) {
             let newBgColor = '';
             if (alertType === 'door' || alertType === 'window') {
               newBgColor = newState === 'closed' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(34, 139, 34, 0.9)';
-            } else if (alertType === 'ventilation' || alertType === 'radiator') {
+            } else if (alertType === 'ventilation' || alertType === 'radiator' || alertType === 'air_purifier') {
               newBgColor = newState === 'off' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(34, 139, 34, 0.9)';
             }
             alertPoint.style.background = newBgColor;

@@ -8,7 +8,7 @@ Ce service:
 4. Détecte si les seuils critiques seront dépassés
 5. POST des actions préventives via l'API
 """
-
+import contextlib
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -20,6 +20,10 @@ import requests
 from datetime import datetime, timedelta
 import time
 import sys
+
+# Support pour LSTM
+with contextlib.suppress(ImportError):
+     import tensorflow as tf
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -95,17 +99,41 @@ class RealtimeGenericPredictor:
     
     def load_models(self):
         """Charge le modèle générique et les encoders."""
-        logger.info("Chargement du modèle générique...")
+        logger.info("Chargement du modèle...")
         
+        # 1. Essayer de charger le modèle LSTM (Production)
+        lstm_config_path = self.model_dir / "lstm_config.json"
+        lstm_model_path = self.model_dir / "lstm_model.keras"
+        
+        if lstm_config_path.exists() and lstm_model_path.exists():
+            try:
+                logger.info("Tentative de chargement du modèle LSTM...")
+                with open(lstm_config_path, 'r') as f:
+                    self.config = json.load(f)
+                
+                self.models["lstm"] = tf.keras.models.load_model(lstm_model_path)
+                self.scaler = joblib.load(self.model_dir / "lstm_scaler.joblib")
+                self.model_type = "lstm"
+                logger.info("✅ Modèle LSTM Production chargé avec succès")
+                # On retourne direct, car le LSTM est prioritaire
+                return
+            except Exception as e:
+                logger.error(f"Erreur chargement LSTM: {e}. Fallback sur modèle générique.")
+
+        # 2. Fallback: Modèle Standard
         # Charger la configuration
         config_path = self.model_dir / "generic_training_config.json"
         if not config_path.exists():
-            raise FileNotFoundError(f"Configuration non trouvée: {config_path}")
+            # Si ni l'un ni l'autre n'existe
+            if not hasattr(self, 'config') or self.config is None:
+                raise FileNotFoundError(f"Configuration non trouvée: {config_path}")
         
         with open(config_path, 'r', encoding='utf-8') as f:
             self.config = json.load(f)
         
-        logger.info(f"Configuration: {self.config['model_type']}")
+        self.model_type = self.config.get('model_type', 'random_forest')
+        
+        logger.info(f"Configuration: {self.model_type}")
         logger.info(f"Salles entraînées: {self.config.get('trained_rooms', self.config.get('salles_trained', []))}")
         logger.info(f"Capteurs entraînés: {self.config.get('trained_sensors', self.config.get('capteurs_trained', []))}")
         
@@ -155,7 +183,7 @@ class RealtimeGenericPredictor:
         try:
             url = f"{self.api_base_url}/api/iaq/data"
             params = {
-                'hours': 2  # 2 heures de données (suffisant pour lookback)
+                'hours': 12  # Augmenté à 12h pour supporter les lookbacks longs (ex: 6h) du LSTM
             }
             if enseigne:
                 params['enseigne'] = enseigne
@@ -265,6 +293,112 @@ class RealtimeGenericPredictor:
         
         if df.empty:
             return {"error": f"No data for capteur {sensor_id} in room {salle}"}
+        
+        # --- BRANCHE LSTM ---
+        if hasattr(self, 'model_type') and self.model_type == 'lstm':
+            try:
+                # 1. Préparation des données LSTM
+                lookback = self.config.get('lookback', 12)
+                horizon = self.config.get('horizon', 6)
+                features = self.config.get('features', ['co2', 'pm25', 'tvoc', 'temperature', 'humidity'])
+                targets = self.config.get('targets', ['co2', 'pm25', 'tvoc'])
+                
+                # --- Feature Engineering STRICTEMENT IDENTIQUE à l'entraînement ---
+                # 1. Features Temporelles
+                df['hour_sin'] = np.sin(2 * np.pi * df['timestamp'].dt.hour / 24)
+                df['hour_cos'] = np.cos(2 * np.pi * df['timestamp'].dt.hour / 24)
+                df['day_sin'] = np.sin(2 * np.pi * df['timestamp'].dt.dayofweek / 7)
+                df['day_cos'] = np.cos(2 * np.pi * df['timestamp'].dt.dayofweek / 7)
+
+                # 2. Gestion Occupants
+                if 'occupants' not in df.columns:
+                    df['occupants'] = 0.0
+                else:
+                    df['occupants'] = df['occupants'].fillna(0)
+
+                # 3. Smoothing (Lissage) - CRUCIAL car le modèle a appris sur données lissées (window=6)
+                cols_to_smooth = ["co2", "pm25", "tvoc", "temperature", "humidity"]
+                for col in cols_to_smooth:
+                    if col in df.columns:
+                        df[col] = pd.to_numeric(df[col], errors='coerce')
+                        df[col] = df[col].rolling(window=6, min_periods=1).mean()
+
+                # 4. Remplir les derniers NaNs potentiels pour ne pas casser la prédiction
+                df = df.fillna(method='ffill').fillna(method='bfill')
+
+                # Vérification
+                if len(df) < lookback:
+                    return {"error": f"Not enough data for LSTM (adj. {len(df)} < {lookback})"}
+                
+                # Extraction des features (Dataframe recent)
+                X_df = df.tail(lookback)[features].copy()
+                X_values = X_df.values # (lookback, features)
+                
+                # 2. Scaling
+                if self.scaler:
+                   X_scaled = self.scaler.transform(X_values)
+                else:
+                   X_scaled = X_values
+                   
+                # 3. Reshape (1, lookback, features)
+                X_input = X_scaled.reshape(1, lookback, len(features))
+                
+                # 4. Prédiction
+                model = self.models.get("lstm")
+                preds_scaled = model.predict(X_input, verbose=0) # (1, horizon, targets)
+                
+                # 5. Inverse Transformation (Complexe car le scaler est sur Features, pas Targets sauf si targets == features)
+                # On recrée une matrice factice pour inverser
+                # preds_scaled shape: (1, horizon, 3) -> On veut (horizon, 3)
+                preds_seq = preds_scaled[0] 
+                
+                # On doit créer une matrice (horizon, n_features) remplie avec les prédictions aux bons endroits
+                dummy = np.zeros((horizon, len(features)))
+                for i, target_name in enumerate(targets):
+                    # Trouver l'index de la target dans les features
+                    if target_name in features:
+                        idx = features.index(target_name)
+                        dummy[:, idx] = preds_seq[:, i]
+                        
+                # Inverse transform
+                if self.scaler:
+                    inverse_dummy = self.scaler.inverse_transform(dummy)
+                else:
+                    inverse_dummy = dummy
+                    
+                # Extraire les colonnes cibles
+                final_preds = {}
+                for i, target_name in enumerate(targets):
+                    if target_name in features:
+                        idx = features.index(target_name)
+                        # On prend le MAX sur l'horizon pour être préventif (ou la dernière valeur)
+                        # Pour la sécurité, prendre le max prédit est mieux
+                        final_preds[target_name] = float(np.max(inverse_dummy[:, idx]))
+                
+                # Remplir targets manquants (humidity etc)
+                for t in ['temperature', 'humidity']:
+                    if t not in final_preds:
+                        final_preds[t] = float(df[t].iloc[-1]) if t in df.columns else None
+
+                # 6. Analyser les risques
+                current_vals = {k: float(df[k].iloc[-1]) if k in df.columns else None for k in ['co2', 'pm25', 'tvoc', 'humidity']}
+                risk_analysis = self.analyze_risks(current_vals, final_preds)
+                
+                return {
+                    "timestamp": datetime.now().isoformat(),
+                    "enseigne": enseigne, "salle": salle, "capteur_id": sensor_id,
+                    "model": "LSTM",
+                    "current_values": current_vals,
+                    "predicted_values": final_preds,
+                    "forecast_minutes": horizon * 5,
+                    "risk_analysis": risk_analysis
+                }
+
+            except Exception as e:
+                logger.error(f"Erreur prédiction LSTM: {e}")
+                return {"error": f"LSTM prediction failed: {str(e)}"}
+
+        # --- FIN BRANCHE LSTM ---
         
         # Créer les features
         df_features = self.create_features(df)

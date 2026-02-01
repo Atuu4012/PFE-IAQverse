@@ -6,9 +6,14 @@ numpy>=1.24.0
 pandas>=2.0.0
 joblib>=1.3.0
 
-# Optional: Deep Learning (pour LSTM si souhaité)
-# tensorflow>=2.13.0
-# keras>=2.13.0
+# Deep Learning (LSTM)
+tensorflow>=2.13.0
+
+# MLOps & Optimisation
+# On fixe la version pour être sûr d'être synchro avec le serveur Docker
+mlflow==3.8.1
+optuna>=3.3.0
+optuna-integration
 
 # Requêtes HTTP
 requests>=2.31.0

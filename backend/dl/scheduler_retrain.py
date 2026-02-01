@@ -38,16 +38,24 @@ def run_training(with_influxdb=True):
         logger.info(f"🚀 DÉMARRAGE RÉENTRAÎNEMENT - {datetime.now()}")
         logger.info("="*70)
         
-        # Chemin du script d'entraînement
-        script_path = Path(__file__).parent / "ml_train.py"
+        # Chemin du script d'entraînement (Nouvelle version LSTM + MLOps)
+        script_path = Path(__file__).parent / "ml_train_lstm.py"
         
         if not script_path.exists():
-            logger.error(f"❌ Script ml_train.py non trouvé: {script_path}")
+            # Fallback sur l'ancien script si le nouveau n'existe pas
+            logger.warning(f"Script LSTM non trouvé, fallback sur ml_train.py")
+            # Le script ancien est dans ../ml/ml_train.py
+            script_path = Path(__file__).parent.parent / "ml" / "ml_train.py"
+        
+        if not script_path.exists():
+            logger.error(f"❌ Aucun script d'entraînement trouvé")
             return False
         
         # Commande d'exécution
         cmd = [sys.executable, str(script_path)]
-        if with_influxdb:
+        
+        # Le nouveau script LSTM utilise des variables d'env, pas d'arguments
+        if with_influxdb and "ml_train_lstm.py" not in str(script_path):
             cmd.append("--with-influxdb")
         
         logger.info(f"📋 Commande: {' '.join(cmd)}")

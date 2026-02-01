@@ -87,14 +87,16 @@
             push("window", sCO2);
             push("door", sCO2);
         }
-        // PM2.5: ventil
+        // PM2.5: ventil + air_purifier
         if (sPM && sPM !== "info") {
             push("window", sPM);
             push("ventilation", sPM);
+            push("air_purifier", sPM);
         }
-        // TVOC: ventil
+        // TVOC: ventil + air_purifier
         if (sTVOC && sTVOC !== "info") {
             push("ventilation", sTVOC);
+            push("air_purifier", sTVOC);
         }
         // Température: radiator (chauffage) & window (aération) selon extrêmes
         if (sTemp && sTemp !== 'info') {
@@ -187,6 +189,8 @@
                     addTemp(); addHum(); break;
                 case 'door':
                     addCO2(); break;
+                case 'air_purifier':
+                    addPM(); addTVOC(); break;
                 default:
                     addCO2(); addPM(); addTVOC(); addTemp(); addHum(); break;
             }

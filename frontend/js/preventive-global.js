@@ -176,7 +176,8 @@ function displayGlobalPreventiveActions(allRoomActions) {
         'window': 'window',
         'door': 'door',
         'ventilation': 'ventilation',
-        'radiator': 'radiator'
+        'radiator': 'radiator',
+        'air_purifier': 'air_purifier'
     };
     
     const actionI18nMap = {

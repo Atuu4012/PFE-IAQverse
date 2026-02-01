@@ -319,27 +319,54 @@ def _generate_actions_from_ml_risk_analysis(
     
     # Mapping des métriques ML vers les dispositifs frontend
     DEVICE_MAPPING = {
-        "co2": {
-            "device": "window",
-            "action": "open",
-            "parameter": "CO₂",
-            "unit": "ppm",
-            "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"}
-        },
-        "pm25": {
-            "device": "window",
-            "action": "open",
-            "parameter": "PM2.5",
-            "unit": "µg/m³",
-            "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"}
-        },
-        "tvoc": {
-            "device": "ventilation",
-            "action": "increase",
-            "parameter": "TVOC",
-            "unit": "ppb",
-            "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"}
-        }
+        "co2": [
+            {
+                "device": "window",
+                "action": "open",
+                "parameter": "CO₂",
+                "unit": "ppm",
+                "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"}
+            },
+            {
+                "device": "door",
+                "action": "open",
+                "parameter": "CO₂",
+                "unit": "ppm",
+                "priority_map": {"warning": "low", "critical": "medium", "danger": "high"}
+            }
+        ],
+        "pm25": [
+            {
+                "device": "air_purifier",
+                "action": "turn_on",
+                "parameter": "PM2.5",
+                "unit": "µg/m³",
+                "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"}
+            },
+            {
+                "device": "window",
+                "action": "open",
+                "parameter": "PM2.5",
+                "unit": "µg/m³",
+                "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"}
+            }
+        ],
+        "tvoc": [
+            {
+                "device": "air_purifier",
+                "action": "turn_on",
+                "parameter": "TVOC",
+                "unit": "ppb",
+                "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"}
+            },
+            {
+                "device": "ventilation",
+                "action": "increase",
+                "parameter": "TVOC",
+                "unit": "ppb",
+                "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"}
+            }
+        ]
     }
     
     # Extraire les actions du risk_analysis
@@ -348,45 +375,107 @@ def _generate_actions_from_ml_risk_analysis(
     
     for action_item in actions_needed:
         metric = action_item.get("metric")
-        
-        if metric not in DEVICE_MAPPING:
-            continue
-        
-        device_info = DEVICE_MAPPING[metric]
         metric_data = metrics.get(metric, {})
-        
         current_val = metric_data.get("current_value", 0)
         predicted_val = metric_data.get("predicted_value", 0)
         current_level = metric_data.get("current_level", "good")
         predicted_level = metric_data.get("predicted_level", "good")
-        
-        # Déterminer la priorité basée sur le niveau le plus critique
-        priority_map = device_info.get("priority_map", {})
-        if current_level in ["critical", "danger"]:
-            priority = "urgent"  # Situation actuelle critique
-        elif predicted_level in ["critical", "danger"]:
-            priority = priority_map.get(predicted_level, "high")  # Va devenir critique
+
+        # Special handling for temperature (directional)
+        if metric == "temperature":
+            # Trop chaud
+            if predicted_val > 25 or (current_val > 25 and predicted_level != "good"):
+                device_entries = [
+                    {
+                        "device": "ventilation", # Clim
+                        "action": "increase",
+                        "parameter": "Température",
+                        "unit": "°C",
+                        "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"}
+                    },
+                    {
+                        "device": "window",
+                        "action": "open",
+                        "parameter": "Température",
+                        "unit": "°C",
+                        "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"}
+                    }
+                ]
+            # Trop froid
+            elif predicted_val < 19 or (current_val < 19 and predicted_level != "good"):
+                device_entries = [
+                    {
+                        "device": "radiator",
+                        "action": "increase",
+                        "parameter": "Température",
+                        "unit": "°C",
+                        "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"}
+                    }
+                ]
+            else:
+                continue
+
+        # Special handling for humidity
+        elif metric == "humidity":
+            # Trop humide -> Ventil + Fenetre
+            if predicted_val > 65:
+                 device_entries = [
+                    {
+                        "device": "ventilation",
+                        "action": "increase",
+                        "parameter": "Humidité",
+                        "unit": "%",
+                        "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"}
+                    },
+                    {
+                        "device": "window", # Aérer pour chasser l'humidité
+                        "action": "open",
+                        "parameter": "Humidité",
+                        "unit": "%",
+                        "priority_map": {"warning": "medium", "critical": "high", "danger": "urgent"}
+                    }
+                ]
+            # Trop sec -> Pas d'humidificateur donc on ferme la fenetre si ouverte ?
+            # Pour l'instant on ignore ou on réduit la ventil
+            else:
+                continue
+
+        elif metric in DEVICE_MAPPING:
+            # Support either a single dictionary or a list of dictionaries in DEVICE_MAPPING
+            device_entries = DEVICE_MAPPING[metric]
+            if isinstance(device_entries, dict):
+                device_entries = [device_entries]
         else:
-            priority = priority_map.get(current_level, "medium")
-        
-        # Construire l'action avec valeurs actuelles et prédites
-        action = {
-            "device": device_info["device"],
-            "action": device_info["action"],
-            "parameter": device_info["parameter"],
-            "current_value": round(current_val, 1),
-            "predicted_value": round(predicted_val, 1),
-            "unit": device_info["unit"],
-            "priority": priority,
-            "level": current_level if current_level in ["critical", "danger"] else predicted_level,
-            "trend": metric_data.get("trend", "stable"),
-            "change_percent": metric_data.get("change_percent", 0),
-            "reason": action_item.get("action", "Action recommandée"),
-            "forecast_minutes": forecast_minutes,
-            "is_ml_action": True
-        }
-        
-        actions.append(action)
+            continue
+            
+        for device_info in device_entries:
+            # Déterminer la priorité basée sur le niveau le plus critique
+            priority_map = device_info.get("priority_map", {})
+            if current_level in ["critical", "danger"]:
+                priority = "urgent"  # Situation actuelle critique
+            elif predicted_level in ["critical", "danger"]:
+                priority = priority_map.get(predicted_level, "high")  # Va devenir critique
+            else:
+                priority = priority_map.get(current_level, "medium")
+            
+            # Construire l'action avec valeurs actuelles et prédites
+            action = {
+                "device": device_info["device"],
+                "action": device_info["action"],
+                "parameter": device_info["parameter"],
+                "current_value": round(current_val, 1),
+                "predicted_value": round(predicted_val, 1),
+                "unit": device_info["unit"],
+                "priority": priority,
+                "level": current_level if current_level in ["critical", "danger"] else predicted_level,
+                "trend": metric_data.get("trend", "stable"),
+                "change_percent": metric_data.get("change_percent", 0),
+                "reason": action_item.get("action", "Action recommandée"),
+                "forecast_minutes": forecast_minutes,
+                "is_ml_action": True
+            }
+            
+            actions.append(action)
     
     # Trier par priorité (urgent > high > medium > low)
     priority_order = {"urgent": 0, "high": 1, "medium": 2, "low": 3}
@@ -437,11 +526,34 @@ def _generate_actions_from_current_data(enseigne: str, salle: Optional[str], sen
                 "priority": priority,
                 "reason": f"Le CO₂ actuel ({current_co2:.0f} ppm) dépasse le seuil recommandé"
             })
+            # Added Door for CO2
+            actions.append({
+                "device": "door",
+                "action": "open",
+                "parameter": "CO₂",
+                "current_value": round(current_co2, 1),
+                "threshold": THRESHOLDS["co2"]["warning"],
+                "unit": "ppm",
+                "priority": "low" if priority == "medium" else "medium",
+                "reason": f"Ouvrir la porte aide à ventiler le CO₂"
+            })
         
         # Vérifier PM2.5
         current_pm = float(current_data.get("pm25", 0))
         if current_pm >= THRESHOLDS["pm25"]["warning"]:
             priority = "high" if current_pm >= THRESHOLDS["pm25"]["danger"] else "medium"
+            # Action 1: Purificateur (Prioritaire)
+            actions.append({
+                "device": "air_purifier",
+                "action": "turn_on",
+                "parameter": "PM2.5",
+                "current_value": round(current_pm, 1),
+                "threshold": THRESHOLDS["pm25"]["warning"],
+                "unit": "µg/m³",
+                "priority": priority,
+                "reason": f"Les particules fines ({current_pm:.1f} µg/m³) dépassent le seuil recommandé"
+            })
+            # Action 2: Fenêtre (Complémentaire)
             actions.append({
                 "device": "window",
                 "action": "open",
@@ -450,13 +562,14 @@ def _generate_actions_from_current_data(enseigne: str, salle: Optional[str], sen
                 "threshold": THRESHOLDS["pm25"]["warning"],
                 "unit": "µg/m³",
                 "priority": priority,
-                "reason": f"Les particules fines ({current_pm:.1f} µg/m³) dépassent le seuil recommandé"
+                "reason": f"Aération recommandée pour évacuer les particules fines ({current_pm:.1f} µg/m³)"
             })
         
         # Vérifier TVOC
         current_tvoc = float(current_data.get("tvoc", 0))
         if current_tvoc >= THRESHOLDS["tvoc"]["warning"]:
             priority = "high" if current_tvoc >= THRESHOLDS["tvoc"]["danger"] else "medium"
+            # Action 1: Ventilation (Prioritaire pour les gaz)
             actions.append({
                 "device": "ventilation",
                 "action": "increase",
@@ -465,7 +578,18 @@ def _generate_actions_from_current_data(enseigne: str, salle: Optional[str], sen
                 "threshold": THRESHOLDS["tvoc"]["warning"],
                 "unit": "ppb",
                 "priority": priority,
-                "reason": f"Les COV ({current_tvoc:.0f} ppb) dépassent le seuil recommandé"
+                "reason": f"Les COV ({current_tvoc:.0f} ppb) nécessitent une ventilation accrue"
+            })
+            # Action 2: Purificateur (Complémentaire si filtre charbon actif)
+            actions.append({
+                "device": "air_purifier",
+                "action": "turn_on",
+                "parameter": "TVOC",
+                "current_value": round(current_tvoc, 1),
+                "threshold": THRESHOLDS["tvoc"]["warning"],
+                "unit": "ppb",
+                "priority": priority,
+                "reason": f"Traitement complémentaire des polluants chimiques ({current_tvoc:.0f} ppb)"
             })
         
         # Vérifier température

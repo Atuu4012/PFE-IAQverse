@@ -2597,3 +2597,85 @@ if (frameBtn) {
 // Exporter vers le scope global pour usage par d'autres scripts
 window.loadPieceModel = loadPieceModel;
 window.frameModel = frameModel;
+
+// Initialisation des contrôles tactiles pour mobile
+function initMobileControls() {
+    const controls = {
+        'ctrl-fwd': ['z', 'Z', 'ArrowUp'],
+        'ctrl-back': ['s', 'S', 'ArrowDown'],
+        'ctrl-left': ['q', 'Q', 'ArrowLeft'],
+        'ctrl-right': ['d', 'D', 'ArrowRight'],
+        'ctrl-jump': [' '], // Espace
+        'ctrl-crouch': ['c', 'C', 'Control']
+    };
+    
+    // Gestion du toggle des contrôles
+    const toggleBtn = document.getElementById('toggle-controls-btn');
+    const controlsZone = document.getElementById('mobile-joystick-zone');
+    
+    if (toggleBtn && controlsZone) {
+        toggleBtn.addEventListener('click', () => {
+             controlsZone.classList.toggle('collapsed');
+             // Optionnel: changer l'icône ou l'opacité
+             if (controlsZone.classList.contains('collapsed')) {
+                 toggleBtn.style.opacity = '1'; // Ensure visible
+                 toggleBtn.classList.add('collapsed-indicator');
+             } else {
+                 toggleBtn.classList.remove('collapsed-indicator');
+             }
+        });
+
+         // Initial state: Hidden (collapsed)
+         controlsZone.classList.add('collapsed');
+         toggleBtn.classList.add('collapsed-indicator');
+    }
+
+    Object.entries(controls).forEach(([id, keys]) => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            const start = (e) => {
+                // IMPORTANT: preventDefault on touchstart avoids mouse emulation events
+                // but we also need it to prevent scrolling if the user misses the button slightly
+                // or drags. 
+                // e.preventDefault(); // Moved to event listener options or specific handler
+                
+                btn.classList.add('active');
+                keys.forEach(k => { if(keysPressed.hasOwnProperty(k) || true) keysPressed[k] = true; });
+            };
+            
+            const end = (e) => {
+                // e.preventDefault();
+                btn.classList.remove('active');
+                keys.forEach(k => { if(keysPressed.hasOwnProperty(k) || true) keysPressed[k] = false; });
+            };
+            
+            // Mouse events for testing on desktop
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('mouseup', end);
+            btn.addEventListener('mouseleave', end);
+            
+            // Touch events
+            btn.addEventListener('touchstart', (e) => { 
+                e.preventDefault(); // Prevent scroll/zoom
+                start(e); 
+            }, {passive: false});
+            
+            btn.addEventListener('touchend', (e) => { 
+                e.preventDefault(); 
+                end(e); 
+            });
+            
+            btn.addEventListener('touchcancel', (e) => { 
+                e.preventDefault(); 
+                end(e); 
+            });
+        }
+    });
+}
+
+// Initialiser les contrôles une fois le script chargé ou DOM prêt
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMobileControls);
+} else {
+    initMobileControls();
+}

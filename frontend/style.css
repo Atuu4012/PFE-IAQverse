@@ -217,6 +217,31 @@ header h1 {
   transition: opacity 0.3s ease, filter 0.3s ease;
 }
 
+/* Frame Button (Digital Twin) */
+.frame-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 10;
+  padding: 8px 16px;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 14px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.frame-btn:hover {
+  background-color: var(--bg-tertiary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
 /* Icône en blanc en mode sombre */
 [data-theme="sombre"] .theme-toggle-btn img {
   filter: brightness(0) invert(1);

@@ -171,12 +171,25 @@
 
 /* Responsive modal */
 @media (max-width: 768px) {
-  .modal-content {
+  /* Force flex centering for better mobile experience, only when visible */
+  .modal[style*="block"], 
+  .modal[style*="flex"],
+  .enterprise-modal[style*="block"], 
+  .enterprise-modal[style*="flex"] {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Reset margins so flexbox centering works */
+  .modal-content, .enterprise-modal .modal-content {
     width: 95%;
     max-width: 100%;
-    margin: 2% auto;
-    padding: 16px;
+    margin: 0 !important;
+    padding: 20px;
     max-height: 90vh;
+    display: flex;
+    flex-direction: column;
   }
 
   .form-group {
@@ -242,7 +255,7 @@
     max-width: 100%;
     width: 100%;
     min-width: 0;
-    height: 320px;
+    height: 380px;
   }
 
   /* Match the smaller padding on narrow screens */
@@ -256,75 +269,111 @@
 @media (max-width: 768px) {
   .score-panel {
     flex-direction: column;
-    align-items: stretch;
-    padding: 10px;
+    align-items: center;
+    padding: 15px;
     min-height: auto;
-    gap: 10px;
+    gap: 15px;
+    position: relative;
+  }
+
+  /* Reset positioning for all children */
+  .score-panel .score-legend,
+  .score-panel .score-right,
+  .score-panel .score-predicted,
+  .occupants-badge {
+    position: static;
+    transform: none;
+    margin: 0;
+    left: auto;
+    top: auto;
+    right: auto;
   }
 
   .score-panel .score-legend {
-    position: static;
-    transform: none;
     order: 1;
+    display: flex;
     flex-direction: row;
+    flex-wrap: wrap;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
+    width: 100%;
     margin-bottom: 5px;
   }
 
   .score-panel .legend-item {
-    font-size: 9px;
-    gap: 3px;
+    font-size: 10px;
+    gap: 4px;
   }
 
   .score-panel .legend-badge {
-    width: 16px;
-    height: 16px;
-    font-size: 10px;
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
   }
 
   .score-panel .score-center {
     order: 2;
+    min-height: auto;
     margin: 5px 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
   }
 
   .score-value {
-    font-size: 36px;
+    font-size: 42px;
   }
 
   .score-max {
-    font-size: 20px;
+    font-size: 22px;
   }
 
   .score-label {
-    font-size: 12px;
+    font-size: 13px;
   }
 
-  .score-right {
-    position: static;
-    transform: none;
+  .occupants-badge {
     order: 3;
+    display: inline-flex;
+    align-items: center;
+    margin-top: 25px;
+    margin-bottom: 5px;
+    border-radius: 20px;
+    width: auto;
+  }
+
+  .score-panel .score-right {
+    order: 4;
+    width: 100%;
+    display: flex;
+    flex-direction: column; /* Empile le badge et la note pour un centrage parfait */
+    align-items: center;
     justify-content: center;
     min-width: auto;
-    gap: 8px;
+    gap: 6px;
   }
 
   .score-trend {
-    width: 36px;
-    height: 24px;
-    font-size: 12px;
+    width: 40px;
+    height: 26px;
+    font-size: 13px;
+    display: inline-flex;
   }
 
   .score-note {
-    font-size: 12px;
+    font-size: 13px;
+    text-align: center;
   }
 
-  .score-predicted {
-    position: static;
-    transform: none;
-    order: 4;
-    align-self: center;
-    padding: 6px 12px;
+  .score-panel .score-predicted {
+    order: 5;
+    padding: 8px 16px;
+    margin-top: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: auto;
+    min-width: 180px;
   }
 
   .predicted-value {
@@ -332,7 +381,7 @@
   }
 
   .predicted-label {
-    font-size: 10px;
+    font-size: 11px;
   }
 }
 
@@ -395,7 +444,7 @@
     width: 100%;
     max-width: 100%;
     min-width: 0 !important; /* Override style.css 500px */
-    padding: 10px;
+    padding: 15px !important; /* Standardize card padding (was 10px) */
     margin-bottom: 10px;
     display: block !important;
   }
@@ -407,7 +456,7 @@
     width: 100%;
     max-width: 100%;
     min-width: 0 !important;
-    padding: 8px !important;
+    padding: 15px !important; /* Standardize card padding (was 8px) */
     margin-bottom: 8px !important;
     min-height: auto !important; /* remove large desktop min-height on mobile */
     height: auto !important;
@@ -439,9 +488,29 @@
     gap: 2px;
     top: 8px;
     left: 8px;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(255, 255, 255, 0.95);
+    color: #000;
     backdrop-filter: blur(2px);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     min-width: auto;
+  }
+
+  [data-theme="sombre"] .iaq-overlay {
+    background: rgba(37, 41, 48, 0.95);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Fix text colors in overlay in dark mode */
+  [data-theme="sombre"] .iaq-label {
+    color: var(--text-secondary);
+  }
+  [data-theme="sombre"] .iaq-value {
+    color: #fff;
+  }
+  [data-theme="sombre"] .iaq-unit {
+    color: var(--text-muted);
   }
 
   .iaq-item {
@@ -459,6 +528,17 @@
     font-size: 11px !important;
     top: 8px !important;
     right: 8px !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: #000 !important;
+    border: none !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+    border-radius: 6px !important;
+  }
+
+  [data-theme="sombre"] #frame-btn {
+    background: rgba(37, 41, 48, 0.95) !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
   }
 
   .table-wrapper {
@@ -549,9 +629,14 @@
     font-size: 0.8em;
   }
 
+  .actions-table th {
+    font-size: 0.85em; /* Titres plus petits */
+    letter-spacing: 0.5px;
+  }
+
   .actions-table th,
   .actions-table td {
-    padding: 8px 12px;
+    padding: 8px 6px; /* Réduit le padding pour gagner de la place */
   }
 
   .actions-table td:nth-child(2),
@@ -747,5 +832,168 @@
     max-width: calc(100% - 20px);
     padding: 10px 16px;
     font-size: 13px;
+  }
+}
+
+/* Mobile Controls for 3D Scene */
+.mobile-controls-zone {
+  display: none;
+  position: absolute;
+  bottom: 80px; /* Moved up to avoid overlapping bottom panels */
+  right: 20px;
+  z-index: 100;
+  pointer-events: none;
+  transition: transform 0.3s ease;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.mobile-controls-zone.collapsed {
+  transform: translateX(120%);
+}
+
+.controls-toggle-btn {
+  display: none; /* Hidden by default (desktop) */
+  pointer-events: auto;
+  width: 40px;
+  height: 40px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  color: var(--text-primary);
+  align-items: center; 
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  /* Position absolute relative to the room-visual container */
+  position: absolute;
+  bottom: 15px; /* Bottom of the container */
+  left: 50%;    /* Center horizontally */
+  transform: translateX(-50%);
+  z-index: 101;
+  transition: all 0.3s ease;
+}
+
+.controls-icon {
+  width: 24px;
+  height: 24px;
+  transition: filter 0.3s ease;
+}
+
+/* In dark mode, invert the black icon to white */
+[data-theme="sombre"] .controls-icon {
+  filter: invert(1);
+}
+
+.controls-toggle-btn.collapsed-indicator {
+    /* Style when collapsed: slightly more visible */
+    background: var(--bg-secondary);
+    /* Keep position centered */
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* New Layout for Controls Wrapper */
+.controls-wrapper {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 15px;
+  pointer-events: auto; /* Enable clicks on the wrapper contents */
+}
+
+/* Action Buttons (Jump/Crouch) */
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.action-btn {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.1s;
+  user-select: none; /* empèche la selection de texte */
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  outline: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.action-btn:active, .action-btn.active {
+  background: var(--bg-tertiary); /* Highlight color */
+  transform: scale(0.92);
+}
+
+.dpad-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px; /* Reduced gap */
+  background: var(--bg-secondary);
+  padding: 6px; /* Reduced padding */
+  border-radius: 50%;
+  pointer-events: auto;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+}
+
+.dpad-middle-row {
+  display: flex;
+  gap: 4px; /* Reduced gap */
+  align-items: center;
+}
+
+.dpad-btn {
+  width: 38px; /* Reduced from 50px */
+  height: 38px; /* Reduced from 50px */
+  border-radius: 10px;
+  background: var(--bg-primary); /* Slightly different from container */
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.1s;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  outline: none;
+}
+
+.dpad-btn:active, .dpad-btn.active {
+  background: var(--bg-tertiary);
+  transform: scale(0.92);
+}
+
+.dpad-center {
+  width: 38px; /* Match btn size */
+  height: 38px;
+}
+
+/* Show controls only on mobile/tablet */
+@media (max-width: 1024px) {
+  .mobile-controls-zone {
+    display: flex; /* Changed from block to flex for layout */
+  }
+  
+  .controls-toggle-btn {
+    display: flex; /* Show toggle button on mobile */
+  }
+  
+  /* Make room visual container relative to position controls */
+  .room-visual {
+    position: relative; 
   }
 }

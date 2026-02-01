@@ -205,6 +205,9 @@ let modelRoot = null;
 let isLoading = false; // prevent concurrent loads
 let animationStarted = false; // ensure only one animate loop
 
+// Cache pour stocker les modèles 3D déjà chargés (évite de recharger)
+const modelCache = new Map(); // clé: glbPath, valeur: {scene: clonedScene, original: gltf.scene}
+
 let objectStates = {};
 let currentEnseigneId = null;
 let currentPieceId = null;
@@ -1146,6 +1149,57 @@ function loadPieceModel(roomId) {
       loaderElement.style.display = 'flex';
     }
 
+    // Vérifier si le modèle est déjà en cache
+    if (modelCache.has(glbPath)) {
+      console.log('[loadPieceModel] Chargement depuis le cache:', glbPath);
+      
+      isLoading = false;
+      
+      // Masquer le loader immédiatement
+      if (loaderElement) {
+        loaderElement.classList.add('hidden');
+        setTimeout(() => {
+          if (loaderElement.classList.contains('hidden')) {
+            loaderElement.style.display = 'none';
+          }
+        }, 100);
+      }
+      
+      // Récupérer le modèle du cache et le cloner
+      const cachedModel = modelCache.get(glbPath);
+      modelRoot = cachedModel.clone();
+      
+      scene.add(modelRoot);
+      
+      // Reconfigurer les miroirs pour le modèle cloné
+      setupMirrors(modelRoot);
+      
+      frameModel(modelRoot, 1.1);
+      
+      // Marquer que le modèle est chargé
+      modelLoaded = true;
+      modelLoadTime = Date.now();
+      
+      // Générer automatiquement les alert-points pour les objets numérotés
+      autoGenerateAlertPoints(modelRoot);
+      
+      // Mettre à jour les reflets des miroirs après un court délai
+      setTimeout(() => {
+        updateMirrorReflections();
+      }, 200);
+      
+      // Start animation loop only once
+      if (!animationStarted) {
+        animationStarted = true;
+        animate();
+      }
+      
+      return;
+    }
+
+    // Si pas en cache, charger depuis le fichier
+    console.log('[loadPieceModel] Chargement depuis le fichier:', glbPath);
+    
     loader.load(
       glbPath,
       function (gltf) {
@@ -1398,6 +1452,10 @@ function loadPieceModel(roomId) {
             }
           }
         });
+        
+        // Stocker le modèle dans le cache avant de l'ajouter à la scène
+        console.log('[loadPieceModel] Ajout au cache:', glbPath);
+        modelCache.set(glbPath, modelRoot.clone());
         
         scene.add(modelRoot);
         

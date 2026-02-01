@@ -374,3 +374,79 @@ async def delete_files(paths: List[str]):
             logger.error(f"Error deleting {p}: {e}")
     
     return {"deleted": deleted, "not_found": not_found, "errors": errors}
+
+
+@router.post("/api/config/module_state")
+async def update_module_state(update_data: Dict):
+    """
+    Mise à jour de l'état d'un module spécifique dans la configuration.
+    Attend: {
+        "enseigne_id": "...",
+        "piece_id": "...",
+        "module_id": "...",
+        "state": "..." | { ... }
+    }
+    """
+    try:
+        config = load_config()
+        enseigne_id = update_data.get("enseigne_id")
+        piece_id = update_data.get("piece_id")
+        module_id = update_data.get("module_id")
+        new_state = update_data.get("state")
+        
+        updated = False
+        
+        if "lieux" in config and "enseignes" in config["lieux"]:
+            for ens in config["lieux"]["enseignes"]:
+                if ens.get("id") == enseigne_id or ens.get("nom") == enseigne_id:
+                    for piece in ens.get("pieces", []):
+                        if piece.get("id") == piece_id or piece.get("nom") == piece_id:
+                            if "modules" not in piece:
+                                piece["modules"] = []
+                            
+                            # Trouver le module
+                            found = False
+                            for mod in piece["modules"]:
+                                if mod.get("id") == module_id:
+                                    mod["state"] = new_state
+                                    found = True
+                                    updated = True
+                                    break
+                            
+                            if not found:
+                                # Le module n'existe pas encore, on l'ajoute avec des valeurs par défaut
+                                new_module = {
+                                    "id": module_id,
+                                    "name": module_id.replace("_", " ").title(), # Basic naming
+                                    "type": update_data.get("module_type", "unknown"),
+                                    "is_iot": True, # Assume controllable by default if created via API
+                                    "state": new_state
+                                }
+                                piece["modules"].append(new_module)
+                                updated = True
+                                logger.info(f"Created new module {module_id} in room {piece_id}")
+        
+        if updated:
+            save_config(config)
+            # Notifier via WebSocket
+            ws = get_websocket_manager()
+            # Update global config for consistency
+            await ws.broadcast({"type": "config_updated", "config": config})
+            
+            # Broadcast specific module update for real-time animations
+            await ws.broadcast({
+                "type": "module_update",
+                "enseigne_id": enseigne_id,
+                "piece_id": piece_id,
+                "module_id": module_id,
+                "state": new_state,
+                "module_type": update_data.get("module_type", "unknown")
+            }, "modules")
+            
+            return {"status": "success", "message": "Module state updated"}
+        else:
+            return {"status": "ignored", "message": "No matching module found"}
+            
+    except Exception as e:
+        logger.error(f"Error updating module state: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

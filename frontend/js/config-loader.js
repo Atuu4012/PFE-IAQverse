@@ -6,7 +6,7 @@
 let config = null;
 
 /**
- * Charge la configuration depuis le backend ou le fichier statique
+ * Charge la configuration depuis le backend
  * @returns {Promise<Object>} La configuration chargée
  */
 async function loadConfig() {
@@ -17,25 +17,10 @@ async function loadConfig() {
         });
         if (response.ok) {
             config = await response.json();
-            console.log('Configuration chargée depuis le backend');
             return config;
         }
     } catch (error) {
-        console.warn('Backend non disponible, tentative de chargement du fichier statique');
-    }
-
-    // Sinon essayer de charger le fichier statique
-    const candidates = ['/assets/config.json', '../assets/config.json', 'assets/config.json'];
-    for (const path of candidates) {
-        try {
-            const response = await fetch(path, { cache: 'no-store' });
-            if (!response.ok) continue;
-            config = await response.json();
-            console.log(`Configuration chargée depuis ${path}`);
-            return config;
-        } catch (error) {
-            continue;
-        }
+        console.warn('Backend non disponible');
     }
 
     throw new Error('Impossible de charger la configuration');

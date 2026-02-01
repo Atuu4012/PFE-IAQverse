@@ -2,10 +2,9 @@
     - Loads /assets/i18n/{lang}.json
     - Applies keys to elements with data-i18n, data-i18n-html, data-i18n-placeholder, data-i18n-title
     - Exposes i18n.init(), i18n.setLanguage(lang), i18n.getLanguage()
-    - Syncs across tabs via BroadcastChannel with localStorage fallback
+    - Syncs across tabs via BroadcastChannel (localStorage removed - centralized config)
 */
 (function (window) {
-  const STORAGE_KEY = "iaq-lang";
   const CHANNEL_NAME = "iaq-i18n";
   let translations = {};
   let current = null;
@@ -82,8 +81,9 @@
 
   async function setLanguage(lang, broadcast = true, save = true) {
     if (!lang) return;
-    console.info("i18n: setLanguage()", lang, "save:", save);
-    // Load English base then overlay the requested language so missing keys fall back to English
+    // console.info("i18n: setLanguage()", lang, "save:", save);
+
+    // Load English base then overlay the requested language
     const base = (await load("en")) || {};
     const requested = lang === "en" ? {} : await load(lang);
     if (requested == null && lang !== "en") {
@@ -93,17 +93,19 @@
     }
     translations = deepMerge(base, requested || {});
     current = lang;
-    console.info(
-      "i18n: translations keys after merge:",
-      Object.keys(translations).length
-    );
+    
     applyTranslations(document);
     setUISelect(lang);
-    if (save) {
+    
+    if (save && typeof window.saveConfig === "function") {
+      // Persist to backend
       try {
-        localStorage.setItem(STORAGE_KEY, lang);
-      } catch (e) {}
+        window.saveConfig({ affichage: { langue: lang } });
+      } catch (e) {
+        console.error("i18n: error saving config", e);
+      }
     }
+    
     if (broadcast && window.BroadcastChannel) {
       try {
         new BroadcastChannel(CHANNEL_NAME).postMessage({ lang });
@@ -120,8 +122,8 @@
   function getLanguage() {
     return (
       current ||
-      localStorage.getItem(STORAGE_KEY) ||
-      navigator.language.split("-")[0]
+      navigator.language.split("-")[0] ||
+      "fr"
     );
   }
 
@@ -141,10 +143,7 @@
         /* ignore */
       }
     }
-    window.addEventListener("storage", (e) => {
-      if (e.key === STORAGE_KEY && e.newValue)
-        handleRemoteMessage({ lang: e.newValue });
-    });
+    // No storage listener anymore
   }
 
   function attachSelectHandler() {
@@ -194,21 +193,10 @@
       }
     }
 
-    // Priority: Config > Storage > Default
-    const stored = localStorage.getItem(STORAGE_KEY);
-    let preferred = "fr";
+    // Priority: Config > Browser Default > 'fr'
+    let preferred = configLang || navigator.language.split("-")[0] || "fr";
 
-    if (configLang) {
-      console.info("i18n: using language from config:", configLang);
-      preferred = configLang;
-    } else if (stored) {
-      console.info("i18n: using stored language preference:", stored);
-      preferred = stored;
-    } else {
-      console.info("i18n: using default fallback:", preferred);
-    }
-
-    // Do not save to localStorage if we are just applying the default/stored preference on init
+    // Do not save to backend if we are just applying the preference on init
     await setLanguage(preferred, false, false);
   }
 

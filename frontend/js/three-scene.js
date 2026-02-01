@@ -302,29 +302,96 @@ function createInvisibleWall(obj) {
     console.log(`[Collision] Mur invisible ajouté pour: ${obj.name}`);
 }
 
-// Fonctions pour gérer la persistance de l'état des objets
-function saveObjectStates(enseigneId, pieceId) {
-  if (!enseigneId || !pieceId) return;
-  
-  const statesData = {};
-  Object.entries(objectStates).forEach(([name, stateObj]) => {
-    statesData[name] = {
-      type: stateObj.type,
-      state: stateObj.state
-    };
-  });
-  
-  const storageKey = `objectStates_${enseigneId}_${pieceId}`;
-  sessionStorage.setItem(storageKey, JSON.stringify(statesData));
+// Helper to update backend config
+async function updateModuleConfig(enseigneId, pieceId, moduleId, newState, moduleType = 'unknown') {
+    if (!enseigneId || !pieceId) return;
+    try {
+        const payload = {
+            enseigne_id: enseigneId,
+            piece_id: pieceId,
+            module_id: moduleId,
+            module_type: moduleType,
+            state: newState
+        };
+        await fetch('/api/config/module_state', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        console.log(`[three-scene] Updated module ${moduleId} state to ${newState}`);
+    } catch(e) {
+        console.error("[three-scene] Failed to update module config", e);
+    }
 }
 
-function loadObjectStates(enseigneId, pieceId) {
-  if (!enseigneId || !pieceId) return {};
+// Websocket Synchronization
+function setupWebsocket() {
+    // Wait for WS Manager to be available
+    if (window.wsManager) {
+        if (!window.wsManager.isConnectionActive()) {
+             window.wsManager.connect();
+        }
+        window.wsManager.subscribe(['modules']);
+        window.wsManager.on('modules', handleExternalModuleUpdate);
+        console.log('[three-scene] Listening for WS module updates');
+    } else {
+        // Retry a bit later if not loaded yet
+        setTimeout(setupWebsocket, 1000);
+    }
+}
+
+function handleExternalModuleUpdate(data) {
+    // data: { type: 'module_update', enseigne_id, piece_id, module_id, state, module_type }
+    if (data.enseigne_id !== currentEnseigneId || data.piece_id !== currentPieceId) return;
+    
+    const { module_id, state } = data;
+    const objState = objectStates[module_id];
+    
+    if (objState && objState.state !== state) {
+        console.log(`[three-scene] External update for ${module_id}: ${state}`);
+        
+        // Trigger Animation
+        animateObject(objState.object, objState.config, state);
+        
+        // Manage Particles
+        if (state === 'on') {
+            createParticles(objState.object, objState.config);
+        } else if (state === 'off') {
+            stopParticles(objState.object);
+        }
+        
+        // Update Internal State
+        objState.state = state;
+        
+        // Update UI (Alert Point)
+        const ap = document.querySelector(`.alert-point[data-target-names="${module_id}"]`);
+        if (ap) {
+            ap.setAttribute('data-state', state);
+            // Re-eval background color
+            let bgColor = 'rgba(220, 20, 60, 0.9)'; // default red
+            const isPositive = state === 'open' || state === 'on';
+            if (isPositive) bgColor = 'rgba(34, 139, 34, 0.9)'; // green
+            ap.style.backgroundColor = bgColor;
+        }
+    }
+}
+
+// Start listening
+setupWebsocket();
+
+// Function to synchronize with backend configuration (replaces loadObjectStates)
+function getModuleStateFromConfig(enseigneId, pieceId, moduleId, defaultState = null) {
+  const cfg = (typeof window.getConfig === 'function') ? window.getConfig() : window.config;
   
-  const storageKey = `objectStates_${enseigneId}_${pieceId}`;
-  console.log('[loadObjectStates] Loading from key:', storageKey);
-  const saved = sessionStorage.getItem(storageKey);
-  return saved ? JSON.parse(saved) : {};
+  if (!cfg || !cfg.lieux) return defaultState;
+  
+  const ens = cfg.lieux.enseignes.find(e => e.id === enseigneId);
+  if (!ens) return defaultState;
+  const piece = ens.pieces.find(p => p.id === pieceId);
+  if (!piece || !piece.modules) return defaultState;
+  
+  const mod = piece.modules.find(m => m.id === moduleId);
+  return mod ? mod.state : defaultState;
 }
 
 function interpolateColor(startColor, endColor, factor) {
@@ -1560,9 +1627,7 @@ function autoGenerateAlertPoints(modelRoot) {
   const alertPointsContainer = document.getElementById('alert-points-container');
   if (!alertPointsContainer) return;
   
-  // Charger les états sauvegardés pour cette pièce
-  const savedStates = loadObjectStates(currentEnseigneId, currentPieceId);
-  console.log('[autoGenerate] Loaded saved states:', savedStates);
+  // Note: savedStates removal - we use config now
   
   // Patterns à rechercher dans les noms d'objets (ajustés selon les vrais noms du GLB)
   const patterns = {
@@ -1573,17 +1638,6 @@ function autoGenerateAlertPoints(modelRoot) {
     'ventilation': /Clim/i, // Cherche "Clim" n'importe où dans le nom
     'radiator': /^Radiator(?!.*(?:Valve|Tuyau)).*$/i
   };
-  
-  // Collecter tous les noms d'objets pour debug
-  const allObjectNames = [];
-  modelRoot.traverse(obj => {
-    if (obj.name) {
-      allObjectNames.push(obj.name);
-    }
-  });
-  console.log('[autoGenerate] === TOUS LES OBJETS DU MODÈLE ===');
-  console.log('[autoGenerate] Nombre total d\'objets:', allObjectNames.length);
-  console.log('[autoGenerate] Noms:', allObjectNames.join(', '));
   
   // Collecter tous les objets correspondants (stocker les objets Three.js, pas juste les noms)
   const foundObjects = {};
@@ -1603,15 +1657,12 @@ function autoGenerateAlertPoints(modelRoot) {
           
           // Ne stocker que les objets parents (pas les enfants)
           if (!isChild) {
-            console.log(`[autoGenerate] ✓ Objet trouvé - Type: ${type}, Nom: "${obj.name}", isChild: ${isChild}`);
             foundObjects[type].push(obj); // Stocker l'objet Three.js complet
             
             // Définir la couleur par défaut à rouge pour ventilation et radiator
             if (type === 'ventilation' || type === 'radiator') {
               setObjectColor(obj, 0xff0000); // rouge
             }
-          } else {
-            console.log(`[autoGenerate] ✗ Objet ignoré (enfant) - Type: ${type}, Nom: "${obj.name}"`);
           }
         }
       });
@@ -1641,6 +1692,11 @@ function autoGenerateAlertPoints(modelRoot) {
         if (!objectStates[targetName]) {
           let animationObj = obj;
           
+          // Initial State Resolution from Config
+          // Si non présent dans la config, getModuleStateFromConfig renverra null
+          const configState = getModuleStateFromConfig(currentEnseigneId, currentPieceId, targetName);
+          const initialMode = configState || (type === 'window' || type === 'door' ? 'closed' : 'off');
+          
           // Créer une configuration spécifique pour cet objet
           // Cela permet d'adapter l'animation (direction, axe) par objet
           const config = { ...objectAnimations[type] };
@@ -1650,10 +1706,8 @@ function autoGenerateAlertPoints(modelRoot) {
           const isInverted = targetName.match(/Inv|Rev|Invert|Opposite/i);
           
           if (isInverted) {
-             console.log(`[autoGenerate] Inverting rotation for ${targetName}`);
+            //  console.log(`[autoGenerate] Inverting rotation for ${targetName}`);
              if (config.openAngle) config.openAngle *= -1;
-          } else {
-             console.log(`[autoGenerate] Standard rotation for ${targetName}`);
           }
           
           if (type === 'door' || type === 'window') {
@@ -1720,22 +1774,31 @@ function autoGenerateAlertPoints(modelRoot) {
               
               config.closeAngle = initialRotation;
               config.openAngle = initialRotation + delta;
-              
-              console.log(`[autoGenerate] Adjusted animation for ${targetName}: start=${initialRotation.toFixed(2)}, end=${config.openAngle.toFixed(2)}`);
             }
           }
           
           objectStates[targetName] = { 
             object: animationObj, 
             type: type, 
-            state: type === 'door' || type === 'window' ? 'closed' : 'off', 
+            state: initialMode, 
             particles: null,
             config: config
           };
           
-          // Charger l'état sauvegardé depuis sessionStorage
-          if (savedStates[targetName]) {
-            objectStates[targetName].state = savedStates[targetName].state;
+          // Appliquer l'état visuel initial (Rotation ou Couleur)
+          if (config.axis) {
+             // C'est un objet rotatif (porte/fenêtre)
+             const targetAngle = initialMode === 'open' ? config.openAngle : config.closeAngle;
+             animationObj.rotation[config.axis] = targetAngle;
+          } else if (config.colorOn) {
+             // C'est un objet à changement de couleur (radiateur/ventil)
+             const targetColor = initialMode === 'on' ? config.colorOn : config.colorOff;
+             setObjectColor(animationObj, targetColor);
+             
+             // Gérer les particules si allumé
+             if (initialMode === 'on') {
+                 createParticles(animationObj, config);
+             }
           }
         }
         
@@ -1878,8 +1941,8 @@ function autoGenerateAlertPoints(modelRoot) {
             alertPoint.setAttribute('data-bg-color', newBgColor);
             alertPoint.setAttribute('data-state', newState);
             
-            // Sauvegarder l'état dans sessionStorage
-            saveObjectStates(currentEnseigneId, currentPieceId);
+            // Sync with Backend Config (this is the single source of truth now)
+            updateModuleConfig(currentEnseigneId, currentPieceId, targetName, newState, alertType);
             
             // Rafraîchir le tableau pour mettre à jour les emojis
             if (typeof window.syncAlertPointsToTable === 'function') {
@@ -1920,27 +1983,19 @@ function autoGenerateAlertPoints(modelRoot) {
   });
   
   const totalPoints = document.querySelectorAll('.alert-point[data-auto-generated="true"]').length;
-  console.log('[autoGenerate] Total alert points created:', totalPoints);
-  console.log('[autoGenerate] Created alert points, now syncing table');
   
   // Synchroniser le tableau avec les nouveaux alert-points (avec délai pour laisser le DOM se mettre à jour)
   setTimeout(() => {
     if (typeof window.syncAlertPointsToTable === 'function') {
-      console.log('[autoGenerate] Calling syncAlertPointsToTable');
       window.syncAlertPointsToTable();
-    } else {
-      console.error('[autoGenerate] syncAlertPointsToTable not found');
     }
     
     // Mettre à jour le compteur d'alertes après création
     if (typeof window.updateAlertCountLabel === 'function') {
       window.updateAlertCountLabel();
-    } else {
-      console.error('[three-scene] updateAlertCountLabel function not found on window');
     }
     
     // Notifier alerts-engine.js que les points sont prêts
-    console.log('[autoGenerate] Emitting alertPointsReady event');
     document.dispatchEvent(new CustomEvent('alertPointsReady', {
       detail: { enseigneId: currentEnseigneId, pieceId: currentPieceId }
     }));
@@ -1954,11 +2009,8 @@ function updateAlertPoints() {
   // Attendre au moins 2 secondes après le chargement du modèle avant de masquer les points
   const timeSinceLoad = Date.now() - modelLoadTime;
   if (!modelLoaded || timeSinceLoad < 2000) {
-    // console.log(`[updateAlertPoints] Waiting for model to stabilize (${timeSinceLoad}ms elapsed)`);
     return;
   }
-
-  // console.log('[updateAlertPoints] Mise à jour de', points.length, 'points');
 
   points.forEach(el => {
     el.style.position = 'absolute';
@@ -1974,7 +2026,6 @@ function updateAlertPoints() {
     }
     
     if (!target) {
-      // console.log('[updateAlertPoints] Objet non trouvé pour', el.getAttribute('data-target-names'));
       el.style.display = 'none';
       return;
     }
@@ -2011,17 +2062,7 @@ function updateAlertPoints() {
     const inFrustum = frustum.containsPoint(worldPos);
     const ndc = worldPos.clone().project(camera);
     
-    /*
-    console.log(`[updateAlertPoints] ${el.getAttribute('data-i18n-key')} (${target.name}):`, {
-      worldPos: { x: worldPos.x.toFixed(2), y: worldPos.y.toFixed(2), z: worldPos.z.toFixed(2) },
-      ndc: { x: ndc.x.toFixed(2), y: ndc.y.toFixed(2), z: ndc.z.toFixed(2) },
-      inFrustum,
-      cameraPos: { x: camera.position.x.toFixed(2), y: camera.position.y.toFixed(2), z: camera.position.z.toFixed(2) }
-    });
-    */
-    
     if (!inFrustum) {
-      // console.log(`[updateAlertPoints] ${target.name} hors frustum, masqué`);
       el.style.display = 'none';
       el.setAttribute('data-in-view', 'false');
       return;
@@ -2029,7 +2070,6 @@ function updateAlertPoints() {
     
     // Double vérification : si les coordonnées NDC sont hors limites, masquer
     if (ndc.x < -1 || ndc.x > 1 || ndc.y < -1 || ndc.y > 1 || ndc.z < 0 || ndc.z > 1) {
-      // console.log(`[updateAlertPoints] ${target.name} NDC hors limites, masqué`);
       el.style.display = 'none';
       el.setAttribute('data-in-view', 'false');
       return;
@@ -2043,8 +2083,6 @@ function updateAlertPoints() {
     
     const x = (ndc.x * 0.5 + 0.5) * rectW;
     const y = (-ndc.y * 0.5 + 0.5) * rectH;
-
-    // console.log(`[updateAlertPoints] ${target.name} visible à (${x.toFixed(0)}, ${y.toFixed(0)})`);
 
     el.style.left = x + 'px';
     el.style.top = y + 'px';

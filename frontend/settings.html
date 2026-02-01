@@ -16,6 +16,7 @@
     <script src="js/settings.js"></script>
     <script src="js/global-alerts.js"></script>
     <script src="js/simulate-alert.js"></script>
+    <script src="js/settings-modules.js"></script>
   </head>
 
   <body>
@@ -558,7 +559,7 @@
     </div>
     <div id="editModal" class="modal">
       <div class="modal-content">
-        <span class="close">&times;</span>
+        <span class="close" onclick="document.getElementById('editModal').style.display='none'">&times;</span>
         <h2 data-i18n="modals.edit_title">Modifier les paramètres</h2>
         <form id="editForm">
           <!-- Les champs seront générés dynamiquement ici -->
@@ -568,6 +569,7 @@
             type="button"
             class="btn-secondary close-modal"
             data-i18n="actions.cancel"
+            onclick="document.getElementById('editModal').style.display='none'"
           >
             Annuler
           </button>
@@ -579,6 +581,20 @@
           >
             Enregistrer
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal spécifique pour la configuration des modules (IoT) -->
+    <div id="modulesModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeEditModal()">&times;</span>
+        <h2 id="modalTitle">Modules</h2>
+        <div id="modalBody">
+            <!-- Contenu dynamique -->
+        </div>
+        <div id="modalFooter" class="form-actions">
+            <!-- Boutons dynamiques -->
         </div>
       </div>
     </div>

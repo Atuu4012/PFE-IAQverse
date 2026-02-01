@@ -46,17 +46,17 @@
                 "adresse": "123 rue d'Avron",
                 "pieces": [
                     {
-                        "id": "piece_1769949382850",
+                        "id": "piece_1769981906283",
                         "nom": "Chambre",
                         "type": "chambre",
-                        "glbModel": "/assets/rooms/ens_1762004765975_piece_1769949382850.glb",
+                        "glbModel": "/assets/rooms/ens_1762004765975_piece_1769981906283.glb",
                         "modules": [
                             {
-                                "id": "Clim01",
-                                "name": "Clim01",
-                                "type": "ventilation",
+                                "id": "Window01",
+                                "name": "Window01",
+                                "type": "window",
                                 "is_iot": true,
-                                "state": "off"
+                                "state": "closed"
                             },
                             {
                                 "id": "Window02",
@@ -66,11 +66,11 @@
                                 "state": "closed"
                             },
                             {
-                                "id": "Window01",
-                                "name": "Window01",
-                                "type": "window",
+                                "id": "Clim01",
+                                "name": "Clim01",
+                                "type": "ventilation",
                                 "is_iot": true,
-                                "state": "closed"
+                                "state": "off"
                             },
                             {
                                 "id": "Radiator01",
@@ -78,13 +78,6 @@
                                 "type": "radiator",
                                 "is_iot": true,
                                 "state": "off"
-                            },
-                            {
-                                "id": "Door01",
-                                "name": "Door01",
-                                "type": "door",
-                                "is_iot": true,
-                                "state": "closed"
                             }
                         ]
                     }
@@ -96,10 +89,10 @@
                 "adresse": "123 Rue des Commerces",
                 "pieces": [
                     {
-                        "id": "piece_1769949399048",
+                        "id": "piece_1769981929539",
                         "nom": "Bureau",
                         "type": "bureau",
-                        "glbModel": "/assets/rooms/ens_boutique1_piece_1769949399048.glb",
+                        "glbModel": "/assets/rooms/ens_boutique1_piece_1769981929539.glb",
                         "modules": [
                             {
                                 "id": "Clim_01",
@@ -114,42 +107,14 @@
                                 "type": "window",
                                 "is_iot": true,
                                 "state": "closed"
-                            },
-                            {
-                                "id": "Radiator01",
-                                "name": "Radiator01",
-                                "type": "radiator",
-                                "is_iot": true,
-                                "state": "off"
-                            },
-                            {
-                                "id": "Window001",
-                                "name": "Window001",
-                                "type": "window",
-                                "is_iot": true,
-                                "state": "closed"
-                            },
-                            {
-                                "id": "Door_01",
-                                "name": "Door 01",
-                                "type": "door",
-                                "is_iot": true,
-                                "state": "closed"
-                            },
-                            {
-                                "id": "Clim_01001",
-                                "name": "Clim 01001",
-                                "type": "ventilation",
-                                "is_iot": true,
-                                "state": "on"
                             }
                         ]
                     }
                 ]
             }
         ],
-        "active": "boutique1",
-        "activeRoom": "piece_1769949399048"
+        "active": "ens_1762004765975",
+        "activeRoom": "piece_1769981906283"
     },
     "contact": {
         "email": "support@iaqverse.local",

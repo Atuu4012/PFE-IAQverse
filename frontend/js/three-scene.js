@@ -16,8 +16,9 @@ if (initLoader) {
 
 if (container) {
   if (!container.style.position) container.style.position = 'relative';
-  if (!container.style.width) container.style.width = '700px';
-  if (!container.style.height) container.style.height = '400px';
+  // Supprimé pour laisser le CSS gérer la taille responsive
+  // if (!container.style.width) container.style.width = '700px';
+  // if (!container.style.height) container.style.height = '400px';
 }
 
 const width = (container && container.clientWidth) || 700;

@@ -2171,7 +2171,7 @@ a:hover img {
   width: 100%; /* Prend toute la largeur du parent */
   height: 100%; /* Prend toute la hauteur du parent */
   min-height: 0; /* Permet de rétrécir en dessous de 400px si nécessaire */
-  min-width: 1000px; /* Permet de rétrécir en largeur si nécessaire */
+  min-width: 0; /* Permet de rétrécir en largeur si nécessaire */
   flex: 1; /* Prend tout l'espace disponible verticalement */
   position: relative; /* Pour contenir les éléments absolus */
 }
@@ -2189,6 +2189,9 @@ a:hover img {
 /* Assurer que le canvas Three.js reste derrière les alert-points */
 #blender-viewer canvas {
   z-index: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
 }
 
 .alert-point {

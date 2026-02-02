@@ -52,7 +52,8 @@ def run_training(with_influxdb=True):
             return False
         
         # Commande d'exécution
-        cmd = [sys.executable, str(script_path)]
+        # Utilisation de 'python' directement car il est dans le PATH
+        cmd = ["python", "/app/backend/dl/ml_train_lstm.py", "--trials", "10", "--epochs", "20"]
         
         # Le nouveau script LSTM utilise des variables d'env, pas d'arguments
         if with_influxdb and "ml_train_lstm.py" not in str(script_path):
@@ -60,37 +61,33 @@ def run_training(with_influxdb=True):
         
         logger.info(f"📋 Commande: {' '.join(cmd)}")
         
-        # Exécuter le script
-        result = subprocess.run(
+        # Exécuter le script avec streaming des logs en temps réel
+        with subprocess.Popen(
             cmd,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,  # Rediriger stderr vers stdout pour tout capter
             text=True,
-            timeout=600  # Timeout 10 minutes
-        )
-        
-        # Logger la sortie
-        if result.stdout:
-            logger.info("📤 STDOUT:")
-            for line in result.stdout.split('\n')[-30:]:  # Dernières 30 lignes
-                if line.strip():
-                    logger.info(f"  {line}")
-        
-        if result.stderr:
-            logger.warning("⚠️  STDERR:")
-            for line in result.stderr.split('\n'):
-                if line.strip():
-                    logger.warning(f"  {line}")
-        
-        # Vérifier le code de retour
-        if result.returncode == 0:
-            logger.info("✅ RÉENTRAÎNEMENT RÉUSSI!")
-            return True
-        else:
-            logger.error(f"❌ RÉENTRAÎNEMENT ÉCHOUÉ (code {result.returncode})")
-            return False
+            bufsize=1,  # Buffer par ligne
+            universal_newlines=True
+        ) as process:
+            # Lire ligne par ligne
+            for line in process.stdout:
+                # On loggue chaque ligne du sous-processus
+                logger.info(f"  {line.strip()}")
+            
+            # Attendre la fin du processus
+            process.wait()
+            
+            # Vérifier le code de retour
+            if process.returncode == 0:
+                logger.info("✅ RÉENTRAÎNEMENT RÉUSSI!")
+                return True
+            else:
+                logger.error(f"❌ RÉENTRAÎNEMENT ÉCHOUÉ (code {process.returncode})")
+                return False
             
     except subprocess.TimeoutExpired:
-        logger.error("❌ TIMEOUT: Réentraînement dépassé 10 minutes")
+        logger.error("❌ TIMEOUT: Réentraînement dépassé 100 minutes")
         return False
     except Exception as e:
         logger.error(f"❌ ERREUR: {e}", exc_info=True)

@@ -56,11 +56,11 @@ services:
       - "5000:5000"
     environment:
       # Stockage des métriques dans un fichier local SQLite pour la simplicité
-      - MLFLOW_BACKEND_STORE_URI=sqlite:///mlflow.db
+      - MLFLOW_BACKEND_STORE_URI=sqlite:////mlflow/mlflow.db
       - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
       - MLFLOW_HOST=0.0.0.0
     # Sécurité (v3+) : On autorise "*" pour le réseau Docker
-    command: mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlflow/artifacts --host 0.0.0.0 --serve-artifacts --allowed-hosts "*"
+    command: mlflow server --backend-store-uri sqlite:////mlflow/mlflow.db --default-artifact-root /mlflow/artifacts --host 0.0.0.0 --serve-artifacts --allowed-hosts "*"
     volumes:
       - ../backend/dl/mlflow_data:/mlflow
     networks:

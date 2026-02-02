@@ -24,7 +24,7 @@
         "mode": "Clair",
         "langue": "fr",
         "localisation": "Europe, Paris",
-        "lastSection": "lieux"
+        "lastSection": "compte"
     },
     "notifications": {
         "technologies": {
@@ -63,14 +63,14 @@
                                 "name": "Window02",
                                 "type": "window",
                                 "is_iot": true,
-                                "state": "closed"
+                                "state": "open"
                             },
                             {
                                 "id": "Clim01",
                                 "name": "Clim01",
                                 "type": "ventilation",
                                 "is_iot": true,
-                                "state": "on"
+                                "state": "off"
                             },
                             {
                                 "id": "Radiator01",
@@ -84,7 +84,7 @@
                                 "name": "Door01",
                                 "type": "door",
                                 "is_iot": true,
-                                "state": "open"
+                                "state": "closed"
                             },
                             {
                                 "id": "Purifier01",

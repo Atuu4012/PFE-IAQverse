@@ -130,12 +130,6 @@ async function fetchAndDisplayGlobalPreventiveActions() {
                 const cachedData = JSON.parse(cached);
                 displayGlobalPreventiveActions(cachedData);
                 
-                // Ajouter un badge discret pour indiquer utilisation du cache
-                const badge = document.createElement('div');
-                badge.style.cssText = 'font-size: 11px; color: #999; text-align: center; margin-top: 10px;';
-                badge.textContent = '📦 Données en cache';
-                container.appendChild(badge);
-                
                 console.info('[preventive-global] Using cached data after error');
             } catch (e) {
                 console.error('[preventive-global] Failed to parse cache:', e);

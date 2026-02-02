@@ -2242,23 +2242,31 @@ const keysPressed = {
 };
 
 let bobbingPhase = 0;
-const WALK_SPEED = 0.04; // Vitesse de marche normale
-const RUN_SPEED = 0.07; // Vitesse courir
-const CROUCH_SPEED = 0.02; // Vitesse accroupi
+const WALK_SPEED = 2.5; // Vitesse de marche (m/s)
+const RUN_SPEED = 4.5; // Vitesse de course
+const CROUCH_SPEED = 1.5; // Vitesse accroupi
 
-const BOBBING_SPEED = 0.15;
-const BOBBING_AMOUNT = 0.015;
+const BOBBING_SPEED = 10.0;
+const BOBBING_AMOUNT = 0.03 ;
 
 // Variables physiques
 let verticalVelocity = 0;
 let isGrounded = true;
-const GRAVITY = 0.008;
-const JUMP_FORCE = 0.10;
+const GRAVITY = 25.0; // m/s^2
+const JUMP_FORCE = 6.0; // m/s (Impulse)
 const PLAYER_HEIGHT_STANDING = 1.7; // Hauteur des yeux debout
 const PLAYER_HEIGHT_CROUCHING = 1.2; // Hauteur des yeux accroupi
 let currentPlayerHeight = PLAYER_HEIGHT_STANDING; // Hauteur actuelle (lissée)
+let currentBobOffset = 0; // Offset visuel pour le head bobbing
 
-function updateMovement() {
+function updateMovement(delta) {
+  // Limiter delta pour éviter les mouvements brusques
+  delta = Math.min(delta, 0.1);
+
+  // 1. DÉTACHER l'offset visuel (bobbing) pour faire la physique sur la position réelle
+  camera.position.y -= currentBobOffset;
+  controls.target.y -= currentBobOffset;
+
   // Vérification de toutes les touches
   const moveForward = keysPressed.ArrowUp || keysPressed.z || keysPressed.Z;
   const moveBackward = keysPressed.ArrowDown || keysPressed.s || keysPressed.S;
@@ -2269,8 +2277,9 @@ function updateMovement() {
 
   // Gestion de la hauteur (Accroupi / Debout)
   const targetHeight = doCrouch ? PLAYER_HEIGHT_CROUCHING : PLAYER_HEIGHT_STANDING;
-  // Lissage de la transition accroupi (Lerp)
-  currentPlayerHeight += (targetHeight - currentPlayerHeight) * 0.15;
+  // Lissage de la transition accroupi (Lerp time-based)
+  const heightFactor = Math.min(10.0 * delta, 1.0);
+  currentPlayerHeight += (targetHeight - currentPlayerHeight) * heightFactor;
 
   // Gestion du saut
   if (doJump && isGrounded && !doCrouch) {
@@ -2280,7 +2289,7 @@ function updateMovement() {
 
   // Application de la gravité
   if (!isGrounded) {
-    verticalVelocity -= GRAVITY;
+    verticalVelocity -= GRAVITY * delta;
   }
   
   // Test sol simple (On suppose le sol à Y=0 pour l'instant, ou on fait un raycast vers le bas)
@@ -2319,7 +2328,8 @@ function updateMovement() {
   // Vérification atterrissage
   // La position Y de la caméra = Sol + Hauteur Joueur + Saut
   // On calcule où on devrait être
-  let newCameraY = camera.position.y + verticalVelocity;
+  const displacementY = verticalVelocity * delta;
+  let newCameraY = camera.position.y + displacementY;
   
   // Si on est en train de toucher le sol (ou passer dessous)
   const targetY = floorY + currentPlayerHeight;
@@ -2339,90 +2349,100 @@ function updateMovement() {
   camera.position.y += deltaY;
   controls.target.y += deltaY;
 
-  
+  // RE-CALCUL DU BOBBING (Sera appliqué à la fin)
+  let isMoving = false; // Flag pour savoir si on applique le bobbing
+
   if (!moveForward && !moveBackward && !moveLeft && !moveRight) {
-    return;
-  }
+     // Pas de mouvement clavier
+  } else {
+    // Obtenir la direction de la caméra
+    const forward = new THREE.Vector3();
+    camera.getWorldDirection(forward);
+    forward.y = 0; // On reste sur le plan horizontal
+    forward.normalize();
+    
+    const right = new THREE.Vector3();
+    right.crossVectors(forward, camera.up).normalize();
+    
+    const moveVector = new THREE.Vector3(0, 0, 0);
+    
+    if (moveForward) moveVector.add(forward);
+    if (moveBackward) moveVector.sub(forward);
+    if (moveRight) moveVector.add(right);
+    if (moveLeft) moveVector.sub(right);
+    
+    // Normaliser pour éviter d'aller plus vite en diagonale
+    if (moveVector.lengthSq() > 0) {
+        // Direction pour le raycast
+        const direction = moveVector.clone().normalize();
+        
+        // Vitesse adaptée (accroupi vs debout)
+        const currentSpeed = doCrouch ? CROUCH_SPEED : WALK_SPEED;
+        moveVector.normalize().multiplyScalar(currentSpeed * delta);
+        
+        // Détection de collision AMÉLIORÉE (3 rayons : Centre, Gauche, Droite)
+        let blocked = false;
+        if (modelRoot) {
+            const raycaster = new THREE.Raycaster();
+            const p = camera.position.clone();
+            // On abaisse un peu le point de départ du rayon (taille/hanche) pour mieux détecter les meubles
+            p.y -= 0.5; 
+            
+            raycaster.far = 0.5; // Distance de collision proche (50cm)
 
-  // Obtenir la direction de la caméra
-  const forward = new THREE.Vector3();
-  camera.getWorldDirection(forward);
-  forward.y = 0; // On reste sur le plan horizontal
-  forward.normalize();
-  
-  const right = new THREE.Vector3();
-  right.crossVectors(forward, camera.up).normalize();
-  
-  const moveVector = new THREE.Vector3(0, 0, 0);
-  
-  if (moveForward) moveVector.add(forward);
-  if (moveBackward) moveVector.sub(forward);
-  if (moveRight) moveVector.add(right);
-  if (moveLeft) moveVector.sub(right);
-  
-  // Normaliser pour éviter d'aller plus vite en diagonale
-  if (moveVector.lengthSq() > 0) {
-      // Direction pour le raycast
-      const direction = moveVector.clone().normalize();
-      
-      // Vitesse adaptée (accroupi vs debout)
-      const currentSpeed = doCrouch ? CROUCH_SPEED : WALK_SPEED;
-      moveVector.normalize().multiplyScalar(currentSpeed);
-      
-      // Détection de collision AMÉLIORÉE (3 rayons : Centre, Gauche, Droite)
-      let blocked = false;
-      if (modelRoot) {
-          const raycaster = new THREE.Raycaster();
-          const p = camera.position.clone();
-          // On abaisse un peu le point de départ du rayon (taille/hanche) pour mieux détecter les meubles
-          p.y -= 0.5; 
-          
-          raycaster.far = 0.5; // Distance de collision proche (50cm)
-
-          // 1. Rayon Central
-          raycaster.set(p, direction);
-          let intersects = raycaster.intersectObject(modelRoot, true);
-          if (intersects.some(hit => hit.object.isMesh && hit.object.visible && hit.distance < 0.5)) {
-              blocked = true;
-          }
-
-          // 2. Rayon Gauche (épaule gauche)
-          if (!blocked) {
-            const leftDir = direction.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4);
-            raycaster.set(p, leftDir);
-            intersects = raycaster.intersectObject(modelRoot, true);
+            // 1. Rayon Central
+            raycaster.set(p, direction);
+            let intersects = raycaster.intersectObject(modelRoot, true);
             if (intersects.some(hit => hit.object.isMesh && hit.object.visible && hit.distance < 0.5)) {
                 blocked = true;
             }
-          }
 
-          // 3. Rayon Droite (épaule droite)
-          if (!blocked) {
-            const rightDir = direction.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 4);
-            raycaster.set(p, rightDir);
-            intersects = raycaster.intersectObject(modelRoot, true);
-            if (intersects.some(hit => hit.object.isMesh && hit.object.visible && hit.distance < 0.5)) {
-                blocked = true;
+            // 2. Rayon Gauche (épaule gauche)
+            if (!blocked) {
+              const leftDir = direction.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4);
+              raycaster.set(p, leftDir);
+              intersects = raycaster.intersectObject(modelRoot, true);
+              if (intersects.some(hit => hit.object.isMesh && hit.object.visible && hit.distance < 0.5)) {
+                  blocked = true;
+              }
             }
-          }
-      }
-      
-      if (!blocked) {
-          camera.position.add(moveVector);
-          controls.target.add(moveVector);
-          
-          // Effet de marche (Head Bobbing) - Désactivé si en l'air
-          if (isGrounded) {
-             const oldBob = Math.sin(bobbingPhase) * BOBBING_AMOUNT;
-             bobbingPhase += BOBBING_SPEED;
-             const newBob = Math.sin(bobbingPhase) * BOBBING_AMOUNT;
-             const bobDelta = newBob - oldBob;
-             
-             camera.position.y += bobDelta;
-             controls.target.y += bobDelta;
-          }
+
+            // 3. Rayon Droite (épaule droite)
+            if (!blocked) {
+              const rightDir = direction.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 4);
+              raycaster.set(p, rightDir);
+              intersects = raycaster.intersectObject(modelRoot, true);
+              if (intersects.some(hit => hit.object.isMesh && hit.object.visible && hit.distance < 0.5)) {
+                  blocked = true;
+              }
+            }
+        }
+        
+        if (!blocked) {
+            camera.position.add(moveVector);
+            controls.target.add(moveVector);
+            isMoving = true;
+        }
+    }
+  }
+
+  // 2. Update du Bobbing Phase et calcul du nouvel offset
+  if (isGrounded && isMoving) {
+      bobbingPhase += BOBBING_SPEED * delta;
+      currentBobOffset = Math.sin(bobbingPhase) * BOBBING_AMOUNT;
+  } else {
+      // Retour doux à 0 si on s'arrête
+      if (Math.abs(currentBobOffset) > 0.001) {
+          currentBobOffset *= 0.8; // Decay rapide
+      } else {
+          currentBobOffset = 0;
+          if (!isMoving) bobbingPhase = 0; // Reset phase quand totalement arrêté
       }
   }
+
+  // 3. RÉ-APPLIQUER le Bobbing sur la position "physique" finale
+  camera.position.y += currentBobOffset;
+  controls.target.y += currentBobOffset;
 }
 
 // Fonction de collision universelle (empêche de traverser en tournant ou reculant)
@@ -2530,9 +2550,12 @@ function preventCameraClipping() {
 }
 
 // Animation loop
+const clock = new THREE.Clock();
+
 function animate() {
   requestAnimationFrame(animate);
-  updateMovement(); // Appliquer les mouvements fluides
+  const delta = clock.getDelta();
+  updateMovement(delta); // Appliquer les mouvements fluides avec delta time
   controls.update();
   enforceWallCollision(); // NOUVEAU: Empêche de rester coincé dans un mur après rotation
   preventCameraClipping(); // Empêcher la caméra de traverser les murs en reculant/zoomant

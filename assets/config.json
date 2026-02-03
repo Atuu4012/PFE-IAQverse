@@ -21,7 +21,7 @@
         "adresse": "20 boulevard du Syndicat"
     },
     "affichage": {
-        "mode": "Sombre",
+        "mode": "Clair",
         "langue": "fr",
         "localisation": "Europe, Paris",
         "lastSection": "lieux"
@@ -127,6 +127,13 @@
                                 "type": "window",
                                 "is_iot": true,
                                 "state": "closed"
+                            },
+                            {
+                                "id": "Clim_01001",
+                                "name": "Clim 01001",
+                                "type": "ventilation",
+                                "is_iot": true,
+                                "state": "on"
                             }
                         ]
                     }

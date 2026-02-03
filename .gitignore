@@ -36,3 +36,6 @@ Thumbs.db
 
 # Config.json
 assets/config.json
+
+# ml flow
+backend/dl/mlflow_data/

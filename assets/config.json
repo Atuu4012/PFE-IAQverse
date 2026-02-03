@@ -63,7 +63,7 @@
                                 "name": "Window02",
                                 "type": "window",
                                 "is_iot": true,
-                                "state": "open"
+                                "state": "closed"
                             },
                             {
                                 "id": "Clim01",

@@ -1,1 +1,1 @@
-{"model_type": "lstm", "features": ["co2", "pm25", "tvoc", "temperature", "humidity", "occupants", "hour_sin", "hour_cos", "day_sin", "day_cos"], "targets": ["co2", "pm25", "tvoc", "temperature", "humidity"], "lookback": 144, "horizon": 6}
+{"model_type": "lstm", "features": ["co2", "pm25", "tvoc", "temperature", "humidity", "occupants", "hour_sin", "hour_cos", "day_sin", "day_cos"], "targets": ["co2", "pm25", "tvoc", "temperature", "humidity"], "lookback": 72, "horizon": 6}

@@ -35,7 +35,7 @@ def run_training(with_influxdb=True):
     """Lance le script d'entraînement ml_train.py"""
     try:
         logger.info("="*70)
-        logger.info(f"🚀 DÉMARRAGE RÉENTRAÎNEMENT - {datetime.now()}")
+        logger.info(f"DÉMARRAGE RÉENTRAÎNEMENT - {datetime.now()}")
         logger.info("="*70)
         
         # Chemin du script d'entraînement (Nouvelle version LSTM + MLOps)
@@ -48,18 +48,18 @@ def run_training(with_influxdb=True):
             script_path = Path(__file__).parent.parent / "ml" / "ml_train.py"
         
         if not script_path.exists():
-            logger.error(f"❌ Aucun script d'entraînement trouvé")
+            logger.error(f"Aucun script d'entraînement trouvé")
             return False
         
         # Commande d'exécution
         # Utilisation de 'python' directement car il est dans le PATH
-        cmd = ["python", "/app/backend/dl/ml_train_lstm.py", "--trials", "10", "--epochs", "20"]
+        cmd = ["python", "/app/backend/dl/ml_train_lstm.py", "--trials", "2", "--epochs", "20"]
         
         # Le nouveau script LSTM utilise des variables d'env, pas d'arguments
         if with_influxdb and "ml_train_lstm.py" not in str(script_path):
             cmd.append("--with-influxdb")
         
-        logger.info(f"📋 Commande: {' '.join(cmd)}")
+        logger.info(f"Commande: {' '.join(cmd)}")
         
         # Exécuter le script avec streaming des logs en temps réel
         with subprocess.Popen(
@@ -80,32 +80,29 @@ def run_training(with_influxdb=True):
             
             # Vérifier le code de retour
             if process.returncode == 0:
-                logger.info("✅ RÉENTRAÎNEMENT RÉUSSI!")
+                logger.info("RÉENTRAÎNEMENT RÉUSSI!")
                 return True
             else:
-                logger.error(f"❌ RÉENTRAÎNEMENT ÉCHOUÉ (code {process.returncode})")
+                logger.error(f"RÉENTRAÎNEMENT ÉCHOUÉ (code {process.returncode})")
                 return False
             
-    except subprocess.TimeoutExpired:
-        logger.error("❌ TIMEOUT: Réentraînement dépassé 100 minutes")
-        return False
     except Exception as e:
-        logger.error(f"❌ ERREUR: {e}", exc_info=True)
+        logger.error(f"ERREUR: {e}", exc_info=True)
         return False
 
 
 def job_wrapper(with_influxdb=True):
     """Wrapper pour le job schedulé"""
     logger.info("\n" + "="*70)
-    logger.info("⏰ DÉCLENCHEMENT RÉENTRAÎNEMENT PROGRAMMÉ")
+    logger.info("DÉCLENCHEMENT RÉENTRAÎNEMENT PROGRAMMÉ")
     logger.info("="*70)
     
     success = run_training(with_influxdb=with_influxdb)
     
     if success:
-        logger.info("🎉 Job terminé avec succès")
+        logger.info("Job terminé avec succès")
     else:
-        logger.error("💥 Job terminé avec erreur")
+        logger.error("Job terminé avec erreur")
     
     logger.info("="*70 + "\n")
 
@@ -141,16 +138,16 @@ def main():
     use_influxdb = not args.no_influxdb
     
     logger.info("="*70)
-    logger.info("🤖 SCHEDULER DE RÉENTRAÎNEMENT ML IAQ")
+    logger.info("SCHEDULER DE RÉENTRAÎNEMENT ML/DL IAQ")
     logger.info("="*70)
-    logger.info(f"📅 Intervalle: {args.interval_minutes or args.interval} {'minutes' if args.interval_minutes else 'heures'}")
-    logger.info(f"💾 InfluxDB: {'✅ Activé' if use_influxdb else '❌ Désactivé (CSV seulement)'}")
-    logger.info(f"▶️  Exécution immédiate: {'Oui' if args.run_now else 'Non'}")
+    logger.info(f"Intervalle: {args.interval_minutes or args.interval} {'minutes' if args.interval_minutes else 'heures'}")
+    logger.info(f"InfluxDB: {'Activé' if use_influxdb else 'Désactivé (CSV seulement)'}")
+    logger.info(f"Exécution immédiate: {'Oui' if args.run_now else 'Non'}")
     logger.info("="*70 + "\n")
     
     # Exécuter immédiatement si demandé
     if args.run_now:
-        logger.info("▶️  Exécution immédiate demandée...")
+        logger.info("Exécution immédiate demandée...")
         run_training(with_influxdb=use_influxdb)
         logger.info("")
     
@@ -160,16 +157,16 @@ def main():
             job_wrapper, 
             with_influxdb=use_influxdb
         )
-        logger.info(f"⏰ Prochain réentraînement dans {args.interval_minutes} minutes")
+        logger.info(f"Prochain réentraînement dans {args.interval_minutes} minutes")
     else:
         schedule.every(args.interval).hours.do(
             job_wrapper,
             with_influxdb=use_influxdb
         )
-        logger.info(f"⏰ Prochain réentraînement dans {args.interval} heures")
+        logger.info(f"Prochain réentraînement dans {args.interval} heures")
     
     # Boucle principale
-    logger.info("🔄 Scheduler démarré. Appuyez sur Ctrl+C pour arrêter.\n")
+    logger.info("Scheduler démarré. Appuyez sur Ctrl+C pour arrêter.\n")
     
     try:
         while True:
@@ -177,8 +174,8 @@ def main():
             time.sleep(60)  # Vérifier toutes les 60 secondes
             
     except KeyboardInterrupt:
-        logger.info("\n⏹️  Arrêt du scheduler demandé")
-        logger.info("👋 Scheduler arrêté proprement")
+        logger.info("\nArrêt du scheduler demandé")
+        logger.info("Scheduler arrêté proprement")
 
 
 if __name__ == "__main__":

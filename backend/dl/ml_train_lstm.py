@@ -10,7 +10,7 @@ Ce script :
 Usage:
     python ml_train_lstm.py --trials 10 --epochs 20
 ou via Docker:
-    docker exec -it iaqverse-ml-scheduler python /app/backend/ml/ml_train_lstm.py --trials 10 --epochs 20
+    docker exec -it iaqverse-ml-scheduler python /app/backend/dl/ml_train_lstm.py --trials 10 --epochs 20
 """
 
 
@@ -28,8 +28,11 @@ import numpy as np
 import optuna
 import pandas as pd
 import requests
+import seaborn as sns
 import tensorflow as tf
 from optuna.integration.mlflow import MLflowCallback  # noqa: F401
+from scipy.stats import pearsonr
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Input
@@ -57,7 +60,7 @@ TARGETS = ["co2", "pm25", "tvoc", "temperature", "humidity"]
 MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
 mlflow.set_tracking_uri(MLFLOW_URI)
 
-# Gestion robuste de l'expérience MLflow (création ou récupération)
+
 experiment_name = "IAQ_LSTM_Prediction"
 try:
     # Créer l'expérience si elle n'existe pas
@@ -65,10 +68,8 @@ try:
         mlflow.create_experiment(experiment_name)
     # Définir l'expérience active
     mlflow.set_experiment(experiment_name)
-except Exception as e:
-    logger.warning(f"Erreur init expérience '{experiment_name}': {e}. Fallback sur expérience par défaut.")
+except Exception as e: logger.warning(f"Erreur init expérience '{experiment_name}': {e}. Fallback sur expérience par défaut.")
 
-# Callback pour l'intégration Optuna -> MLflow (importé pour usage futur)
 
 def load_data(csv_path):
     """Charge et nettoie les données (CSV + API si dispo)"""
@@ -90,7 +91,7 @@ def load_data(csv_path):
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
     
     # 2. (Optionnel) Récupérer nouvelles données API et fusionner AVANT le traitement
-    api_url = os.getenv("API_URL", "http://localhost:8000/api/iaq/data?hours=72")
+    api_url = os.getenv("API_URL", f"http://localhost:8000/api/iaq/data?hours={LOOKBACK_STEPS * 5 / 60}")
     try:
         resp = requests.get(api_url, timeout=5)
         if resp.status_code == 200:
@@ -109,12 +110,11 @@ def load_data(csv_path):
     df = df.sort_values("timestamp")
     
     # --- Feature Engineering (Temporel) ---
-    # L'heure est capitale pour la qualité de l'air (bureaux ouverts/fermés, nuit/jour)
     # On utilise sin/cos pour préserver la cyclicité (23h est proche de 00h)
     df['hour_sin'] = np.sin(2 * np.pi * df['timestamp'].dt.hour / 24)
     df['hour_cos'] = np.cos(2 * np.pi * df['timestamp'].dt.hour / 24)
     
-    # Le jour de la semaine est aussi important (Week-end vs Semaine)
+    # Le jour de la semaine aussi (Week-end vs Semaine)
     df['day_sin'] = np.sin(2 * np.pi * df['timestamp'].dt.dayofweek / 7)
     df['day_cos'] = np.cos(2 * np.pi * df['timestamp'].dt.dayofweek / 7)
 
@@ -127,8 +127,7 @@ def load_data(csv_path):
     if 'occupants' not in df.columns:
         logger.warning("'occupants' column missing, filling with 0")
         df['occupants'] = 0.0
-    else:
-        df['occupants'] = df['occupants'].fillna(0)
+    else: df['occupants'] = df['occupants'].fillna(0)
 
     # Nettoyage final des NaNs
     df = df.dropna(subset=FEATURES)
@@ -149,8 +148,7 @@ def create_sequences(data, n_steps_in, n_steps_out):
     """Transforme une série temporelle en échantillons [X, y] pour LSTM"""
     X, y = [], []
     # Convertir en numpy array si ce n'est pas déjà le cas
-    if isinstance(data, pd.DataFrame):
-        data = data.values
+    if isinstance(data, pd.DataFrame): data = data.values
         
     for i in range(len(data)):
         # Fin de la séquence d'entrée
@@ -158,12 +156,10 @@ def create_sequences(data, n_steps_in, n_steps_out):
         # Fin de la séquence de sortie (prédiction)
         out_end_ix = end_ix + n_steps_out
         
-        if out_end_ix > len(data):
-            break
+        if out_end_ix > len(data): break
             
         seq_x = data[i:end_ix, :] # Tous les features
-        # On suppose que les targets sont les 3 premières colonnes (CO2, PM2.5, TVOC)
-        # Il faut s'assurer que l'ordre des colonnes correspond bien !
+        # Il faut s'assurer que l'ordre des colonnes correspond bien
         seq_y = data[end_ix:out_end_ix, 0:len(TARGETS)] 
         
         X.append(seq_x)
@@ -176,8 +172,7 @@ def train_best_model(csv_path, n_trials=10, n_epochs=20):
     
     # --- 1. Préparation des Données ---
     df = load_data(csv_path)
-    if df is None:
-        return  # Erreur déjà loguée
+    if df is None: return
         
     if len(df) < 200:
         logger.error(f"Pas assez de données pour entraîner ({len(df)} lignes)")
@@ -211,7 +206,7 @@ def train_best_model(csv_path, n_trials=10, n_epochs=20):
         X = X[valid_idx]
         y = y[valid_idx]
     
-    # Split Train/Test (pas de shuffle pour séries temporelles !)
+    # Split Train/Test (pas de shuffle pour séries temporelles)
     split_idx = int(len(X) * 0.8)
     X_train, X_test = X[:split_idx], X[split_idx:]
     y_train, y_test = y[:split_idx], y[split_idx:]
@@ -250,8 +245,6 @@ def train_best_model(csv_path, n_trials=10, n_epochs=20):
                 model.add(Dropout(dropout_rate))
             
             # --- Modification architecture pour sortie multi-steps ---
-            # Au lieu de Reshape, on utilise Dense directement pour mapper l'état caché final 
-            # vers l'ensemble des points futurs d'un coup.
             model.add(Dense(HORIZON_STEPS * len(TARGETS)))
             model.add(tf.keras.layers.Reshape((HORIZON_STEPS, len(TARGETS))))
 
@@ -268,10 +261,10 @@ def train_best_model(csv_path, n_trials=10, n_epochs=20):
                 history = model.fit(
                     X_train, 
                     y_train, 
-                    epochs=10, # Peu d'epochs pour la recherche
+                    epochs=8, # Peu d'epochs pour la recherche
                     batch_size=32,
                     validation_data=(X_test, y_test),
-                    verbose=0
+                    verbose=1
                 )
                 
                 val_loss = history.history['val_loss'][-1]
@@ -296,6 +289,7 @@ def train_best_model(csv_path, n_trials=10, n_epochs=20):
                 logger.warning(f"Trial failed: {e}")
                 return float("inf")
 
+
     # --- 3. Lancer l'optimisation ---
     logger.info("Début de l'optimisation des hyperparamètres...")
     
@@ -314,6 +308,8 @@ def train_best_model(csv_path, n_trials=10, n_epochs=20):
     # S'assurer qu'aucun run n'est actif
     if mlflow.active_run():
         mlflow.end_run()
+        
+        
         
     with mlflow.start_run(run_name="Best_Model_Training") as run:
         # Log params
@@ -372,6 +368,73 @@ def train_best_model(csv_path, n_trials=10, n_epochs=20):
         mlflow.log_metric("final_train_loss", loss)
         mlflow.log_metric("final_val_loss", val_loss)
         
+        # --- Métriques détaillées et corrélations ---
+        y_pred_full = model.predict(X_test)
+        
+        # Dénormalisation pour calculs métier
+        y_test_denorm = np.zeros_like(y_test)
+        y_pred_denorm = np.zeros_like(y_pred_full)
+        
+        for i, target_name in enumerate(TARGETS):
+            try:
+                feat_idx = FEATURES.index(target_name)
+                data_min = scaler.data_min_[feat_idx]
+                data_range = scaler.data_range_[feat_idx]
+                
+                y_test_denorm[:, :, i] = y_test[:, :, i] * data_range + data_min
+                y_pred_denorm[:, :, i] = y_pred_full[:, :, i] * data_range + data_min
+            except ValueError:
+                y_test_denorm[:, :, i] = y_test[:, :, i]
+                y_pred_denorm[:, :, i] = y_pred_full[:, :, i]
+        
+        # 1. Métriques par target (horizon t+6 = 30min)
+        horizon_idx = min(5, HORIZON_STEPS - 1)
+        for i, target_name in enumerate(TARGETS):
+            y_true = y_test_denorm[:, horizon_idx, i]
+            y_pred = y_pred_denorm[:, horizon_idx, i]
+            
+            mae = mean_absolute_error(y_true, y_pred)
+            rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+            r2 = r2_score(y_true, y_pred)
+            corr, _ = pearsonr(y_true, y_pred)
+            
+            # MAPE (si valeurs > 0)
+            mask = y_true > 0
+            mape = np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100 if mask.sum() > 0 else 0
+            
+            # Directional accuracy (bon sens de variation)
+            if len(y_true) > 1:
+                true_direction = np.diff(y_true) > 0
+                pred_direction = np.diff(y_pred) > 0
+                dir_acc = np.mean(true_direction == pred_direction) * 100
+            else:
+                dir_acc = 0
+            
+            mlflow.log_metric(f"{target_name}_mae_t+30min", mae)
+            mlflow.log_metric(f"{target_name}_rmse_t+30min", rmse)
+            mlflow.log_metric(f"{target_name}_r2_t+30min", r2)
+            mlflow.log_metric(f"{target_name}_correlation_t+30min", corr)
+            mlflow.log_metric(f"{target_name}_mape_t+30min", mape)
+            mlflow.log_metric(f"{target_name}_directional_accuracy", dir_acc)
+        
+        # 2. Métriques par horizon (moyenne sur tous les targets)
+        for h in range(HORIZON_STEPS):
+            corr_horizon = []
+            mae_horizon = []
+            
+            for i in range(len(TARGETS)):
+                y_true = y_test_denorm[:, h, i]
+                y_pred = y_pred_denorm[:, h, i]
+                
+                corr, _ = pearsonr(y_true, y_pred)
+                mae = mean_absolute_error(y_true, y_pred)
+                
+                corr_horizon.append(corr)
+                mae_horizon.append(mae)
+            
+            mlflow.log_metric(f"avg_correlation_t+{(h+1)*5}min", np.mean(corr_horizon))
+            mlflow.log_metric(f"avg_mae_t+{(h+1)*5}min", np.mean(mae_horizon))
+        
         # --- Génération de graphiques ---
         # 1. Courbe de Loss
         plt.figure(figsize=(10, 6))
@@ -385,9 +448,104 @@ def train_best_model(csv_path, n_trials=10, n_epochs=20):
         plt.close()
         mlflow.log_artifact("loss_curve.png")
 
-        # 2. Exemple de Prédiction (Sur données normalisées)
+        # 2. Courbe de dégradation par horizon
+        horizons = [f"t+{(h+1)*5}min" for h in range(HORIZON_STEPS)]
+        avg_corr_by_horizon = []
+        avg_mae_by_horizon = []
+        
+        for h in range(HORIZON_STEPS):
+            corr_list = []
+            mae_list = []
+            for i in range(len(TARGETS)):
+                y_true = y_test_denorm[:, h, i]
+                y_pred = y_pred_denorm[:, h, i]
+                corr, _ = pearsonr(y_true, y_pred)
+                mae = mean_absolute_error(y_true, y_pred)
+                corr_list.append(corr)
+                mae_list.append(mae)
+            avg_corr_by_horizon.append(np.mean(corr_list))
+            avg_mae_by_horizon.append(np.mean(mae_list))
+        
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+        
+        ax1.plot(horizons, avg_corr_by_horizon, marker='o', linewidth=2, markersize=8, color='#2ecc71')
+        ax1.set_title("Corrélation moyenne par horizon", fontsize=12, fontweight='bold')
+        ax1.set_xlabel("Horizon de prédiction")
+        ax1.set_ylabel("Corrélation de Pearson")
+        ax1.grid(True, alpha=0.3)
+        ax1.set_ylim([0, 1])
+        
+        ax2.plot(horizons, avg_mae_by_horizon, marker='s', linewidth=2, markersize=8, color='#e74c3c')
+        ax2.set_title("MAE moyenne par horizon", fontsize=12, fontweight='bold')
+        ax2.set_xlabel("Horizon de prédiction")
+        ax2.set_ylabel("MAE (dénormalisée)")
+        ax2.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        plt.savefig("horizon_degradation.png", dpi=150)
+        plt.close()
+        mlflow.log_artifact("horizon_degradation.png")
+
+        # 3. Scatter plots par target (t+30min)
+        fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+        axes = axes.flatten()
+        
+        for i, target_name in enumerate(TARGETS):
+            ax = axes[i]
+            y_true = y_test_denorm[:, horizon_idx, i]
+            y_pred = y_pred_denorm[:, horizon_idx, i]
+            
+            corr, _ = pearsonr(y_true, y_pred)
+            r2 = r2_score(y_true, y_pred)
+            
+            ax.scatter(y_true, y_pred, alpha=0.5, s=10, color='#3498db')
+            
+            # Ligne de référence y=x
+            lims = [min(y_true.min(), y_pred.min()), max(y_true.max(), y_pred.max())]
+            ax.plot(lims, lims, 'r--', alpha=0.5, linewidth=2, label='Prédiction parfaite')
+            
+            ax.set_xlabel(f'{target_name} Réel')
+            ax.set_ylabel(f'{target_name} Prédit')
+            ax.set_title(f'{target_name} - r={corr:.3f}, R²={r2:.3f}')
+            ax.legend()
+            ax.grid(True, alpha=0.3)
+        
+        # Cacher l'axe inutilisé
+        axes[-1].axis('off')
+        
+        plt.tight_layout()
+        plt.savefig("scatter_plots.png", dpi=150)
+        plt.close()
+        mlflow.log_artifact("scatter_plots.png")
+
+        # 4. Distribution des erreurs (Histogramme)
+        fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+        axes = axes.flatten()
+        
+        for i, target_name in enumerate(TARGETS):
+            ax = axes[i]
+            y_true = y_test_denorm[:, horizon_idx, i]
+            y_pred = y_pred_denorm[:, horizon_idx, i]
+            errors = y_true - y_pred
+            
+            ax.hist(errors, bins=50, alpha=0.7, color='#9b59b6', edgecolor='black')
+            ax.axvline(0, color='red', linestyle='--', linewidth=2, label='Erreur nulle')
+            ax.set_xlabel('Erreur (Réel - Prédit)')
+            ax.set_ylabel('Fréquence')
+            ax.set_title(f'{target_name} - Distribution des erreurs\nMoyenne: {errors.mean():.2f}, Std: {errors.std():.2f}')
+            ax.legend()
+            ax.grid(True, alpha=0.3, axis='y')
+        
+        axes[-1].axis('off')
+        
+        plt.tight_layout()
+        plt.savefig("error_distribution.png", dpi=150)
+        plt.close()
+        mlflow.log_artifact("error_distribution.png")
+
+        # 5. Exemple de Prédiction (Sur données normalisées)
         # On prédit sur tout le X_test pour avoir de la matière
-        y_pred = model.predict(X_test)
+        # y_pred déjà calculé plus haut
         
         # Création d'une figure avec 1 colonne (Superposition) et N lignes (targets)
         num_targets = len(TARGETS)
@@ -412,8 +570,8 @@ def train_best_model(csv_path, n_trials=10, n_epochs=20):
             # Horizon 30 min (Index 5)
             step_30 = 5
             if step_30 < HORIZON_STEPS:
-                y_test_30 = y_test[:200, step_30, i] * data_range + data_min
-                y_pred_30 = y_pred[:200, step_30, i] * data_range + data_min
+                y_test_30 = y_test_denorm[:200, step_30, i]
+                y_pred_30 = y_pred_denorm[:200, step_30, i]
                 
                 ax.plot(y_test_30, label='Réel (t+30m)', color='#1f77b4', linewidth=1.5, alpha=0.7)
                 ax.plot(y_pred_30, label='Prédit (t+30m)', color='#ff7f0e', linewidth=2)

@@ -201,15 +201,15 @@ def get_auth_config():
 
 
 @router.get("/api/config/sensors")
-def get_sensors_config():
+def get_sensors_config(user_id: str = Depends(get_current_user_id)):
     """
-    Retourne la liste des capteurs configurés. debug only.
-    Extrait automatiquement depuis config.json.
+    Retourne la liste des capteurs configurés.
+    Extrait depuis la configuration utilisateur.
     """
     try:
-        config = load_config()
+        config = load_user_config(user_id)
         if config is None:
-            raise HTTPException(status_code=500, detail="Impossible de charger la configuration")
+             config = {} # Config vide
         
         sensors = extract_sensors_from_config(config)
         
@@ -355,7 +355,7 @@ async def update_module_state(update_data: Dict, user_id: str = Depends(get_curr
         # Utilisez load_user_config au lieu de load_config
         config = load_user_config(user_id) 
         if not config:
-            config = load_config() # Fallback
+            raise HTTPException(status_code=404, detail="Configuration utilisateur non trouvée")
 
         enseigne_id = update_data.get("enseigne_id")
         piece_id = update_data.get("piece_id")

@@ -41,6 +41,8 @@ services:
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-iaq_data}
       - WEBSOCKET_ENABLED=${WEBSOCKET_ENABLED:-true}
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
     depends_on:
       - influxdb
       - mlflow

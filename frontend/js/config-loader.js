@@ -39,8 +39,7 @@ async function saveConfig(updates = null) {
     try {
         const token = await getAuthToken(); // Nouvelle ligne
         const headers = { 
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
+            'Content-Type': 'application/json'
         };
         // Injection du token
         if (token) headers['Authorization'] = `Bearer ${token}`; 

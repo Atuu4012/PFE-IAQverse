@@ -162,6 +162,11 @@ def run_simulation():
         try:
             config = load_config()
             
+            if not config:
+                logger.warning("No configuration available (load_config returned None). Simulation paused.")
+                time.sleep(60)
+                continue
+            
             points_batch = []
             
             if "lieux" in config and "enseignes" in config["lieux"]:

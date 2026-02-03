@@ -4,7 +4,7 @@ pydantic==2.12.3
 python-dotenv==1.0.0
 influxdb-client==1.45.0
 python-multipart==0.0.18
-websockets==14.1
+websockets>=11.0,<13.0
 pandas==2.3.3
 numpy==2.3.5
 scikit-learn==1.7.2

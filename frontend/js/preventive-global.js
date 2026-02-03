@@ -18,7 +18,20 @@ function buildReasonText(action, t) {
     }
     
     // Fallback vers l'ancien format si reason_key n'existe pas
-    return action.reason || '';
+    // Try to translate the raw reason text (backend may return a literal French sentence)
+    const raw = action.reason || '';
+    if (!raw) return '';
+    // First try actionVerbs mapping (we populate literal backend phrases there), then preventive.reasons
+    let translated = (t && t(`digitalTwin.actionVerbs.${raw}`)) || (t && t(`digitalTwin.preventive.reasons.${raw}`)) || raw;
+    // Replace params if present
+    if (action.reason_params) {
+        Object.keys(action.reason_params).forEach(key => {
+            const placeholder = `{${key}}`;
+            const value = action.reason_params[key];
+            translated = translated.replace(new RegExp(placeholder, 'g'), value);
+        });
+    }
+    return translated;
 }
 
 /**
@@ -68,8 +81,31 @@ async function fetchAndDisplayGlobalPreventiveActions() {
                         salle: salle.nom || 'Unknown'
                     });
                     
-                    const actionsResponse = await fetch(`${API_ENDPOINTS.preventiveActions}?${actionsParams}`);
-                    const actionsData = await actionsResponse.json();
+                    const headers = { 'ngrok-skip-browser-warning': 'true' };
+                    try {
+                        if (typeof getAuthToken === 'function') {
+                            const token = await getAuthToken();
+                            if (token) headers['Authorization'] = `Bearer ${token}`;
+                        }
+                    } catch(e){}
+
+                    const actionsResponse = await fetch(`${API_ENDPOINTS.preventiveActions}?${actionsParams}`, { headers });
+                    // Defensive: some responses may be HTML error pages (502/Bad Gateway from proxy)
+                    // Read as text first and try to parse JSON to avoid Uncaught SyntaxError
+                    let actionsData = null;
+                    const rawText = await actionsResponse.text();
+                    if (!actionsResponse.ok) {
+                        console.error(`[preventive-global] HTTP ${actionsResponse.status} fetching actions for ${enseigne.nom}/${salle.nom}:`, rawText.slice(0, 300));
+                        // create a placeholder error object so downstream code won't crash
+                        actionsData = { error: `HTTP ${actionsResponse.status}` };
+                    } else {
+                        try {
+                            actionsData = JSON.parse(rawText);
+                        } catch (e) {
+                            console.error(`[preventive-global] Invalid JSON response for ${enseigne.nom}/${salle.nom}:`, rawText.slice(0, 500));
+                            actionsData = { error: 'invalid_json' };
+                        }
+                    }
                     
                     // Les actions préventives incluent maintenant le score prédit
                     if (!actionsData.error && actionsData.actions && actionsData.actions.length > 0) {
@@ -99,12 +135,6 @@ async function fetchAndDisplayGlobalPreventiveActions() {
             try {
                 const cachedData = JSON.parse(cached);
                 displayGlobalPreventiveActions(cachedData);
-                
-                // Ajouter un badge discret pour indiquer utilisation du cache
-                const badge = document.createElement('div');
-                badge.style.cssText = 'font-size: 11px; color: #999; text-align: center; margin-top: 10px;';
-                badge.textContent = '📦 Données en cache';
-                container.appendChild(badge);
                 
                 console.info('[preventive-global] Using cached data after error');
             } catch (e) {
@@ -144,9 +174,10 @@ function displayGlobalPreventiveActions(allRoomActions) {
     
     const deviceI18nMap = {
         'window': 'window',
+        'door': 'door',
         'ventilation': 'ventilation',
-        'air_conditioning': 'air_conditioning',
-        'radiator': 'radiator'
+        'radiator': 'radiator',
+        'air_purifier': 'air_purifier'
     };
     
     const actionI18nMap = {
@@ -174,9 +205,9 @@ function displayGlobalPreventiveActions(allRoomActions) {
                     </div>
                     <div class="preventive-room-location">${roomData.enseigne}</div>
                     <div class="preventive-room-count">
-                        ${actionsCount === 0 ? (t && t('digitalTwin.actionCount.zero')) || 'No actions' : 
-                          actionsCount === 1 ? (t && t('digitalTwin.actionCount.one')) || '1 action' : 
-                          ((t && t('digitalTwin.actionCount.multiple')) || '{{count}} actions').replace('{{count}}', actionsCount)}
+                            ${actionsCount === 0 ? (t && t('digitalTwin.actionCount.zero')) || 'No actions' : 
+                            actionsCount === 1 ? (t && t('digitalTwin.actionCount.one')) || '1 action' : 
+                            ((t && t('digitalTwin.actionCount.multiple')) || '{{count}} actions').replace('{{count}}', actionsCount)}
                     </div>
                 </div>
                 <div class="preventive-room-actions">
@@ -224,15 +255,14 @@ function displayGlobalPreventiveActions(allRoomActions) {
                             </div>
                             ${action.trend ? `<div class="preventive-value-trend">
                                 <span class="trend-indicator trend-${action.trend}">
-                                    ${action.trend === 'increasing' ? '📈' : action.trend === 'decreasing' ? '📉' : '➡️'}
-                                    ${action.trend === 'increasing' ? 'En augmentation' : action.trend === 'decreasing' ? 'En diminution' : 'Stable'}
+                                    ${action.trend === 'increasing' ? (t && t('digitalTwin.trend.increasing')) || 'En augmentation' : action.trend === 'decreasing' ? (t && t('digitalTwin.trend.decreasing')) || 'En diminution' : (t && t('digitalTwin.trend.stable')) || 'Stable'}
                                 </span>
                             </div>` : ''}
                             ${action.forecast_minutes ? `<div class="preventive-value-forecast">
-                                <span class="forecast-time">Prévision à ${action.forecast_minutes} minutes</span>
+                                <span class="forecast-time">${((t && t('digitalTwin.preventive.forecast')) || 'Prévision à {minutes} minutes').replace('{minutes}', action.forecast_minutes)}</span>
                             </div>` : ''}
                             ${action.is_ml_action ? `<div class="preventive-ml-badge">
-                                <span class="ml-indicator">🤖 Prédiction ML</span>
+                                <span class="ml-indicator">${(t && t('digitalTwin.preventive.mlPrediction')) || 'Prédiction ML'}</span>
                             </div>` : ''}
                         </div>
                     </div>

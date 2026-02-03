@@ -1,10 +1,21 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // Redirection immédiate si pas connecté
+    document.addEventListener('DOMContentLoaded', async () => {
+      const token = await getAuthToken();
+      if (!token) window.location.href = 'login.html';
+    });
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IAQverse</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="media.css">
+  <script src="js/disable-browser-shortcuts.js"></script>
   <script src="js/theme.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/i18n.js"></script>
@@ -13,37 +24,83 @@
   <script src="js/websocket-manager.js"></script>
   <script src="js/tabs-manager.js"></script>
   <script src="js/dashboard.js"></script>
+  <script src="js/global-alerts.js"></script>
+  <script src="js/simulate-alert.js"></script>
+  <script src="js/occupants-display.js"></script>
   <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
 </head>
+
 <body>
   <header>
-  <h1 data-i18n="dashboard.title">Dashboard</h1>
+    <nav class="header-nav">
+      <a href="#" onclick="return false;" class="active-page">
+        <img src="/assets/icons/home.png" alt="Home">
+      </a>
+      <a href="digital-twin.html">
+        <img src="/assets/icons/digital-twin.png" alt="Digital Twin">
+      </a>
+      <a href="settings.html">
+        <img src="/assets/icons/settings.png" alt="Settings">
+      </a>
+    </nav>
+    <h1 data-i18n="dashboard.title">Dashboard</h1>
     <div class="header-buttons">
-      <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer le thème">
+      <button class="theme-toggle-btn" onclick="toggleTheme()">
         <img src="/assets/icons/theme.png" alt="Thème">
       </button>
       <button class="info-btn" onclick="openModal()">
         <img src="/assets/icons/info.png">
       </button>
+      <a href="#" onclick="toggleAccountModal(); return false;" class="header-avatar-link">
+        <img id="header-avatar" src="/assets/icons/profil.png" alt="Avatar" class="header-avatar-img">
+      </a>
+    </div>
+
+    <!-- Account Modal -->
+    <div id="accountModal" class="account-modal">
+      <div class="account-header">
+        <span data-i18n="account.switch">Changer de compte</span>
+        <span class="close-account" onclick="toggleAccountModal()">&times;</span>
+      </div>
+      <ul class="account-list">
+        <li class="account-item active">
+          <img src="/assets/icons/profil.png" class="account-avatar-small">
+          <span data-i18n="account.currentUser">Utilisateur Actuel</span>
+        </li>
+        <li class="account-item">
+          <img src="/assets/icons/profil.png" class="account-avatar-small" style="filter: grayscale(1);">
+          <span data-i18n="account.otherAccount">Autre Compte</span>
+        </li>
+        <li class="account-divider"></li>
+        <li class="account-action" onclick="location.href='settings.html'">
+          <span data-i18n="settings.title">Paramètres</span>
+        </li>
+        <li class="account-action logout">
+          <span data-i18n="account.logout">Déconnexion</span>
+        </li>
+      </ul>
     </div>
 
     <div id="infoModal" class="modal">
       <div class="modal-content">
-      <span class="close" onclick="closeModal()">&times;</span>
-      <h2 data-i18n="dashboard.aboutTitle">À propos de cette page</h2>
-      <p data-i18n="dashboard.aboutParagraph">Cette interface Dashboard vous permet de visualiser l'évolution des composants principaux de la qualité de l'air en temps réel.</p>
-      <ul>
-        <li data-i18n="dashboard.co2">Évolution du CO₂</li>
-        <li data-i18n="dashboard.pm25">Concentration de PM2.5</li>
-        <li data-i18n="dashboard.comfort">Température & Humidité</li>
-        <li data-i18n="dashboard.tvoc">Concentration de TVOC</li>
-        <li data-i18n="dashboard.scoreFeature">Score IAQ en temps réel</li>
-        <li data-i18n="dashboard.predictionFeature">Prédiction du score dans 30 minutes</li>
-      </ul>
-    </div>
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h2 data-i18n="dashboard.aboutTitle">À propos de cette page</h2>
+        <p data-i18n="dashboard.aboutParagraph">Cette interface Dashboard vous permet de visualiser l'évolution des
+          composants principaux de la qualité de l'air en temps réel.</p>
+        <ul>
+          <li data-i18n="dashboard.co2">Évolution du CO₂</li>
+          <li data-i18n="dashboard.pm25">Concentration de PM2.5</li>
+          <li data-i18n="dashboard.comfort">Température & Humidité</li>
+          <li data-i18n="dashboard.tvoc">Concentration de TVOC</li>
+          <li data-i18n="dashboard.scoreFeature">Score IAQ en temps réel</li>
+          <li data-i18n="dashboard.predictionFeature">Prédiction du score dans 30 minutes</li>
+        </ul>
+      </div>
     </div>
   </header>
 
+  </header>
+  <div class="desktop-spacer" style="margin-top: 70px;"></div>
   <div class="tabs-container">
     <div class="location-tabs" id="location-tabs">
       <!-- Les onglets des enseignes seront générés dynamiquement ici -->
@@ -56,25 +113,46 @@
   <main class="grid">
     <!-- Score panel: affiche le score de la salle active -->
     <div id="room-score-panel" class="score-panel" aria-live="polite">
+      <!-- Badge nombre d'occupants -->
+      <div class="occupants-badge" id="occupants-badge" style="display: none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <span id="occupants-count">0</span>
+      </div>
+
       <div class="score-legend">
         <div class="legend-item">
           <span class="legend-badge badge-a">A</span>
-          <span class="legend-range">90-100</span>
+          <span class="legend-range">81-100</span>
         </div>
         <div class="legend-item">
           <span class="legend-badge badge-b">B</span>
-          <span class="legend-range">70-89</span>
+          <span class="legend-range">61-80</span>
         </div>
         <div class="legend-item">
           <span class="legend-badge badge-c">C</span>
-          <span class="legend-range">&lt;70</span>
+          <span class="legend-range">41-60</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-badge badge-d">D</span>
+          <span class="legend-range">21-40</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-badge badge-e">E</span>
+          <span class="legend-range">0-20</span>
         </div>
       </div>
       <div class="score-center">
-        <div class="score-value">
-          <span id="room-score-value">—</span><span class="score-max">/100</span>
+        <div class="score-main-display">
+          <div class="score-value">
+            <span id="room-score-value">—</span><span class="score-max">/100</span>
+          </div>
+          <div class="score-label" data-i18n="dashboard.score.roomLabel">Score actuel</div>
         </div>
-        <div class="score-label" data-i18n="dashboard.score.roomLabel">Score actuel</div>
       </div>
       <div class="score-right" id="room-score-meta">
         <div class="score-trend" id="room-score-trend">&nbsp;</div>
@@ -90,75 +168,104 @@
         </div>
       </div>
     </div>
-    
+
     <div class="chart-box" id="co2-chart"></div>
     <div class="chart-box" id="pm25-chart"></div>
     <div class="chart-box" id="comfort-chart"></div>
     <div class="chart-box" id="tvoc-chart"></div>
   </main>
 
-  <footer class="nav-bar">
-  <div class="nav-left">
-    <a href="#" onclick="return false;" class="active-page">
-      <img src="/assets/icons/home.png">
-    </a>
-    <a href="digital-twin.html">
-      <img src="/assets/icons/digital-twin.png">
-    </a>
-  </div>
+  <footer class="nav-bar" style="display: none;">
+    <div class="nav-left">
+      <a href="#" onclick="return false;" class="active-page">
+        <img src="/assets/icons/home.png">
+      </a>
+      <a href="digital-twin.html">
+        <img src="/assets/icons/digital-twin.png">
+      </a>
+    </div>
 
-  <div class="nav-center">
-    <span class="brand" data-i18n="brand">IAQverse</span>
-  </div>
+    <div class="nav-center">
+      <span class="brand" data-i18n="brand">IAQverse</span>
+    </div>
 
-  <div class="nav-right">
-    <a href="settings.html">
-      <img src="/assets/icons/settings.png">
-    </a>
-  </div>
-</footer>
+    <div class="nav-right">
+      <a href="settings.html">
+        <img src="/assets/icons/settings.png">
+      </a>
+    </div>
+  </footer>
 
-<script src="js/charts.js"></script>
-<script>
-  // Small helper to update the room score panel.
-  (function(){
-    const valueEl = () => document.getElementById('room-score-value');
-    const trendEl = () => document.getElementById('room-score-trend');
-    const noteEl = () => document.getElementById('room-score-note');
+  <script src="js/charts.js"></script>
+  <script>
+    // Small helper to update the room score panel.
+    (function () {
+      const valueEl = () => document.getElementById('room-score-value');
+      const trendEl = () => document.getElementById('room-score-trend');
+      const noteEl = () => document.getElementById('room-score-note');
 
-    window.setRoomScore = function(score, options={}){
-      // score: number 0-100 or null
-      const v = (typeof score === 'number') ? Math.round(score) : null;
-      if (valueEl()) valueEl().textContent = (v===null) ? '—' : String(v);
+      window.setRoomScore = function (score, options = {}) {
+        // score: number 0-100 or null
+        const v = (typeof score === 'number') ? Math.round(score) : null;
+        const valEl = valueEl();
 
-      // Trend / color
-      const trend = (options.trend || 'neutral'); // 'good' | 'ok' | 'bad' | 'neutral'
-      if (trendEl()){
-        trendEl().className = 'score-trend';
-        if (trend === 'good') trendEl().classList.add('trend-good');
-        else if (trend === 'ok') trendEl().classList.add('trend-ok');
-        else if (trend === 'bad') trendEl().classList.add('trend-bad');
-        trendEl().textContent = options.trendLabel || (v!==null ? (v >= 90 ? 'A' : (v >= 70 ? 'B' : 'C')) : '');
-      }
+        if (valEl) {
+          valEl.textContent = (v === null) ? '—' : String(v);
+          // Reset classes
+          valEl.classList.remove('text-a', 'text-b', 'text-c', 'text-d', 'text-e');
+        }
 
-      if (noteEl()) noteEl().textContent = options.note || '';
-    };
+        // Determine label
+        let label = options.trendLabel;
+        if (!label && v !== null) {
+          if (v >= 81) label = 'A';
+          else if (v >= 61) label = 'B';
+          else if (v >= 41) label = 'C';
+          else if (v >= 21) label = 'D';
+          else label = 'E';
+        }
 
-    // Close/reset panel on room/enseigne change
-    document.addEventListener('roomChanged', ()=> window.setRoomScore(null));
-    document.addEventListener('enseigneChanged', ()=> window.setRoomScore(null));
+        // Apply color to score value
+        if (valEl && label) {
+          const cls = 'text-' + label.toLowerCase();
+          valEl.classList.add(cls);
+        }
 
-    // Example: if some other script fires a custom event with detail {score, global_score, trend, note}
-    document.addEventListener('roomScoreUpdated', (e)=>{
-      const d = e.detail || {};
-      // Support payloads that use `score` or backend `global_score` key.
-      const score = (typeof d.score === 'number') ? d.score : (typeof d.global_score === 'number' ? d.global_score : null);
-      window.setRoomScore(score, { trend: d.trend, trendLabel: d.trendLabel, note: d.note });
-    });
+        // Trend / color (Right side badge)
+        const trend = (options.trend || 'neutral');
+        if (trendEl()) {
+          trendEl().className = 'score-trend';
 
-    // Expose a convenience setter if charts compute a score
-    window.updateRoomScore = window.setRoomScore;
-  })();
-</script>
+          // Apply color class to the trend badge (A-E)
+          if (label) {
+            trendEl().classList.add('badge-' + label.toLowerCase());
+          } else {
+            if (trend === 'good') trendEl().classList.add('trend-good');
+            else if (trend === 'ok') trendEl().classList.add('trend-ok');
+            else if (trend === 'bad') trendEl().classList.add('trend-bad');
+          }
+          trendEl().textContent = label || '';
+        }
+
+        if (noteEl()) noteEl().textContent = options.note || '';
+      };
+
+      // Close/reset panel on room/enseigne change
+      document.addEventListener('roomChanged', () => window.setRoomScore(null));
+      document.addEventListener('enseigneChanged', () => window.setRoomScore(null));
+
+      // Example: if some other script fires a custom event with detail {score, global_score, trend, note}
+      document.addEventListener('roomScoreUpdated', (e) => {
+        const d = e.detail || {};
+        // Support payloads that use `score` or backend `global_score` key.
+        const score = (typeof d.score === 'number') ? d.score : (typeof d.global_score === 'number' ? d.global_score : null);
+        window.setRoomScore(score, { trend: d.trend, trendLabel: d.trendLabel, note: d.note });
+      });
+
+      // Expose a convenience setter if charts compute a score
+      window.updateRoomScore = window.setRoomScore;
+    })();
+  </script>
 </body>
+
 </html>

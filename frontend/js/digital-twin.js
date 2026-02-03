@@ -18,12 +18,30 @@ function showDetails(sujet, detail, forceRefresh = false) {
         panel.classList.add('hidden');
         list.innerHTML = '';
         currentDetailsSubject = null;
+        
+        // Forcer le resize du canvas 3D et du container après fermeture du panel
+        setTimeout(() => {
+            const twinLayout = document.querySelector('.twin-layout');
+            if (twinLayout) {
+                twinLayout.style.gridTemplateRows = 'auto'; // Réinitialiser les lignes
+            }
+            window.dispatchEvent(new Event('resize'));
+        }, 50);
         return;
     }
 
     panel.classList.remove("hidden");
     list.innerHTML = "";
     currentDetailsSubject = sujet;
+    
+    // Forcer le resize du canvas 3D et du container après ouverture du panel
+    setTimeout(() => {
+        const twinLayout = document.querySelector('.twin-layout');
+        if (twinLayout) {
+            twinLayout.style.gridTemplateRows = 'auto auto'; // Deux lignes actives
+        }
+        window.dispatchEvent(new Event('resize'));
+    }, 50);
 
     // Mettre à jour le titre avec le sujet
     const subjectSpan = document.getElementById('details-subject');
@@ -38,6 +56,14 @@ function showDetails(sujet, detail, forceRefresh = false) {
         const knownParams = new Set(['co2','pm25','tvoc','temperature','humidity']);
 
     // Helper pour formatter un item de détail avec style riche
+    const formatNumber = (num, decimals = 2) => {
+        // Accept number or numeric string
+        const n = (typeof num === 'number') ? num : (typeof num === 'string' ? Number(num) : NaN);
+        if (Number.isNaN(n)) return num; // return original if not numeric
+        // To avoid unnecessary trailing zeros, use Number to normalize
+        return Number(n.toFixed(decimals));
+    };
+
     const formatIssue = (it) => {
         if (!it) return null;
         const dirTxt = it.direction === 'low' ? (t('digitalTwin.details.low') || 'trop bas')
@@ -52,10 +78,11 @@ function showDetails(sujet, detail, forceRefresh = false) {
             ? (t('digitalTwin.details.thresholdMin') || 'seuil min')
             : (t('digitalTwin.details.thresholdMax') || 'seuil max');
         const thrTxt = (typeof it.threshold === 'number')
-            ? ` <span class="param-threshold">(${thresholdLabel} : ${it.threshold}${unit})</span>`
+            ? ` <span class="param-threshold">(${thresholdLabel} : ${formatNumber(it.threshold)}${unit})</span>`
             : '';
+        const displayedValue = (typeof it.value === 'number') ? formatNumber(it.value) : it.value;
         return {
-            html: `<span class="param-value">${paramName} ${dirTxt} : ${it.value}${unit}</span>${thrTxt}`,
+            html: `<span class="param-value">${paramName} ${dirTxt} : ${displayedValue}${unit}</span>${thrTxt}`,
             severity: it.severity || 'info',
             code: paramCode
         };
@@ -87,14 +114,14 @@ function showDetails(sujet, detail, forceRefresh = false) {
             const li = document.createElement('li');
             li.className = 'issue-action';
             const actionLabel = t && t(`digitalTwin.actionVerbs.${actionKey}`);
-            li.innerHTML = `<strong>${t('digitalTwin.recommendedAction') || 'Action recommandée'} :</strong> ${actionLabel || actionKey}`;
+            li.innerHTML = `<strong>${(t && t('digitalTwin.tip.recommendedAction')) || 'Action recommandée'} :</strong> ${actionLabel || actionKey}`;
             list.appendChild(li);
         }
     } else {
         // Pas de problème détecté - tout va bien
         const li = document.createElement('li');
         li.className = 'issue-info';
-        li.innerHTML = `<span class="param-value">${t('digitalTwin.allGood') || 'Tous les paramètres sont dans les normes'}</span>`;
+        li.innerHTML = `<span class="param-value">${t('digitalTwin.tip.allGood') || 'Tous les paramètres sont dans les normes'}</span>`;
         list.appendChild(li);
     }
 }
@@ -110,6 +137,17 @@ function closeModal() {
     ModalManager.close('infoModal');
 }
 
+function closeDetailsPanel() {
+    const panel = document.getElementById("details-panel");
+    if (panel && !panel.classList.contains('hidden')) {
+        panel.classList.add('hidden');
+        const list = document.getElementById('details-list');
+        if (list) list.innerHTML = '';
+        currentDetailsSubject = null;
+    }
+}
+window.closeDetailsPanel = closeDetailsPanel;
+
 // Écouter les changements de pièce pour charger le modèle 3D
 document.addEventListener('roomChanged', (event) => {
     const { roomId } = event.detail;
@@ -119,26 +157,14 @@ document.addEventListener('roomChanged', (event) => {
     try { syncAlertPointsToTable(); } catch(e) {}
     
     // Fermer le panneau de détails lors du changement de pièce
-    const panel = document.getElementById('details-panel');
-    if (panel && !panel.classList.contains('hidden')) {
-        panel.classList.add('hidden');
-        const list = document.getElementById('details-list');
-        if (list) list.innerHTML = '';
-        currentDetailsSubject = null;
-    }
+    closeDetailsPanel();
 });
 
 document.addEventListener('enseigneChanged', () => {
     try { syncAlertPointsToTable(); } catch(e) {}
     
     // Fermer le panneau de détails lors du changement d'enseigne
-    const panel = document.getElementById('details-panel');
-    if (panel && !panel.classList.contains('hidden')) {
-        panel.classList.add('hidden');
-        const list = document.getElementById('details-list');
-        if (list) list.innerHTML = '';
-        currentDetailsSubject = null;
-    }
+    closeDetailsPanel();
 });
 
 // Export des fonctions
@@ -187,8 +213,10 @@ async function fetchAndDisplayPreventiveScore(params) {
     if (!scoreElement || !trendElement || !containerElement) return;
     
     try {
-        // Récupérer depuis /api/iaq/actions/preventive
-        const response = await fetch(`${API_ENDPOINTS.preventiveActions}?${params}`);
+         const headers = { 'ngrok-skip-browser-warning': 'true' };
+         try { if(typeof getAuthToken === 'function') { const t=await getAuthToken(); if(t) headers['Authorization'] = `Bearer ${t}`; } } catch(e){}
+
+        const response = await fetch(`${API_ENDPOINTS.preventiveActions}?${params}`, { headers });
         const data = await response.json();
         
         // Le score prédit est inclus dans les actions préventives
@@ -331,7 +359,10 @@ async function fetchAndDisplayPreventiveActions() {
         } else {
             // Fallback : fetch standard sans retry
             console.warn('[preventive] apiCallWithCache not available, using standard fetch');
-            const response = await fetch(url);
+            const headers = { 'ngrok-skip-browser-warning': 'true' };
+            try { if(typeof getAuthToken === 'function') { const t=await getAuthToken(); if(t) headers['Authorization'] = `Bearer ${t}`; } } catch(e){}
+
+            const response = await fetch(url, { headers });
             const data = await response.json();
             
             sessionStorage.setItem('preventiveActions', JSON.stringify(data));
@@ -410,6 +441,27 @@ function displayPreventiveActions(data) {
     
     let html = '';
     data.actions.forEach(action => {
+        // HIDE ACTION IF COMPLETED
+        // Check if matching module is already in the requested state
+        try {
+            const deviceType = action.device; 
+            // Map action to state
+            const targetStates = (action.action === 'open' || action.action === 'turn_on') ? ['open', 'on'] : ['closed', 'off'];
+            
+            // Find active alert points in DOM that match this device type
+            // Note: This relies on three-scene.js having rendered the points and updated their data-state
+            const allPoints = Array.from(document.querySelectorAll('.alert-point'));
+            const matchingPoints = allPoints.filter(pt => pt.getAttribute('data-i18n-key') === deviceType);
+            
+            if (matchingPoints.length > 0) {
+                 // If any of the matching devices is in the target state, consider it handled? 
+                 // Or we might want to check specific IDs if ML returned them. 
+                 // For now, if ML says "Open Window" and we have opened A window, we hide it.
+                 const isCompleted = matchingPoints.some(pt => targetStates.includes(pt.getAttribute('data-state')));
+                 if (isCompleted) return; // SKIP this action
+            }
+        } catch(e) { console.warn("Error filtering preventive actions", e); }
+
         const deviceKey = deviceI18nMap[action.device] || action.device;
         const deviceName = (t && t(`digitalTwin.sample.${deviceKey}.subject`)) || action.device;
         
@@ -477,7 +529,7 @@ function displayPreventiveActions(data) {
 }
 
 // Sync alert-point elements into the actions table as rows
-function syncAlertPointsToTable() {
+window.syncAlertPointsToTable = function syncAlertPointsToTable() {
     const tbody = document.querySelector('.actions-table tbody');
     if (!tbody) {
         console.warn('[digital-twin] Actions table tbody not found');
@@ -488,9 +540,6 @@ function syncAlertPointsToTable() {
     const panel = document.getElementById("details-panel");
     const isPanelOpen = panel && !panel.classList.contains('hidden');
     const previousSubject = currentDetailsSubject;
-
-    // remove previously injected rows
-    Array.from(tbody.querySelectorAll('tr.dynamic-alert')).forEach(r => r.remove());
 
     // Get active context (enseigne + salle)
     const getActiveContext = () => {
@@ -527,143 +576,265 @@ function syncAlertPointsToTable() {
     const points = allActivePoints.filter(pt => {
         const ptEnseigne = pt.getAttribute('data-enseigne');
         const ptPiece = pt.getAttribute('data-piece');
-        const matches = (ptEnseigne === activeEnseigneId && ptPiece === activeRoomId);
-        return matches;
+        return (ptEnseigne === activeEnseigneId && ptPiece === activeRoomId);
     });
     
     if (!points || points.length === 0) {
+        // Clear all dynamic alerts if no points
+        Array.from(tbody.querySelectorAll('tr.dynamic-alert')).forEach(r => r.remove());
+        // Mettre à jour le compteur d'alertes
+        if (typeof window.updateAlertCountLabel === 'function') window.updateAlertCountLabel();
         return;
     }
 
     const t = (window.i18n && typeof window.i18n.t === 'function') ? window.i18n.t : (()=>undefined);
 
-    // Grouper les points par type (data-i18n-key) pour éviter les doublons dans le tableau
-    const pointsByType = {};
-    
+    // Grouper les points par target-names
+    const pointsByTarget = {};
     points.forEach(pt => { 
         const explicitKey = pt.getAttribute('data-i18n-key');
-        if (!explicitKey) return;
+        const targetName = pt.getAttribute('data-target-names');
+        if (!explicitKey || !targetName) return;
         
-        if (!pointsByType[explicitKey]) {
-            pointsByType[explicitKey] = [];
+        if (!pointsByTarget[targetName]) {
+            pointsByTarget[targetName] = {
+                type: explicitKey,
+                targetName: targetName,
+                points: []
+            };
         }
-        pointsByType[explicitKey].push(pt);
+        pointsByTarget[targetName].points.push(pt);
     });
 
-    const builtRows = [];
+    // Compter combien d'objets de chaque type pour numérotation
+    const typeCount = {};
+    const typeObjects = {};
+    Object.entries(pointsByTarget).forEach(([targetName, group]) => {
+        const type = group.type;
+        if (!typeCount[type]) {
+            typeCount[type] = 0;
+            typeObjects[type] = [];
+        }
+        typeCount[type]++;
+        typeObjects[type].push(targetName);
+    });
 
-    // Traiter chaque type unique
-    Object.entries(pointsByType).forEach(([typeKey, typePoints]) => {
-        // Prendre la sévérité la plus grave pour ce type
+    const currentRows = new Map();
+    Array.from(tbody.querySelectorAll('tr.dynamic-alert')).forEach(tr => {
+        const id = tr.getAttribute('data-target-id');
+        if (id) currentRows.set(id, tr);
+    });
+    
+    const builtRows = [];
+    const processedIds = new Set();
+
+    // Traiter chaque objet distinct (par targetName)
+    Object.entries(pointsByTarget).forEach(([targetName, group]) => {
+        const typeKey = group.type;
+        const typePoints = group.points;
+        const rowId = `row-${targetName}`;
+        processedIds.add(rowId);
+        
+        // --- LOGIQUE D'ÉTAT ---
+        // Déterminer l'emoji basé sur l'état
+        const states = typePoints.map(pt => {
+            const state = pt.getAttribute('data-state');
+            if (state) return state;
+            const severity = pt.getAttribute('data-severity');
+            if (severity === 'info') {
+                const key = pt.getAttribute('data-i18n-key');
+                return (key === 'door' || key === 'window') ? 'open' : 'on';
+            } else {
+                const key = pt.getAttribute('data-i18n-key');
+                return (key === 'door' || key === 'window') ? 'closed' : 'off';
+            }
+        });
+        const hasClosedOrOff = states.some(s => s === 'closed' || s === 'off');
+        // REMPLACÉ: Utilisation d'indicateurs CSS au lieu d'emojis
+        
+        // Déterminer la classe CSS basée sur la gravité
         const severities = typePoints.map(pt => pt.getAttribute('data-severity') || 'info');
         const severityWeights = { 'danger': 0, 'warning': 1, 'info': 2 };
         const maxSeverity = severities.reduce((max, sev) => 
             severityWeights[sev] < severityWeights[max] ? sev : max, 'info');
-        
-        console.log(`[digital-twin] Processing type ${typeKey} with ${typePoints.length} points, max severity: ${maxSeverity}`);
-        
         const severityLower = maxSeverity.toLowerCase();
         const severityMap = {
-            'danger': { emoji: '🔴', cls: 'alert-red' },
-            'warning': { emoji: '🟠', cls: 'alert-yellow' },
-            'info': { emoji: '🟢', cls: 'alert-green' }
+            'danger': { cls: 'alert-red' },
+            'warning': { cls: 'alert-yellow' },
+            'info': { cls: 'alert-green' }
         };
         const sev = severityMap[severityLower] || severityMap['danger'];
-        
-        const tr = document.createElement('tr');
-        tr.className = `dynamic-alert ${sev.cls}`;
 
-        const tdState = document.createElement('td'); tdState.textContent = sev.emoji;
-        const tdSubj = document.createElement('td');
-        const tdAct = document.createElement('td');
+        let tr = currentRows.get(rowId);
+
+        const tdState = document.createElement('td'); 
+        // NOUVEAU STYLE : Indicateur visuel
+        const indicator = document.createElement('div');
+        indicator.className = hasClosedOrOff ? 'status-indicator status-red' : 'status-indicator status-green';
+        tdState.appendChild(indicator);
+        
 
         // Utiliser le premier point pour les clés i18n et actions
         const firstPoint = typePoints[0];
-        const actionKeyDyn = firstPoint.getAttribute('data-action-key');
+        let actionKeyToCompare = firstPoint.getAttribute('data-action-key');
+        if (!actionKeyToCompare) {
+            const defaultActions = {
+                'window': 'close',
+                'door': 'close',
+                'ventilation': 'turn_on',
+                'radiator': 'decrease',
+                'air_conditioning': 'turn_on',
+                'air_purifier': 'turn_on'
+            };
+            actionKeyToCompare = defaultActions[typeKey];
+        }
         
-        const subjectKey = `digitalTwin.sample.${typeKey}.subject`;
-        const actionKey = `digitalTwin.sample.${typeKey}.action`;
+        let isSatisfied = false;
+        if (actionKeyToCompare) {
+            const currentState = hasClosedOrOff ? (typeKey === 'door' || typeKey === 'window' ? 'closed' : 'off') 
+                                                : (typeKey === 'door' || typeKey === 'window' ? 'open' : 'on');
+            if (currentState === 'open' && actionKeyToCompare === 'open') isSatisfied = true;
+            else if (currentState === 'closed' && actionKeyToCompare === 'close') isSatisfied = true;
+            else if (currentState === 'on' && ['turn_on','activate','increase'].includes(actionKeyToCompare)) isSatisfied = true;
+            else if (currentState === 'off' && ['turn_off','deactivate','decrease'].includes(actionKeyToCompare)) isSatisfied = true;
+        }
 
-        // If i18n keys exist, attach data-i18n so translations update automatically
-        const subjTxt = (t && t(subjectKey)) || null;
+        // Classe CSS finale
+        let trClass = 'dynamic-alert';
+        if (isSatisfied) {
+            trClass += ' alert-success';
+        } else {
+            const severityMap = { 'danger': 'alert-red', 'warning': 'alert-yellow', 'info': 'alert-green' };
+            trClass += ` ${severityMap[severityLower] || 'alert-green'}`;
+        }
+        
+        // --- CONSTRUCTION / MISE À JOUR DU DOM ---
+        if (!tr) {
+            tr = document.createElement('tr');
+            tr.setAttribute('data-target-id', rowId);
+            
+            // Create structure once
+            const tdState = document.createElement('td'); 
+            tdState.className = "col-state";
+            const tdSubj = document.createElement('td');
+            tdSubj.className = "col-subj";
+            const tdAct = document.createElement('td');
+            tdAct.className = "col-act";
+            
+            tr.appendChild(tdState);
+            tr.appendChild(tdSubj);
+            tr.appendChild(tdAct);
+            
+            // Add handler once
+            tr.addEventListener('click', function() {
+                const subj = this.querySelector('.col-subj').textContent.trim();
+                showDetails(subj, this._detailsData);
+            });
+        }
+        
+        // Update Content
+        tr.className = trClass;
+
+        // Mise à jour de l'indicateur de statut (remplace stateEmoji)
+        const colState = tr.querySelector('.col-state');
+        if (colState) {
+            let indicator = colState.querySelector('.status-indicator');
+            // Si l'indicateur n'existe pas (ancienne ligne ou texte pur), on nettoie et on crée
+            if (!indicator) {
+                colState.textContent = ''; 
+                indicator = document.createElement('div');
+                colState.appendChild(indicator);
+            }
+            indicator.className = hasClosedOrOff ? 'status-indicator status-red' : 'status-indicator status-green';
+        }
+        
+        // Prepare Texts
+        const actionKeyDyn = firstPoint.getAttribute('data-action-key');
+        const subjectKey = `digitalTwin.sample.${typeKey}.subject`;
+        const actionKeyFallback = `digitalTwin.sample.${typeKey}.action`;
+        
+        let subjTxt = (t && t(subjectKey)) || typeKey;
+        if (typeCount[typeKey] > 1) {
+            const objectIndex = typeObjects[typeKey].indexOf(targetName) + 1;
+            subjTxt = `${subjTxt} ${objectIndex}`;
+        }
+        
         const dynI18nKey = actionKeyDyn ? `digitalTwin.actionVerbs.${actionKeyDyn}` : null;
         const dynActTxt = dynI18nKey && t ? t(dynI18nKey) : null;
-        const actTxtFallback = (t && t(actionKey)) || null;
-
-        // Always attach data-i18n so later translation passes can update these cells
+        const actTxtFallback = (t && t(actionKeyFallback)) || null;
+        
+        const tdSubj = tr.querySelector('.col-subj');
         tdSubj.setAttribute('data-i18n', subjectKey);
-        tdSubj.textContent = (subjTxt) ? subjTxt : typeKey;
+        // Warning: if we just set textContent, we lose the number suffix logic on re-translate. 
+        // For now, accept that re-translation might clear the number suffix unless we handle it in i18n lib.
+        // Or we assume automatic translation won't happen every frame.
+        if (tdSubj.textContent !== subjTxt) tdSubj.textContent = subjTxt;
 
-        // Action column shows dynamic recommendation when available, else subject default
+        const tdAct = tr.querySelector('.col-act');
+        const actContent = (dynActTxt) ? dynActTxt : (actTxtFallback ? actTxtFallback : ((t && t('digitalTwin.details')) || 'Détails'));
         if (actionKeyDyn) tdAct.setAttribute('data-i18n', dynI18nKey);
-        else tdAct.setAttribute('data-i18n', actionKey);
-        tdAct.textContent = (dynActTxt) ? dynActTxt : (actTxtFallback ? actTxtFallback : ((t && t('digitalTwin.details')) || 'Détails'));
+        else tdAct.setAttribute('data-i18n', actionKeyFallback);
+        
+        if (tdAct.textContent !== actContent) tdAct.textContent = actContent;
 
-        // Préparer les détails combinés de tous les points de ce type
+        // Details Data
         let combinedDetails = null;
         try {
-            // Prendre les détails du premier point pour l'instant
             const raw = firstPoint.getAttribute('data-details');
             combinedDetails = raw ? JSON.parse(raw) : null;
         } catch(e) { combinedDetails = null; }
-        
-        // Stocker les détails dans la ligne
         tr._detailsData = combinedDetails;
+
+        // Queue for sort
+        let weight = severityWeights[severityLower];
         
-        // Clicking the row should open details using the visible subject text and detail object
-        tr.addEventListener('click', () => {
-            const subj = tdSubj.textContent.trim();
-            showDetails(subj, combinedDetails);
-        });
+        // Si la ligne est verte (succès), on la met tout en bas (poids plus élevé)
+        if (tr.classList.contains('alert-success')) {
+            weight = 10; // Poids élevé pour être à la fin
+        }
 
-        tr.appendChild(tdState);
-        tr.appendChild(tdSubj);
-        tr.appendChild(tdAct);
-
-        // Queue row with severity weight for sorting
-        const weight = severityWeights[severityLower];
-        console.log(`[digital-twin] Adding grouped row for ${typeKey} with weight ${weight}`);
+        console.log(`[digital-twin] Adding grouped row for ${typeKey} with severity weight ${weight}`);
         builtRows.push({ tr, weight });
     });
 
-    // apply translations for newly inserted nodes
-    // sort rows: danger first, then warning, then info
+    // --- REMOVAL OF STALE ROWS ---
+    currentRows.forEach((tr, id) => {
+        if (!processedIds.has(id)) {
+            tr.remove();
+        }
+    });
+
+    // --- SORTING & REORDERING ---
+    // Only re-append if order changed or new items
     builtRows.sort((a,b) => a.weight - b.weight);
     
-    // Vérifier si le sujet du panneau ouvert existe encore dans les nouvelles lignes
-    let newDetailsForSubject = null;
-    let subjectStillExists = false;
-    if (isPanelOpen && previousSubject) {
-        for (const { tr } of builtRows) {
-            const subjCell = tr.querySelector('td:nth-child(2)');
-            if (subjCell && subjCell.textContent.trim() === previousSubject) {
-                subjectStillExists = true;
-                // Récupérer les nouveaux détails de cette ligne
-                const clickHandler = tr._detailsData;
-                if (clickHandler) {
-                    newDetailsForSubject = clickHandler;
-                }
-                break;
-            }
-        }
-    }
+    // Efficient Re-ordering
+    builtRows.forEach(({ tr }) => {
+         // Appending an existing child moves it to the end.
+         // If we do this in sorted order, the DOM ends up sorted.
+         // Check if it's already in position to avoid unnecessary paint
+         if (tbody.lastElementChild !== tr) {
+             tbody.appendChild(tr);
+         }
+    });
+
+    // Remove naive _applyTranslations call to prevent text blinking/overwriting
+    // try { if (window.i18n && typeof window.i18n._applyTranslations === 'function') window.i18n._applyTranslations(tbody); } catch(e){}
     
-    builtRows.forEach(({ tr }) => tbody.appendChild(tr));
-    try { if (window.i18n && typeof window.i18n._applyTranslations === 'function') window.i18n._applyTranslations(tbody); } catch(e){}
-    
-    // Toujours mettre à jour le panneau s'il est ouvert et que le sujet existe encore
+    // --- DETAILS PANEL SYNC ---
     if (isPanelOpen && previousSubject) {
-        if (subjectStillExists && newDetailsForSubject !== null) {
-            showDetails(previousSubject, newDetailsForSubject, true); // forceRefresh = true
-        } else if (!subjectStillExists) {
-            // Si le sujet n'existe plus, fermer le panneau
-            const panel = document.getElementById('details-panel');
-            if (panel) {
-                panel.classList.add('hidden');
-                const list = document.getElementById('details-list');
-                if (list) list.innerHTML = '';
-                currentDetailsSubject = null;
-            }
+        // Find if row for this subject still exists and get new details
+        const found = builtRows.find(item => {
+            const sub = item.tr.querySelector('.col-subj');
+            return sub && sub.textContent.trim() === previousSubject;
+        });
+        
+        if (!found) {
+            closeDetailsPanel();
+        } else {
+            // Update details content in real-time
+            // Use forceRefresh=true to update even if subject is same
+            showDetails(previousSubject, found.tr._detailsData, true);
         }
     }
     
@@ -712,3 +883,84 @@ document.addEventListener('roomChanged', () => {
 document.addEventListener('enseigneChanged', () => { 
     try { fetchAndDisplayPreventiveActions(); } catch(e){} 
 });
+
+// Listen for IAQ data updates to update the overlay
+document.addEventListener('iaqDataUpdated', (event) => {
+    const data = event.detail;
+    if (!data) return;
+
+    const updateElement = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) {
+            // Format numbers: 0 decimals for CO2, 1 for others
+            let formatted = '--';
+            if (value !== undefined && value !== null && !isNaN(value)) {
+                const num = Number(value);
+                if (id === 'overlay-co2') {
+                    formatted = num.toFixed(0);
+                } else {
+                    formatted = num.toFixed(1);
+                }
+            }
+            el.textContent = formatted;
+        }
+    };
+
+    updateElement('overlay-co2', data.co2);
+    updateElement('overlay-pm25', data.pm25);
+    updateElement('overlay-tvoc', data.tvoc);
+    updateElement('overlay-temp', data.temperature);
+    updateElement('overlay-hum', data.humidity);
+});
+
+// Legend Modal Functions
+function openLegendModal() {
+    const modal = document.getElementById('legendModal');
+    if (modal) {
+        modal.style.display = 'flex'; // Use flex to center
+        // Close when clicking outside
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                closeLegendModal();
+            }
+        }
+    }
+}
+
+function closeLegendModal() {
+    const modal = document.getElementById('legendModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Listener pour les mises à jour de configuration (ex: changement de paysage)
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof WebSocketManager !== 'undefined') {
+        const ws = new WebSocketManager();
+        ws.connect();
+        
+        const handleConfigUpdate = (data) => {
+            if (data && data.config) {
+                console.log('🔄 Config updated via WS', data.config);
+                // Mettre à jour le cache global
+                if (window.setConfig) window.setConfig(data.config);
+                
+                // Mettre à jour l'environnement 3D si la fonction est disponible
+                if (window.updateThreeEnvironment) {
+                    window.updateThreeEnvironment(data.config);
+                }
+            }
+        };
+
+        ws.listeners.set('config_updated', handleConfigUpdate);
+        
+        // Ecouter aussi sur le topic 'all' si nécessaire
+        ws.listeners.set('all', (data) => {
+             if (data.type === 'config_updated') {
+                 handleConfigUpdate(data);
+             }
+        });
+    }
+});
+

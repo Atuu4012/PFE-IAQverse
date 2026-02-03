@@ -1,0 +1,36 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - test-vps
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # On ajoute 'debug: true' pour voir les logs en cas d'erreur SSH
+          debug: true 
+          script: |
+            # 1. Aller dans le dossier du projet
+            cd /home/ubuntu/prod/PFE-IAQverse
+
+            # 2. Récupérer le dernier code
+            git pull origin test-vps
+
+            # 3. Copier le .env racine vers le dossier docker si nécessaire
+            # (Optionnel mais recommandé si docker-compose cherche dans le dossier courant)
+            # cp .env docker/.env 
+
+            # 4. Lancer la production avec le bon fichier
+            # On utilise explicitement le fichier de PROD
+            docker compose -f docker/docker-compose.prod.yml --env-file .env up -d --build --remove-orphans
+
+            # 5. Nettoyer les vieilles images
+            docker image prune -f

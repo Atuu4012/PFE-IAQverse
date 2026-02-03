@@ -6,7 +6,7 @@
         "email": "jean.dupont@example.com",
         "telephone": "+33 1 23 45 67 89",
         "adresse": "1 rue Exemple, 75000 Paris",
-        "avatar": ""
+        "avatar": "/assets/icons/user_avatar.png"
     },
     "assurance": {
         "nom": "AssureCo",
@@ -23,7 +23,8 @@
     "affichage": {
         "mode": "Clair",
         "langue": "fr",
-        "localisation": "Europe, Paris"
+        "localisation": "Europe, Paris",
+        "lastSection": "lieux"
     },
     "notifications": {
         "technologies": {
@@ -32,9 +33,9 @@
             "push": true
         },
         "types": {
-            "alertes": true,
-            "rappels": true,
-            "newsletters": true
+            "alertes": false,
+            "rappels": false,
+            "newsletters": false
         }
     },
     "lieux": {
@@ -45,10 +46,60 @@
                 "adresse": "123 rue d'Avron",
                 "pieces": [
                     {
-                        "id": "piece_1763546957299",
+                        "id": "piece_1769981906283",
                         "nom": "Chambre",
                         "type": "chambre",
-                        "glbModel": "/assets/rooms/ens_1762004765975_piece_1763546957299.glb"
+                        "glbModel": "/assets/rooms/ens_1762004765975_piece_1769981906283.glb",
+                        "modules": [
+                            {
+                                "id": "Window01",
+                                "name": "Window01",
+                                "type": "window",
+                                "is_iot": true,
+                                "state": "closed"
+                            },
+                            {
+                                "id": "Window02",
+                                "name": "Window02",
+                                "type": "window",
+                                "is_iot": true,
+                                "state": "closed"
+                            },
+                            {
+                                "id": "Clim01",
+                                "name": "Clim01",
+                                "type": "ventilation",
+                                "is_iot": true,
+                                "state": "on"
+                            },
+                            {
+                                "id": "Radiator01",
+                                "name": "Radiator01",
+                                "type": "radiator",
+                                "is_iot": true,
+                                "state": "off"
+                            },
+                            {
+                                "id": "Door01",
+                                "name": "Door01",
+                                "type": "door",
+                                "is_iot": true,
+                                "state": "closed"
+                            },
+                            {
+                                "id": "Purifier01",
+                                "name": "Purifier01",
+                                "type": "air_purifier",
+                                "is_iot": true,
+                                "state": "on"
+                            }
+                        ]
+                    },
+                    {
+                        "id": "piece_1770120343365",
+                        "nom": "salon",
+                        "type": "salon",
+                        "glbModel": "/assets/rooms/ens_1762004765975_piece_1770120343365.glb"
                     }
                 ]
             },
@@ -58,21 +109,39 @@
                 "adresse": "123 Rue des Commerces",
                 "pieces": [
                     {
-                        "id": "piece_1763414279663",
-                        "nom": "Salon",
-                        "type": "salon",
-                        "glbModel": "/assets/rooms/ens_boutique1_piece_1763414279663.glb"
-                    },
-                    {
-                        "id": "piece_1763490078400",
-                        "nom": "Chambre",
-                        "type": "chambre",
-                        "glbModel": "/assets/rooms/ens_boutique1_piece_1763490078400.glb"
+                        "id": "piece_1769981929539",
+                        "nom": "Bureau",
+                        "type": "bureau",
+                        "glbModel": "/assets/rooms/ens_boutique1_piece_1769981929539.glb",
+                        "modules": [
+                            {
+                                "id": "Clim_01",
+                                "name": "Clim 01",
+                                "type": "ventilation",
+                                "is_iot": true,
+                                "state": "off"
+                            },
+                            {
+                                "id": "Window02",
+                                "name": "Window02",
+                                "type": "window",
+                                "is_iot": true,
+                                "state": "closed"
+                            },
+                            {
+                                "id": "Clim_01001",
+                                "name": "Clim 01001",
+                                "type": "ventilation",
+                                "is_iot": true,
+                                "state": "on"
+                            }
+                        ]
                     }
                 ]
             }
         ],
-        "active": "ens_1762004765975"
+        "active": "ens_1762004765975",
+        "activeRoom": "piece_1769981906283"
     },
     "contact": {
         "email": "support@iaqverse.local",
@@ -85,5 +154,9 @@
     "type": "salon",
     "abonnement": {
         "plan_actuel": "pro"
+    },
+    "digital_twin": {
+        "landscape": "urban_day.jpg",
+        "auto_day_night": false
     }
 }

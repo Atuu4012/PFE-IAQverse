@@ -2,10 +2,9 @@
     - Loads /assets/i18n/{lang}.json
     - Applies keys to elements with data-i18n, data-i18n-html, data-i18n-placeholder, data-i18n-title
     - Exposes i18n.init(), i18n.setLanguage(lang), i18n.getLanguage()
-    - Syncs across tabs via BroadcastChannel with localStorage fallback
+    - Syncs across tabs via BroadcastChannel (localStorage removed - centralized config)
 */
 (function (window) {
-  const STORAGE_KEY = "iaq-lang";
   const CHANNEL_NAME = "iaq-i18n";
   let translations = {};
   let current = null;
@@ -20,6 +19,7 @@
     try {
       const res = await fetch(`/assets/i18n/${lang}.json`, {
         cache: "no-cache",
+        headers: { 'ngrok-skip-browser-warning': 'true' }
       });
       if (!res.ok) throw new Error("Not found");
       const json = await res.json();
@@ -67,11 +67,12 @@
       const txt = safeGet(translations, key);
       if (txt != null) el.setAttribute("placeholder", txt);
     });
-    root.querySelectorAll("[data-i18n-title]").forEach((el) => {
-      const key = el.getAttribute("data-i18n-title");
-      const txt = safeGet(translations, key);
-      if (txt != null) el.setAttribute("title", txt);
-    });
+    // Remove title tooltips handling
+    // root.querySelectorAll("[data-i18n-title]").forEach((el) => {
+    //   const key = el.getAttribute("data-i18n-title");
+    //   const txt = safeGet(translations, key);
+    //   if (txt != null) el.setAttribute("title", txt);
+    // });
   }
 
   function setUISelect(lang) {
@@ -79,10 +80,11 @@
     if (sel) sel.value = lang;
   }
 
-  async function setLanguage(lang, broadcast = true) {
+  async function setLanguage(lang, broadcast = true, save = true) {
     if (!lang) return;
-    console.info("i18n: setLanguage()", lang);
-    // Load English base then overlay the requested language so missing keys fall back to English
+    // console.info("i18n: setLanguage()", lang, "save:", save);
+
+    // Load English base then overlay the requested language
     const base = (await load("en")) || {};
     const requested = lang === "en" ? {} : await load(lang);
     if (requested == null && lang !== "en") {
@@ -92,15 +94,19 @@
     }
     translations = deepMerge(base, requested || {});
     current = lang;
-    console.info(
-      "i18n: translations keys after merge:",
-      Object.keys(translations).length
-    );
+    
     applyTranslations(document);
     setUISelect(lang);
-    try {
-      localStorage.setItem(STORAGE_KEY, lang);
-    } catch (e) {}
+    
+    if (save && typeof window.saveConfig === "function") {
+      // Persist to backend
+      try {
+        window.saveConfig({ affichage: { langue: lang } });
+      } catch (e) {
+        console.error("i18n: error saving config", e);
+      }
+    }
+    
     if (broadcast && window.BroadcastChannel) {
       try {
         new BroadcastChannel(CHANNEL_NAME).postMessage({ lang });
@@ -117,8 +123,8 @@
   function getLanguage() {
     return (
       current ||
-      localStorage.getItem(STORAGE_KEY) ||
-      navigator.language.split("-")[0]
+      navigator.language.split("-")[0] ||
+      "fr"
     );
   }
 
@@ -126,7 +132,7 @@
     if (!msg || !msg.lang) return;
     const lang = msg.lang;
     if (lang === current) return;
-    setLanguage(lang, false);
+    setLanguage(lang, false, false);
   }
 
   function setupSync() {
@@ -138,10 +144,7 @@
         /* ignore */
       }
     }
-    window.addEventListener("storage", (e) => {
-      if (e.key === STORAGE_KEY && e.newValue)
-        handleRemoteMessage({ lang: e.newValue });
-    });
+    // No storage listener anymore
   }
 
   function attachSelectHandler() {
@@ -178,10 +181,24 @@
     setupSync();
     attachSelectHandler();
     setupMutationObserver();
-    // Default language preference: prefer stored value, otherwise default to French
-    // (do NOT fall back to navigator.language so the app defaults to French)
-    const preferred = localStorage.getItem(STORAGE_KEY) || "fr";
-    await setLanguage(preferred, false);
+
+    let configLang = null;
+    if (window.loadConfig) {
+      try {
+        const cfg = await window.loadConfig();
+        if (cfg && cfg.affichage && cfg.affichage.langue) {
+          configLang = cfg.affichage.langue;
+        }
+      } catch (e) {
+        console.warn("i18n: failed to load config for default language", e);
+      }
+    }
+
+    // Priority: Config > Browser Default > 'fr'
+    let preferred = configLang || navigator.language.split("-")[0] || "fr";
+
+    // Do not save to backend if we are just applying the preference on init
+    await setLanguage(preferred, false, false);
   }
 
   // expose
@@ -189,7 +206,19 @@
     init,
     setLanguage,
     getLanguage,
-    t: (key) => safeGet(translations, key),
+    t: (key, params) => {
+      const raw = safeGet(translations, key);
+      if (raw == null) return null;
+      let txt = String(raw);
+      if (params && typeof params === 'object') {
+        for (const k of Object.keys(params)) {
+          const v = params[k];
+          const re = new RegExp("\\{\\{\\s*" + k + "\\s*\\}\\}|\\{\\s*" + k + "\\s*\\}", "g");
+          txt = txt.replace(re, v);
+        }
+      }
+      return txt;
+    },
     _applyTranslations: applyTranslations,
   };
 

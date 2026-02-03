@@ -1,5 +1,11 @@
 {
     "brand": "IAQverse",
+    "account": {
+        "switch": "Cambiar de cuenta",
+        "currentUser": "Usuario Actual",
+        "otherAccount": "Otra Cuenta",
+        "logout": "Cerrar sesión"
+    },
     "nav": {
         "home": "Panel",
         "digitalTwin": "Gemelos Digitales",
@@ -57,6 +63,7 @@
         "aboutTitle": "Acerca de esta página",
         "aboutParagraph": "Use este panel de ajustes para modificar sus preferencias y mejorar la experiencia.",
         "languageLabel": "Idioma",
+        "importButton": "Importar",
         "summary": {
             "you": "Usted",
             "insurance": "Su seguro",
@@ -66,6 +73,7 @@
             "technologies": "Tecnologías",
             "type": "Tipo",
             "manage_brands": "Gestionar ubicaciones",
+            "digital_twin": "Gemelo Digital",
             "subscription": "Su suscripción",
             "contact": "Contacto"
         },
@@ -93,7 +101,16 @@
             "alertes": "Alertas",
             "rappels": "Recordatorios",
             "newsletters": "Boletines",
-            "current_plan": "Plan actual"
+            "current_plan": "Plan actual",
+            "landscape": "Paisaje",
+            "auto_day_night": "Modo Día/Noche Automático",
+            "email_alerts_enabled": "Activar alertas críticas por correo",
+            "landscape_options": {
+                "urban_night": "Urbano (Noche)",
+                "urban_day": "Urbano (Día)",
+                "garden_night": "Jardín (Noche)",
+                "garden_day": "Jardín (Día)"
+            }
         },
         "plans": {
             "basic": {
@@ -139,10 +156,10 @@
     "digitalTwin": {
         "title": "Gemelos Digitales",
         "visualisation": "Visualización",
+        "loading": "Cargando modelo...",
         "aboutTitle": "Acerca de esta página",
         "aboutParagraph": "Esta interfaz Digital Twin le permite visualizar las alertas de calidad del aire interior en tiempo real, explorar habitaciones en 3D y revisar las acciones preventivas recomendadas.",
         "actions": "Acciones",
-        "details": "Detalles",
         "preventive": {
             "title": "Acciones Preventivas",
             "subtitle": "Basadas en predicciones (30 min)",
@@ -161,11 +178,19 @@
                 "humidity_increase": "La humedad aumentará del {current}% al {predicted}%"
             },
             "priorities": {
+                "urgent": "Urgente",
                 "high": "Urgente",
                 "medium": "Recomendado",
                 "low": "Opcional"
             },
-            "arrow": "→"
+            "arrow": "→",
+            "mlPrediction": "Predicción ML",
+            "forecast": "Previsión en {minutes} minutos"
+        },
+        "trend": {
+            "increasing": "En aumento",
+            "decreasing": "En disminución",
+            "stable": "Estable"
         },
         "table": {
             "state": "Estado",
@@ -179,6 +204,17 @@
             "noDetails": "Sin detalles disponibles",
             "allGood": "Todos los parámetros están dentro de las normas",
             "recommendedAction": "Acción recomendada"
+        },
+        "legend": {
+            "title": "Leyenda de Acciones",
+            "urgent": "Urgente",
+            "urgentDesc": "Acción crítica requerida inmediatamente.",
+            "warning": "Advertencia",
+            "warningDesc": "Acción recomendada para evitar la degradación.",
+            "success": "Satisfactorio",
+            "successDesc": "No se requiere acción, parámetros óptimos.",
+            "info": "Información",
+            "infoDesc": "Estado neutro o datos no disponibles."
         },
         "details": {
       "title": "Detalles",
@@ -196,14 +232,16 @@
             }
         },
         "alertCount": {
-            "zero": "Sin alertas",
-            "one": "1 Alerta",
-            "multiple": "{{count}} Alertas"
+              "zero": "Sin Alertas",
+              "one": "1 Alerta",
+              "multiple": "{{count}} Alertas",
+              "singular": "1 Alerta",
+              "plural": "{{count}} Alertas"
         },
         "actionCount": {
-            "zero": "Sin acciones",
-            "one": "1 acción",
-            "multiple": "{{count}} acciones"
+            "zero": "Sin Acciones",
+            "one": "1 Acción",
+            "multiple": "{{count}} Acciones"
         },
     "sample": {
             "window": {
@@ -229,6 +267,30 @@
             "humidity": {
                 "subject": "Humedad",
                 "action": "Regular"
+            },
+            "air_purifier": {
+                "subject": "Purificador de aire",
+                "action": "Activar"
+            },
+            "air_conditioning": {
+                "subject": "Aire acondicionado",
+                "action": "Activar"
+            },
+            "heating": {
+                "subject": "Calefacción",
+                "action": "Ajustar"
+            },
+            "cooling": {
+                "subject": "Refrigeración",
+                "action": "Ajustar"
+            },
+            "humidifier": {
+                "subject": "Humidificador",
+                "action": "Activar"
+            },
+            "dehumidifier": {
+                "subject": "Deshumidificador",
+                "action": "Activar"
             }
         },
         "actionVerbs": {
@@ -237,7 +299,19 @@
             "increase": "Aumentar",
             "decrease": "Disminuir",
             "turn_on": "Encender",
-            "turn_off": "Apagar"
+            "turn_off": "Apagar",
+
+            "Augmenter la ventilation": "Aumentar la ventilación",
+            "Ouvrir les fenêtres immédiatement": "Abrir las ventanas inmediatamente",
+            "Évacuer la pièce et aérer complètement": "Evacuar la habitación y ventilar completamente",
+            "Activer le purificateur d'air": "Activar el purificador de aire",
+            "Purificateur à puissance maximale + ventilation": "Purificador a potencia máxima + ventilación",
+            "Éviter la pièce, purification intensive requise": "Evitar la habitación, purificación intensiva requerida",
+            "Aérer la pièce pendant 15 minutes": "Ventilar la habitación durante 15 minutos",
+            "Ventilation intensive + identifier la source": "Ventilación intensiva + identificar la fuente",
+            "Évacuer et ventiler complètement la zone": "Evacuar y ventilar completamente la zona",
+            "Situation critique actuelle en augmentation": "Situación crítica actual en aumento",
+            "Situation critique avec amélioration prévue": "Situación crítica con mejora prevista"
         }
     },
     "buttons": {

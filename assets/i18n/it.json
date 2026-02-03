@@ -1,12 +1,18 @@
 {
     "brand": "IAQverse",
+    "account": {
+        "switch": "Cambia account",
+        "currentUser": "Utente Attuale",
+        "otherAccount": "Altro Account",
+        "logout": "Disconnetti"
+    },
     "nav": {
         "home": "Home",
         "digitalTwin": "Gemello Digitale",
         "settings": "Impostazioni"
     },
     "dashboard": {
-        "title": "Dashboard",
+        "title": "Cruscotto",
         "aboutTitle": "Informazioni su questa pagina",
         "aboutParagraph": "Questa dashboard consente di visualizzare le metriche principali della qualità dell'aria interna in tempo reale.",
         "co2": "Andamento CO₂",
@@ -57,6 +63,7 @@
         "aboutTitle": "Informazioni",
         "aboutParagraph": "Usa questo pannello per personalizzare le tue preferenze.",
         "languageLabel": "Lingua",
+        "importButton": "Importa",
         "summary": {
             "you": "Tu",
             "insurance": "La tua assicurazione",
@@ -66,6 +73,7 @@
             "technologies": "Tecnologie",
             "type": "Tipo",
             "manage_brands": "Gestisci sedi",
+            "digital_twin": "Gemello Digitale",
             "subscription": "Il tuo abbonamento",
             "contact": "Contatti"
         },
@@ -93,7 +101,16 @@
             "alertes": "Allarmi",
             "rappels": "Promemoria",
             "newsletters": "Newsletter",
-            "current_plan": "Piano attuale"
+            "current_plan": "Piano attuale",
+            "landscape": "Paesaggio",
+            "auto_day_night": "Modalità Giorno/Notte Automatica",
+            "email_alerts_enabled": "Attiva avvisi email critici",
+            "landscape_options": {
+                "urban_night": "Urbano (Notte)",
+                "urban_day": "Urbano (Giorno)",
+                "garden_night": "Giardino (Notte)",
+                "garden_day": "Giardino (Giorno)"
+            }
         },
         "plans": {
             "basic": {
@@ -139,10 +156,10 @@
     "digitalTwin": {
         "title": "Gemello Digitale",
         "visualisation": "Visualizzazione",
+        "loading": "Caricamento modello...",
         "aboutTitle": "Informazioni",
         "aboutParagraph": "Questa interfaccia Digital Twin consente di visualizzare gli avvisi sulla qualità dell'aria interna in tempo reale, esplorare le stanze in 3D e rivedere le azioni preventive raccomandate.",
         "actions": "Azioni",
-        "details": "Dettagli",
         "preventive": {
             "title": "Azioni Preventive",
             "subtitle": "Basate su previsioni (30 min)",
@@ -160,11 +177,19 @@
                 "humidity_increase": "L'umidità aumenterà dal {current}% al {predicted}%"
             },
             "priorities": {
+                "urgent": "Urgente",
                 "high": "Urgente",
                 "medium": "Raccomandato",
                 "low": "Opzionale"
             },
-            "arrow": "→"
+            "arrow": "→",
+            "mlPrediction": "Predizione ML",
+            "forecast": "Previsione tra {minutes} minuti"
+        },
+        "trend": {
+            "increasing": "In aumento",
+            "decreasing": "In diminuzione",
+            "stable": "Stabile"
         },
         "table": {
             "state": "Stato",
@@ -179,8 +204,19 @@
             "allGood": "Tutti i parametri sono entro i limiti",
             "recommendedAction": "Azione raccomandata"
         },
+        "legend": {
+            "title": "Legenda delle Azioni",
+            "urgent": "Urgente",
+            "urgentDesc": "Azione critica richiesta immediatamente.",
+            "warning": "Avviso",
+            "warningDesc": "Azione raccomandata per evitare un peggioramento.",
+            "success": "Soddisfacente",
+            "successDesc": "Nessuna azione richiesta, parametri ottimali.",
+            "info": "Informazione",
+            "infoDesc": "Stato neutro o dati non disponibili."
+        },
         "details": {
-      "title": "Dettagli",
+        "title": "Dettagli",
             "low": "troppo basso",
             "high": "troppo alto",
             "out_of_range": "fuori intervallo",
@@ -195,14 +231,16 @@
             }
         },
         "alertCount": {
-            "zero": "Nessun avviso",
-            "one": "1 Avviso",
-            "multiple": "{{count}} Avvisi"
+              "zero": "Nessun Avviso",
+              "one": "1 Avviso",
+              "multiple": "{{count}} Avvisi",
+              "singular": "1 Avviso",
+              "plural": "{{count}} Avvisi"
         },
         "actionCount": {
-            "zero": "Nessuna azione",
-            "one": "1 azione",
-            "multiple": "{{count}} azioni"
+            "zero": "Nessuna Azione",
+            "one": "1 Azione",
+            "multiple": "{{count}} Azioni"
         },
     "sample": {
             "window": {
@@ -228,6 +266,30 @@
             "humidity": {
                 "subject": "Umidità",
                 "action": "Regolare"
+            },
+            "air_purifier": {
+                "subject": "Purificatore d'aria",
+                "action": "Accendere"
+            },
+            "air_conditioning": {
+                "subject": "Aria condizionata",
+                "action": "Accendere"
+            },
+            "heating": {
+                "subject": "Riscaldamento",
+                "action": "Regolare"
+            },
+            "cooling": {
+                "subject": "Raffreddamento",
+                "action": "Regolare"
+            },
+            "humidifier": {
+                "subject": "Umidificatore",
+                "action": "Accendere"
+            },
+            "dehumidifier": {
+                "subject": "Deumidificatore",
+                "action": "Accendere"
             }
         },
         "actionVerbs": {
@@ -236,7 +298,19 @@
             "increase": "Aumentare",
             "decrease": "Diminuire",
             "turn_on": "Accendere",
-            "turn_off": "Spegnere"
+            "turn_off": "Spegnere",
+
+            "Augmenter la ventilation": "Aumentare la ventilazione",
+            "Ouvrir les fenêtres immédiatement": "Aprire le finestre immediatamente",
+            "Évacuer la pièce et aérer complètement": "Evacuare la stanza e ventilare completamente",
+            "Activer le purificateur d'air": "Attivare il purificatore d'aria",
+            "Purificateur à puissance maximale + ventilation": "Purificatore a massima potenza + ventilazione",
+            "Éviter la pièce, purification intensive requise": "Evitare la stanza, è necessaria una purificazione intensiva",
+            "Aérer la pièce pendant 15 minutes": "Arieggiare la stanza per 15 minuti",
+            "Ventilation intensive + identifier la source": "Ventilazione intensiva + identificare la fonte",
+            "Évacuer et ventiler complètement la zone": "Evacuare e ventilare completamente l'area",
+            "Situation critique actuelle en augmentation": "Situazione critica attuale in aumento",
+            "Situation critique avec amélioration prévue": "Situazione critica con miglioramento previsto"
         }
     },
     "buttons": {

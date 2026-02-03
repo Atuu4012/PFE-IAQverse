@@ -1,0 +1,39 @@
+# Dockerfile pour le service de réentraînement ML (CPU Optimized)
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Installer les outils de compilation
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip
+RUN python -m pip install --upgrade pip
+
+# Copier les fichiers de requirements
+COPY backend/dl/requirements.txt /app/requirements.txt
+
+# Installer les dépendances (le package tensorflow standard est optimisé CPU par défaut)
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copier le code ML et DL
+COPY backend/ml/ /app/backend/ml/
+COPY backend/dl/ /app/backend/dl/
+COPY assets/ /app/assets/
+
+# Créer les dossiers nécessaires
+RUN mkdir -p /app/assets/ml_models /app/assets/datasets/ml_data
+
+# Variables d'environnement
+ENV PYTHONUNBUFFERED=1
+ENV RETRAIN_INTERVAL=24
+ENV INFLUXDB_ENABLED=true
+ENV API_URL=http://backend:8000/api/iaq/data
+
+WORKDIR /app
+
+# Lancer le scheduler avec un script shell pour interpréter les variables
+CMD sh -c "python backend/dl/scheduler_retrain.py --interval $RETRAIN_INTERVAL" 
+# --run-now"

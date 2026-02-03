@@ -133,3 +133,62 @@ document.addEventListener('DOMContentLoaded', () => {
 window.escapeHtml = escapeHtml;
 window.showNotification = showNotification;
 window.ModalManager = ModalManager;
+
+/**
+ * Met à jour l'avatar dans le header
+ */
+async function updateHeaderAvatar() {
+    const avatarImg = document.getElementById('header-avatar');
+    if (!avatarImg) return;
+
+    // Default avatar
+    const defaultAvatar = '/assets/icons/profil.png';
+
+    try {
+        // Try to get config if available
+        if (typeof window.loadConfig === 'function') {
+            const config = await window.loadConfig();
+            if (config && config.vous && config.vous.avatar) {
+                avatarImg.src = config.vous.avatar;
+                return;
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to load avatar config', e);
+    }
+    
+    // Fallback to default if not set or error
+    if (!avatarImg.getAttribute('src')) {
+        avatarImg.src = defaultAvatar;
+    }
+}
+
+// Initialize avatar on load
+document.addEventListener('DOMContentLoaded', () => {
+    updateHeaderAvatar();
+});
+
+
+/**
+ * Bascule l'affichage du modal de compte
+ */
+function toggleAccountModal() {
+    const modal = document.getElementById('accountModal');
+    if (modal) {
+        modal.classList.toggle('visible');
+    }
+}
+
+// Fermer le modal si on clique en dehors
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('accountModal');
+    const avatarLink = document.querySelector('.header-avatar-link');
+    
+    if (modal && modal.classList.contains('visible')) {
+        // Si le clic n'est ni dans le modal ni sur l'avatar (qui l'ouvre)
+        if (!modal.contains(event.target) && (!avatarLink || !avatarLink.contains(event.target))) {
+            modal.classList.remove('visible');
+        }
+    }
+});
+

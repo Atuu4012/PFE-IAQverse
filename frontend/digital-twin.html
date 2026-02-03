@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="digitalTwin.title">Digital Twin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="digitalTwin.title">Digital Twin</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="media.css">
+    <script src="js/disable-browser-shortcuts.js"></script>
     <script src="js/theme.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/i18n.js"></script>
@@ -16,6 +20,9 @@
     <script src="js/preventive-global.js"></script>
     <script src="js/digital-twin.js"></script>
     <script src="js/alerts-engine.js"></script>
+    <script src="js/global-alerts.js"></script>
+    <script src="js/simulate-alert.js"></script>
+    <script src="js/occupants-display.js"></script>
     <script async src="https://unpkg.com/es-module-shims/dist/es-module-shims.js"></script>
     <script type="importmap">
     {
@@ -28,14 +35,53 @@
 </head>
 <body>
     <header>
+    <nav class="header-nav">
+        <a href="index.html">
+            <img src="/assets/icons/home.png" alt="Home">
+        </a>
+        <a href="#" onclick="return false;" class="active-page">
+            <img src="/assets/icons/digital-twin.png" alt="Digital Twin">
+        </a>
+        <a href="settings.html">
+            <img src="/assets/icons/settings.png" alt="Settings">
+        </a>
+    </nav>
     <h1 data-i18n="digitalTwin.title">Digital Twin</h1>
     <div class="header-buttons">
-        <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer le thème">
+        <button class="theme-toggle-btn" onclick="toggleTheme()">
         <img src="/assets/icons/theme.png" alt="Thème">
         </button>
         <button class="info-btn" onclick="openModal()">
         <img src="/assets/icons/info.png">
         </button>
+        <a href="#" onclick="toggleAccountModal(); return false;" class="header-avatar-link">
+            <img id="header-avatar" src="/assets/icons/profil.png" alt="Avatar" class="header-avatar-img">
+        </a>
+    </div>
+
+    <!-- Account Modal -->
+    <div id="accountModal" class="account-modal">
+        <div class="account-header">
+            <span data-i18n="account.switch">Changer de compte</span>
+            <span class="close-account" onclick="toggleAccountModal()">&times;</span>
+        </div>
+        <ul class="account-list">
+            <li class="account-item active">
+                <img src="/assets/icons/profil.png" class="account-avatar-small">
+                <span data-i18n="account.currentUser">Utilisateur Actuel</span>
+            </li>
+            <li class="account-item">
+                <img src="/assets/icons/profil.png" class="account-avatar-small" style="filter: grayscale(1);">
+                <span data-i18n="account.otherAccount">Autre Compte</span>
+            </li>
+            <li class="account-divider"></li>
+                <li class="account-action" onclick="location.href='settings.html'">
+                <span data-i18n="settings.title">Paramètres</span>
+            </li>
+            <li class="account-action logout">
+                <span data-i18n="account.logout">Déconnexion</span>
+            </li>
+        </ul>
     </div>
 
     <div id="infoModal" class="modal">
@@ -49,6 +95,44 @@
             <li data-i18n="digitalTwin.tip.details">Les détails au centre expliquent les causes des alertes.</li>
         </ul>
     </div>
+    </div>
+
+    <!-- Modal Légende Actions -->
+    <div id="legendModal" class="modal">
+        <div class="modal-content legend-modal-content">
+            <span class="close" onclick="closeLegendModal()">&times;</span>
+            <h2 data-i18n="digitalTwin.legend.title">Légende des Actions</h2>
+            <div class="legend-list">
+                <div class="legend-row">
+                    <div class="legend-color color-red"></div>
+                    <div class="legend-desc">
+                        <strong data-i18n="digitalTwin.legend.urgent">Urgent</strong>
+                        <p data-i18n="digitalTwin.legend.urgentDesc">Action critique requise immédiatement.</p>
+                    </div>
+                </div>
+                <div class="legend-row">
+                    <div class="legend-color color-yellow"></div>
+                    <div class="legend-desc">
+                        <strong data-i18n="digitalTwin.legend.warning">Avertissement</strong>
+                        <p data-i18n="digitalTwin.legend.warningDesc">Action recommandée pour éviter une dégradation.</p>
+                    </div>
+                </div>
+                <div class="legend-row">
+                    <div class="legend-color color-gray"></div>
+                    <div class="legend-desc">
+                        <strong data-i18n="digitalTwin.legend.info">Neutre</strong>
+                        <p data-i18n="digitalTwin.legend.infoDesc">Action optionnelle ou données non disponibles.</p>
+                    </div>
+                </div>
+                <div class="legend-row">
+                    <div class="legend-color color-green"></div>
+                    <div class="legend-desc">
+                        <strong data-i18n="digitalTwin.legend.success">Satisfaisant</strong>
+                        <p data-i18n="digitalTwin.legend.successDesc">Aucune action requise, paramètres optimaux.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     </header>
 
@@ -79,36 +163,129 @@
             <!-- Les onglets des pièces seront générés dynamiquement ici -->
         </div>
         <div class="room-visual">
-            <div id="blender-viewer"></div>
-            <!-- Bouton pour recentrer / cadrer le modèle -->
-            <button id="frame-btn" title="Centrer la pièce (touche F)" data-i18n-title="buttons.frame" data-i18n="buttons.frame" style="position:absolute; top:8px; right:8px; z-index:10; padding:6px 8px; background:#fff; border-radius:4px; border:1px solid #ccc; cursor:pointer;">Centrer</button>
+            <div id="blender-viewer">
+            </div>
+            <!-- Loader pour le chargement du modèle -->
+            <div id="model-loader" class="model-loader">
+                <div class="spinner"></div>
+                <div class="loading-text" data-i18n="digitalTwin.loading">Chargement du modèle...</div>
+            </div>
 
-                <!-- Les alert-points seront générés automatiquement pour chaque pièce -->
-                <div id="alert-points-container"></div>
-                <!-- Alert-points statiques commentés - maintenant générés automatiquement
-                <div class="alert-point" data-i18n-key="window" data-target-names="Window|Fenetre|Fenêtre|window|fenetre" data-severity="info" style="top: 20%; left: 30%; transform: translate(-50%, -50%);"></div>
-                <div class="alert-point" data-i18n-key="door" data-target-names="Door|Porte|porte|door" style="top: 50%; left: 10%; transform: translate(-50%, -50%);"></div>
-                <div class="alert-point" data-i18n-key="ventilation" data-target-names="Clim|Ventilation|VMC|ventilation|vmc|extracteur" style="top: 10%; left: 50%; transform: translate(-50%, -50%);"></div>
-                <div class="alert-point" data-i18n-key="radiator" data-target-names="Radiator|Chauffage|radiateur|chauffage|heater" data-severity="warning" style="top: 80%; left: 20%; transform: translate(-50%, -50%);"></div>
-                -->
-            <div class="room-label">2 Alertes</div>
+            <!-- Bouton pour recentrer / cadrer le modèle -->
+            <button id="frame-btn" title="F" data-i18n="buttons.frame" class="frame-btn">Centrer</button>
+            <button id="fullscreen-btn" class="fullscreen-btn" title="Plein écran">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            </button>
+
+            <!-- Les alert-points sont maintenant au-dessus du canvas -->
+            <div id="alert-points-container"></div>
+            
+            <!-- Badge nombre d'occupants (en haut à gauche) -->
+            <div class="occupants-badge-twin" id="occupants-badge-twin" style="display: none;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <span id="occupants-count-twin">0</span>
+            </div>
+            
+            <!-- Overlay des données en temps réel -->
+            <div id="iaq-overlay" class="iaq-overlay">
+                <div class="iaq-item">
+                    <span class="iaq-label">CO₂</span>
+                    <span class="iaq-value" id="overlay-co2">--</span>
+                    <span class="iaq-unit">ppm</span>
+                </div>
+                <div class="iaq-item">
+                    <span class="iaq-label">PM2.5</span>
+                    <span class="iaq-value" id="overlay-pm25">--</span>
+                    <span class="iaq-unit">µg/m³</span>
+                </div>
+                <div class="iaq-item">
+                    <span class="iaq-label">TVOC</span>
+                    <span class="iaq-value" id="overlay-tvoc">--</span>
+                    <span class="iaq-unit">mg/m³</span>
+                </div>
+                <div class="iaq-item">
+                    <span class="iaq-label">Temp</span>
+                    <span class="iaq-value" id="overlay-temp">--</span>
+                    <span class="iaq-unit">°C</span>
+                </div>
+                <div class="iaq-item">
+                    <span class="iaq-label">Hum</span>
+                    <span class="iaq-value" id="overlay-hum">--</span>
+                    <span class="iaq-unit">%</span>
+                </div>
+            </div>
+
+            <div class="room-label"></div>
+
+            <!-- Virtual Joystick for Mobile (D-Pad + Actions) -->
+            
+            <!-- Toggle Button -->
+            <button id="toggle-controls-btn" class="controls-toggle-btn" aria-label="Afficher/Masquer contrôles">
+                <img src="/assets/icons/play.png" alt="Contrôles" class="controls-icon">
+            </button>
+
+            <div id="mobile-joystick-zone" class="mobile-controls-zone">
+                <div class="controls-wrapper">
+                    <!-- Action Buttons (Left of D-Pad or Right? Usually Jump/Crouch are primary actions) -->
+                    <!-- Placing them to the left of D-pad here since D-pad is on right edge -->
+                    <div class="action-buttons">
+                        <button id="ctrl-jump" class="action-btn" aria-label="Sauter">
+                            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M12 4l-6 6h4v8h4v-8h4L12 4z"/></svg>
+                        </button>
+                        <button id="ctrl-crouch" class="action-btn" aria-label="S'accroupir">
+                            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M12 20l6-6h-4V6h-4v8H6l6 6z"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- D-Pad -->
+                    <div class="dpad-container">
+                        <button id="ctrl-fwd" class="dpad-btn dpad-up" aria-label="Avancer">
+                            <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+                        </button>
+                        <div class="dpad-middle-row">
+                            <button id="ctrl-left" class="dpad-btn dpad-left" aria-label="Gauche">
+                                <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                            </button>
+                            <div class="dpad-center"></div>
+                            <button id="ctrl-right" class="dpad-btn dpad-right" aria-label="Droite">
+                                <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+                            </button>
+                        </div>
+                        <button id="ctrl-back" class="dpad-btn dpad-down" aria-label="Reculer">
+                            <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 
     <!-- Tableau d'actions en second (bas sur mobile) -->
     <section class="actions-panel">
-    <h2 data-i18n="digitalTwin.actions">Actions</h2>
-        <table class="actions-table">
-            <thead>
-                <tr>
-                    <th data-i18n="digitalTwin.table.state">État</th>
-                    <th data-i18n="digitalTwin.table.subject">Sujet</th>
-                    <th data-i18n="digitalTwin.table.action">Action</th>
-                </tr>
-            </thead>
-            <tbody>
-            </tbody>
-        </table>
+        <div class="panel-header">
+            <h2 data-i18n="digitalTwin.actions">Actions</h2>
+            <button class="panel-info-btn" onclick="openLegendModal()">
+                <img src="/assets/icons/info.png">
+            </button>
+        </div>
+        <div class="table-wrapper">
+            <table class="actions-table">
+                <thead>
+                    <tr>
+                        <th data-i18n="digitalTwin.table.state">État</th>
+                        <th data-i18n="digitalTwin.table.subject">Sujet</th>
+                        <th data-i18n="digitalTwin.table.action">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
 
         <!-- Détails dynamiques -->
         <div id="details-panel" class="details-panel hidden">
@@ -118,7 +295,7 @@
     </section>
     </main>
 
-    <footer class="nav-bar">
+    <footer class="nav-bar" style="display: none;">
     <div class="nav-left">
         <a href="index.html">
             <img src="/assets/icons/home.png">
@@ -140,6 +317,17 @@
     </footer>
 
     <script type="module" src="js/three-scene.js"></script>
-    
+    <script>
+        document.getElementById('fullscreen-btn')?.addEventListener('click', () => {
+            const container = document.querySelector('.room-visual');
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().catch(err => {
+                    console.error(`Erreur lors du passage en plein écran: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        });
+    </script>
 </body>
 </html>

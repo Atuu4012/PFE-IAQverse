@@ -1,275 +1,605 @@
 <!DOCTYPE html>
 <html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IAQverse</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="media.css" />
+    <script src="js/disable-browser-shortcuts.js"></script>
     <script src="js/theme.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/i18n.js"></script>
     <script src="js/config-loader.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/websocket-manager.js"></script>
     <script src="js/settings.js"></script>
-</head>
-<body>
-    <div class="settings-layout">
+    <script src="js/global-alerts.js"></script>
+    <script src="js/simulate-alert.js"></script>
+    <script src="js/settings-modules.js"></script>
+  </head>
 
-    <!-- Barre latérale -->
-    <aside class="sidebar">
-        <div class="header-home">
+  <body>
+    <header>
+      <nav class="header-nav">
         <a href="index.html">
-            <img src="/assets/icons/home.png" alt="Home" class="nav-icon">
+          <img src="/assets/icons/home.png" alt="Home" />
         </a>
-        <h2 data-i18n="nav.home">Accueil</h2>
-    </div>
+        <a href="digital-twin.html">
+          <img src="/assets/icons/digital-twin.png" alt="Digital Twin" />
+        </a>
+        <a href="#" onclick="return false;" class="active-page">
+          <img src="/assets/icons/settings.png" alt="Settings" />
+        </a>
+      </nav>
+      <h1 data-i18n="settings.title">Paramètres</h1>
+      <div class="header-buttons">
+        <button
+          class="theme-toggle-btn"
+          onclick="toggleTheme()"
+        >
+          <img src="/assets/icons/theme.png" alt="Thème" />
+        </button>
+        <button class="info-btn" onclick="openModal()">
+          <img src="/assets/icons/info.png" />
+        </button>
+        <a href="#" onclick="toggleAccountModal(); return false;" class="header-avatar-link">
+          <img id="header-avatar" src="/assets/icons/profil.png" alt="Avatar" class="header-avatar-img">
+        </a>
+      </div>
+
+      <!-- Account Modal -->
+      <div id="accountModal" class="account-modal">
+        <div class="account-header">
+          <span data-i18n="account.switch">Changer de compte</span>
+          <span class="close-account" onclick="toggleAccountModal()">&times;</span>
+        </div>
+        <ul class="account-list">
+          <li class="account-item active">
+            <img src="/assets/icons/profil.png" class="account-avatar-small">
+            <span data-i18n="account.currentUser">Utilisateur Actuel</span>
+          </li>
+          <li class="account-item">
+            <img src="/assets/icons/profil.png" class="account-avatar-small" style="filter: grayscale(1);">
+            <span data-i18n="account.otherAccount">Autre Compte</span>
+          </li>
+          <li class="account-divider"></li>
+          <li class="account-action" onclick="location.href='settings.html'">
+            <span data-i18n="settings.title">Paramètres</span>
+          </li>
+          <li class="account-action logout">
+            <span data-i18n="account.logout">Déconnexion</span>
+          </li>
+        </ul>
+      </div>
+
+      <div id="infoModal" class="modal">
+        <div class="modal-content">
+          <span class="close" onclick="closeModal()">&times;</span>
+          <h2 data-i18n="settings.aboutTitle">À propos de cette page</h2>
+          <p data-i18n="settings.aboutParagraph">
+            Cette interface des paramètres vous permet de modifier vos réglages
+            afin de les adapter pour une meilleure utilisation.
+          </p>
+          <ul>
+            <li data-i18n="settings.infoList.account">
+              Gestion des informations du compte
+            </li>
+            <li data-i18n="settings.infoList.display">
+              Gestion de l'affichage et de la langue
+            </li>
+            <li data-i18n="settings.infoList.notifications">
+              Gestions de vos notifications
+            </li>
+            <li data-i18n="settings.infoList.rooms">
+              Ajout et suppression des salles
+            </li>
+            <li data-i18n="settings.infoList.subscription">
+              Choix de votre abonnement
+            </li>
+            <li data-i18n="settings.infoList.contact">Contactez nous</li>
+          </ul>
+        </div>
+      </div>
+    </header>
+    <div class="settings-layout">
+      <!-- Barre latérale -->
+      <aside class="sidebar">
         <div class="section-title">
-            <img src="/assets/icons/settings.png">
-            <h2 data-i18n="brand">IAQverse</h2>
+          <img src="/assets/icons/settings.png" />
+          <h2 data-i18n="brand">IAQverse</h2>
         </div>
         <ul class="menu">
-            <li class="active" onclick="showSection('compte')" data-section="compte" data-i18n="settings.menu.account">Compte</li>
-            <li onclick="showSection('affichage')" data-section="affichage" data-i18n="settings.menu.display">Affichage</li>
-            <li onclick="showSection('notifications')" data-section="notifications" data-i18n="settings.menu.notifications">Notifications</li>
-            <li onclick="showSection('lieux')" data-section="lieux" data-i18n="settings.menu.locations">Lieux</li>
-            <li onclick="showSection('abonnement')" data-section="abonnement" data-i18n="settings.menu.subscription">Abonnement</li>
-            <li onclick="showSection('contact')" data-section="contact" data-i18n="settings.menu.contact">Contact</li>
+          <li
+            class="active"
+            onclick="showSection('compte')"
+            data-section="compte"
+            data-i18n="settings.menu.account"
+          >
+            Compte
+          </li>
+          <li
+            onclick="showSection('affichage')"
+            data-section="affichage"
+            data-i18n="settings.menu.display"
+          >
+            Affichage
+          </li>
+          <li
+            onclick="showSection('notifications')"
+            data-section="notifications"
+            data-i18n="settings.menu.notifications"
+          >
+            Notifications
+          </li>
+          <li
+            onclick="showSection('lieux')"
+            data-section="lieux"
+            data-i18n="settings.menu.locations"
+          >
+            Lieux
+          </li>
+          <li
+            onclick="showSection('abonnement')"
+            data-section="abonnement"
+            data-i18n="settings.menu.subscription"
+          >
+            Abonnement
+          </li>
+          <li
+            onclick="showSection('contact')"
+            data-section="contact"
+            data-i18n="settings.menu.contact"
+          >
+            Contact
+          </li>
         </ul>
-    </aside>
+      </aside>
 
-    <!-- Contenu principal -->
-    <main class="settings-content">
-
-        <header>
-        <h1 data-i18n="settings.title">Paramètres</h1>
-            <div class="header-buttons">
-            <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer le thème" data-i18n-title="buttons.toggleTheme">
-                <img src="/assets/icons/theme.png" alt="Thème">
-            </button>
-            <button class="info-btn" onclick="openModal()">
-                <img src="/assets/icons/info.png">
-            </button>
-            <!-- language selection is handled via the 'Langue & Localisation' edit modal; selector removed from header -->
-        </div>
-
-            <div id="infoModal" class="modal">
-            <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h2 data-i18n="settings.aboutTitle">À propos de cette page</h2>
-            <p data-i18n="settings.aboutParagraph">Cette interface des paramètres vous permet de modifier vos réglages afin de les adapter pour une meilleure utilisation.</p>
-            <ul>
-                <li data-i18n="settings.infoList.account">Gestion des informations du compte</li>
-                <li data-i18n="settings.infoList.display">Gestion de l'affichage et de la langue</li>
-                <li data-i18n="settings.infoList.notifications">Gestions de vos notifications</li>
-                <li data-i18n="settings.infoList.rooms">Ajout et suppression des salles</li>
-                <li data-i18n="settings.infoList.subscription">Choix de votre abonnement</li>
-                <li data-i18n="settings.infoList.contact">Contactez nous</li>
-            </ul>
-            </div>
-            </div>
-
-        </header>
-        
-
+      <!-- Contenu principal -->
+      <main class="settings-content">
         <!-- Section du compte -->
         <div id="compte" class="active section">
-            <details id="compte-list-vous" class="settings-section">
-                <summary><span data-i18n="settings.summary.you">Vous</span>
-                <button class="edit-btn" onclick="editSection('vous')">
-                    <img src="/assets/icons/edit.png" alt="Modifier">
-                </button>
-                </summary>
-                <div class="details-content">
-                <p><span data-i18n="settings.fields.nom">Nom</span> : <span data-path="vous.nom">—</span></p>
-                <p><span data-i18n="settings.fields.prenom">Prénom</span> : <span data-path="vous.prenom">—</span></p>
-                <p><span data-i18n="settings.fields.date_naissance">Date de naissance</span> : <span data-path="vous.date_naissance">—</span></p>
-                <p><span data-i18n="settings.fields.email">Email</span> : <span data-path="vous.email">—</span></p>
-                <p><span data-i18n="settings.fields.telephone">Téléphone</span> : <span data-path="vous.telephone">—</span></p>
-                <p><span data-i18n="settings.fields.adresse">Adresse postale</span> : <span data-path="vous.adresse">—</span></p>
-                <p><span data-i18n="settings.fields.avatar">Photo de profil</span> : <span data-path="vous.avatar">—</span></p>
+          <div class="desktop-spacer" style="margin-top: 50px;"></div>
+          <div class="settings-card" id="card-vous">
+            <div class="card-header">
+              <h3 data-i18n="settings.summary.you">Vous</h3>
+            </div>
+            <div class="card-body">
+              <div class="form-row">
+                <div class="form-col">
+                  <div class="form-group">
+                    <label data-i18n="settings.fields.nom">Nom</label>
+                    <input type="text" class="form-control" data-path="vous.nom">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="settings.fields.prenom">Prénom</label>
+                    <input type="text" class="form-control" data-path="vous.prenom">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="settings.fields.date_naissance">Date de naissance</label>
+                    <input type="date" class="form-control" data-path="vous.date_naissance">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="settings.fields.email">Email</label>
+                    <input type="email" class="form-control" data-path="vous.email">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="settings.fields.telephone">Téléphone</label>
+                    <input type="tel" class="form-control" data-path="vous.telephone">
+                  </div>
+                  <div class="form-group">
+                    <label data-i18n="settings.fields.adresse">Adresse postale</label>
+                    <input type="text" class="form-control" data-path="vous.adresse">
+                  </div>
                 </div>
-            </details>
+                <div class="avatar-col">
+                    <div class="avatar-preview">
+                      <img src="" data-path="vous.avatar" id="avatar-img">
+                    </div>
+                    <button class="btn-primary btn-sm" onclick="document.getElementById('avatar-upload').click()" data-i18n="settings.importButton">Importer</button>
+                    <input type="file" id="avatar-upload" style="display:none">
+                </div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-primary" onclick="saveCard('vous')" data-i18n="actions.save">Save changes</button>
+              </div>
+            </div>
+          </div>
 
-            <details id="compte-list-assurance" class="settings-section">
-                <summary><span data-i18n="settings.summary.insurance">Votre assurance</span>
-                <button class="edit-btn" onclick="editSection('assurance')">
-                    <img src="/assets/icons/edit.png" alt="Modifier">
-                </button>
-                </summary>
-                <div class="details-content">
-                <p><span data-i18n="settings.fields.nom">Nom</span> : <span data-path="assurance.nom">—</span></p>
-                <p><span data-i18n="settings.fields.email">Email</span> : <span data-path="assurance.email">—</span></p>
-                <p><span data-i18n="settings.fields.telephone">Téléphone</span> : <span data-path="assurance.telephone">—</span></p>
-                <p><span data-i18n="settings.fields.adresse">Adresse postale</span> : <span data-path="assurance.adresse">—</span></p>
-                </div>
-            </details>
+          <div class="settings-card" id="card-assurance">
+            <div class="card-header">
+              <h3 data-i18n="settings.summary.insurance">Votre assurance</h3>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label data-i18n="settings.fields.nom">Nom</label>
+                <input type="text" class="form-control" data-path="assurance.nom">
+              </div>
+              <div class="form-group">
+                <label data-i18n="settings.fields.email">Email</label>
+                <input type="email" class="form-control" data-path="assurance.email">
+              </div>
+              <div class="form-group">
+                <label data-i18n="settings.fields.telephone">Téléphone</label>
+                <input type="tel" class="form-control" data-path="assurance.telephone">
+              </div>
+              <div class="form-group">
+                <label data-i18n="settings.fields.adresse">Adresse postale</label>
+                <input type="text" class="form-control" data-path="assurance.adresse">
+              </div>
+              <div class="card-actions">
+                <button class="btn-primary" onclick="saveCard('assurance')" data-i18n="actions.save">Save changes</button>
+              </div>
+            </div>
+          </div>
 
-            <details id="compte-list-syndicat" class="settings-section">
-                <summary><span data-i18n="settings.summary.union">Votre syndicat</span>
-                <button class="edit-btn" onclick="editSection('syndicat')">
-                    <img src="/assets/icons/edit.png" alt="Modifier">
-                </button>
-                </summary>
-                <div class="details-content">
-                <p><span data-i18n="settings.fields.nom">Nom</span> : <span data-path="syndicat.nom">—</span></p>
-                <p><span data-i18n="settings.fields.email">Email</span> : <span data-path="syndicat.email">—</span></p>
-                <p><span data-i18n="settings.fields.telephone">Téléphone</span> : <span data-path="syndicat.telephone">—</span></p>
-                <p><span data-i18n="settings.fields.adresse">Adresse postale</span> : <span data-path="syndicat.adresse">—</span></p>
-                </div>
-            </details>
+          <div class="settings-card" id="card-syndicat">
+            <div class="card-header">
+              <h3 data-i18n="settings.summary.union">Votre syndicat</h3>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label data-i18n="settings.fields.nom">Nom</label>
+                <input type="text" class="form-control" data-path="syndicat.nom">
+              </div>
+              <div class="form-group">
+                <label data-i18n="settings.fields.email">Email</label>
+                <input type="email" class="form-control" data-path="syndicat.email">
+              </div>
+              <div class="form-group">
+                <label data-i18n="settings.fields.telephone">Téléphone</label>
+                <input type="tel" class="form-control" data-path="syndicat.telephone">
+              </div>
+              <div class="form-group">
+                <label data-i18n="settings.fields.adresse">Adresse postale</label>
+                <input type="text" class="form-control" data-path="syndicat.adresse">
+              </div>
+
+              <!-- Feature Toggle Alert Syndicat -->
+              <div class="form-group checkbox-group" style="margin-top:20px; padding-top:15px; border-top:1px solid var(--border-color);">
+                <label class="checkbox-label">
+                    <input type="checkbox" data-path="alert_system.email_notifications">
+                    <span data-i18n="settings.fields.email_alerts_enabled">Activer les alertes email critiques</span>
+                </label>
+              </div>
+
+              <div class="card-actions">
+                <button class="btn-primary" onclick="saveCard('syndicat')" data-i18n="actions.save">Save changes</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Section de l'affichage -->
         <div id="affichage" class="section">
-            <details id="affichage-list-mode" class="settings-section">
-                <summary><span data-i18n="settings.summary.mode">Mode</span>
-                </summary>
-                <div class="details-content">
-                <p><span data-i18n="settings.fields.mode_affichage">Mode</span> : <span data-path="affichage.mode">—</span></p>
-                </div>
-            </details>
+          <div class="desktop-spacer" style="margin-top: 50px;"></div>
 
-            <details id="affichage-list-langue-localisation" class="settings-section">
-                <summary><span data-i18n="settings.summary.langloc">Langue & Localisation</span>
-                <button class="edit-btn" onclick="editSection('langue & localisation')">
-                    <img src="/assets/icons/edit.png" alt="Modifier">
-                </button>
-                </summary>
-                                                    <div class="details-content">
-                                                    <p><span data-i18n="settings.fields.langue">Langue</span> : <span data-path="affichage.langue">—</span></p>
-                                                    <p><span data-i18n="settings.fields.localisation">Localisation</span> : <span data-path="affichage.localisation">—</span></p>
-                                                    </div>
-            </details>
+          <div class="settings-card" id="card-digital-twin">
+            <div class="card-header">
+              <h3 data-i18n="settings.summary.digital_twin">Jumeau Numérique</h3>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label data-i18n="settings.fields.landscape">Paysage</label>
+                <select class="form-control" data-path="digital_twin.landscape">
+                    <option value="garden_day.jpg" data-i18n="settings.fields.landscape_options.garden_day">Jardin (Jour)</option>
+                    <option value="garden_night.jpg" data-i18n="settings.fields.landscape_options.garden_night">Jardin (Nuit)</option>
+                    <option value="urban_day.jpg" data-i18n="settings.fields.landscape_options.urban_day">Urbain (Jour)</option>
+                    <option value="urban_night.jpg" data-i18n="settings.fields.landscape_options.urban_night">Urbain (Nuit)</option>
+                </select>
+              </div>
+              <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" data-path="digital_twin.auto_day_night">
+                    <span data-i18n="settings.fields.auto_day_night">Mode Jour/Nuit Automatique</span>
+                </label>
+              </div>
+              <div class="card-actions">
+                <button class="btn-primary" onclick="saveCard('digital-twin')" data-i18n="actions.save">Save changes</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card" id="card-affichage-mode">
+            <div class="card-header">
+              <h3 data-i18n="settings.summary.mode">Mode</h3>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label data-i18n="settings.fields.mode_affichage">Mode</label>
+                <select class="form-control" data-path="affichage.mode">
+                    <option value="Clair" data-i18n="modes.light">Clair</option>
+                    <option value="Sombre" data-i18n="modes.dark">Sombre</option>
+                </select>
+              </div>
+              <div class="card-actions">
+                <button class="btn-primary" onclick="saveCard('affichage-mode')" data-i18n="actions.save">Save changes</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card" id="card-affichage-langue">
+            <div class="card-header">
+              <h3 data-i18n="settings.summary.langloc">Langue & Localisation</h3>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label data-i18n="settings.fields.langue">Langue</label>
+                    <select class="form-control" data-path="affichage.langue">
+                        <option value="fr">Français</option>
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                        <option value="de">Deutsch</option>
+                        <option value="it">Italiano</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="settings.fields.localisation">Localisation</label>
+                    <input type="text" class="form-control" data-path="affichage.localisation">
+                </div>
+                <div class="card-actions">
+                    <button class="btn-primary" onclick="saveCard('affichage-langue')" data-i18n="actions.save">Save changes</button>
+                </div>
+            </div>
+          </div>
         </div>
 
         <!-- Section des notifications -->
         <div id="notifications" class="section">
-            <details id="notifications-list-technologies" class="settings-section">
-                <summary><span data-i18n="settings.summary.technologies">Technologies</span>
-                <button class="edit-btn" onclick="editSection('technologies')">
-                    <img src="/assets/icons/edit.png" alt="Modifier">
-                </button>
-                </summary>
-                <div class="details-content">
-                <p><span data-i18n="settings.fields.email">Email</span> : <span data-path="notifications.technologies.email">—</span></p>
-                <p><span data-i18n="settings.fields.sms">SMS</span> : <span data-path="notifications.technologies.sms">—</span></p>
-                <p><span data-i18n="settings.fields.push">Push</span> : <span data-path="notifications.technologies.push">—</span></p>
-                </div>
-            </details>
+          <div class="desktop-spacer" style="margin-top: 50px;"></div>
+          <div class="settings-card" id="card-notifications-tech">
+            <div class="card-header">
+              <h3 data-i18n="settings.summary.technologies">Technologies</h3>
+            </div>
+            <div class="card-body">
+              <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" data-path="notifications.technologies.email">
+                    <span data-i18n="settings.fields.email">Email</span>
+                </label>
+              </div>
+              <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" data-path="notifications.technologies.sms">
+                    <span data-i18n="settings.fields.sms">SMS</span>
+                </label>
+              </div>
+              <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" data-path="notifications.technologies.push">
+                    <span data-i18n="settings.fields.push">Push</span>
+                </label>
+              </div>
+              <div class="card-actions">
+                <button class="btn-primary" onclick="saveCard('notifications-tech')" data-i18n="actions.save">Save changes</button>
+              </div>
+            </div>
+          </div>
 
-            <details id="notifications-list-type" class="settings-section">
-                <summary><span data-i18n="settings.summary.type">Type</span>
-                <button class="edit-btn" onclick="editSection('type')">
-                    <img src="/assets/icons/edit.png" alt="Modifier">
-                </button>
-                </summary>
-                <div class="details-content">
-                <p><span data-i18n="settings.fields.alertes">Alertes</span> : <span data-path="notifications.types.alertes">—</span></p>
-                <p><span data-i18n="settings.fields.rappels">Rappels</span> : <span data-path="notifications.types.rappels">—</span></p>
-                <p><span data-i18n="settings.fields.newsletters">Newsletters</span> : <span data-path="notifications.types.newsletters">—</span></p>
-                </div>
-            </details>
+          <div class="settings-card" id="card-notifications-type">
+            <div class="card-header">
+              <h3 data-i18n="settings.summary.type">Type</h3>
+            </div>
+            <div class="card-body">
+                <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" data-path="notifications.types.alertes">
+                    <span data-i18n="settings.fields.alertes">Alertes</span>
+                </label>
+              </div>
+              <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" data-path="notifications.types.rappels">
+                    <span data-i18n="settings.fields.rappels">Rappels</span>
+                </label>
+              </div>
+              <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" data-path="notifications.types.newsletters">
+                    <span data-i18n="settings.fields.newsletters">Newsletters</span>
+                </label>
+              </div>
+              <div class="card-actions">
+                <button class="btn-primary" onclick="saveCard('notifications-type')" data-i18n="actions.save">Save changes</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Section des lieux (gestion des enseignes & pièces) -->
         <div id="lieux" class="section">
-            <details id="lieux-list" class="settings-section">
-                <summary><span data-i18n="settings.summary.manage_brands">Gestion des enseignes</span>
-                    <button class="add-btn" type="button" onclick="addEnseigne()" data-i18n-title="actions.add_brand" title="Ajouter une enseigne">
-                        <img src="/assets/icons/add.png" alt="Ajouter">
-                    </button>
-                </summary>
-                <div class="details-content">
-                    <div id="enseignes-list" class="locations-grid">
-                        <!-- Cartes des enseignes générées dynamiquement -->
-                    </div>
-                </div>
-            </details>
+          <div class="desktop-spacer" style="margin-top: 50px;"></div>
+          <div class="settings-card" id="card-lieux">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <h3 data-i18n="settings.summary.manage_brands">Gestion des enseignes</h3>
+              <button class="btn-primary btn-sm" onclick="addEnseigne()" style="padding: 5px 10px; display: flex; align-items: center; justify-content: center;">
+                <img src="/assets/icons/add.png" alt="Ajouter" style="filter: brightness(0) invert(1); width: 16px; height: 16px;">
+              </button>
+            </div>
+            <div class="card-body">
+              <div id="enseignes-list" class="locations-grid">
+                <!-- Cartes des enseignes générées dynamiquement -->
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Section de l'abonnement -->
         <div id="abonnement" class="section">
-            <details id="abonnement-list" class="settings-section">
-                <summary><span data-i18n="settings.summary.subscription">Votre abonnement</span>
-                </summary>
-                <div class="details-content">
-                <p><span data-i18n="settings.fields.current_plan">Plan actuel</span> : <span data-path="abonnement.plan_actuel">—</span></p>
-                <div class="plans-container">
-                    <div class="plan-card" data-plan="basic">
-                        <h3 data-i18n="settings.plans.basic.title">Basic</h3>
-                        <div class="plan-price">49 €</div>
-                        <p data-i18n="settings.plans.basic.description">Plan de base avec fonctionnalités essentielles</p>
-                        <ul>
-                            <li data-i18n="settings.plans.basic.features.monitoring">Monitoring de base</li>
-                            <li data-i18n="settings.plans.basic.features.alerts">Alertes simples</li>
-                            <li data-i18n="settings.plans.basic.features.reports">Rapports mensuels</li>
-                            <li data-i18n="settings.plans.basic.features.users">Nombre d'utilisateur : 1</li>
-                        </ul>
-                        <button class="plan-btn" data-i18n="actions.select">Sélectionner</button>
-                    </div>
-                    <div class="plan-card" data-plan="pro">
-                        <h3 data-i18n="settings.plans.pro.title">Pro</h3>
-                        <div class="plan-price">
-                            <span class="price-current">79 €</span>
-                            <span class="price-old">99 €</span>
-                        </div>
-                        <p data-i18n="settings.plans.pro.description">Plan professionnel avec fonctionnalités avancées</p>
-                        <ul>
-                            <li data-i18n="settings.plans.pro.features.advanced">Monitoring avancé</li>
-                            <li data-i18n="settings.plans.pro.features.custom">Alertes personnalisées</li>
-                            <li data-i18n="settings.plans.pro.features.realtime">Rapports en temps réel</li>
-                            <li data-i18n="settings.plans.pro.features.api">Accès API</li>
-                            <li data-i18n="settings.plans.pro.features.users">Nombre d'utilisateur : 10</li>
-                        </ul>
-                        <button class="plan-btn" data-i18n="actions.select">Sélectionner</button>
-                    </div>
-                    <div class="plan-card" data-plan="entreprise">
-                        <h3 data-i18n="settings.plans.enterprise.title">Entreprise</h3>
-                        <div class="plan-price">Sur devis</div>
-                        <p data-i18n="settings.plans.enterprise.description">Solution complète pour les grandes organisations</p>
-                        <ul>
-                            <li data-i18n="settings.plans.enterprise.features.advanced">Monitoring avancé</li>
-                            <li data-i18n="settings.plans.enterprise.features.integration">Intégrations personnalisées</li>
-                            <li data-i18n="settings.plans.enterprise.features.users">Nombre d'utilisateur : Illimité</li>
-                            <li data-i18n="settings.plans.enterprise.features.training">Formation équipe</li>
-                            <li data-i18n="settings.plans.enterprise.features.support">Support dédié 24/7</li>
-                            <li data-i18n="settings.plans.enterprise.features.sla">SLA garanti</li>
-                        </ul>
-                        <button class="plan-btn" data-i18n="actions.select">Sélectionner</button>
-                    </div>
+          <div class="desktop-spacer" style="margin-top: 50px;"></div>
+          <div class="settings-card" id="card-abonnement">
+            <div class="card-header">
+              <h3 data-i18n="settings.summary.subscription">Votre abonnement</h3>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                  <label data-i18n="settings.fields.current_plan">Plan actuel</label>
+                  <div class="form-control-static" data-path="abonnement.plan_actuel" style="font-weight: bold; font-size: 1.1em; padding: 8px 0;">—</div>
+              </div>
+              
+              <div class="plans-container" style="margin-top: 20px;">
+                <div class="plan-card" data-plan="basic">
+                  <h3 data-i18n="settings.plans.basic.title">Basic</h3>
+                  <div class="plan-price">49 €</div>
+                  <p data-i18n="settings.plans.basic.description">
+                    Plan de base avec fonctionnalités essentielles
+                  </p>
+                  <ul>
+                    <li data-i18n="settings.plans.basic.features.monitoring">
+                      Monitoring de base
+                    </li>
+                    <li data-i18n="settings.plans.basic.features.alerts">
+                      Alertes simples
+                    </li>
+                    <li data-i18n="settings.plans.basic.features.reports">
+                      Rapports mensuels
+                    </li>
+                    <li data-i18n="settings.plans.basic.features.users">
+                      Nombre d'utilisateur : 1
+                    </li>
+                  </ul>
+                  <button class="plan-btn" data-i18n="actions.select">
+                    Sélectionner
+                  </button>
                 </div>
+                <div class="plan-card" data-plan="pro">
+                  <h3 data-i18n="settings.plans.pro.title">Pro</h3>
+                  <div class="plan-price">
+                    <span class="price-current">79 €</span>
+                    <span class="price-old">99 €</span>
+                  </div>
+                  <p data-i18n="settings.plans.pro.description">
+                    Plan professionnel avec fonctionnalités avancées
+                  </p>
+                  <ul>
+                    <li data-i18n="settings.plans.pro.features.advanced">
+                      Monitoring avancé
+                    </li>
+                    <li data-i18n="settings.plans.pro.features.custom">
+                      Alertes personnalisées
+                    </li>
+                    <li data-i18n="settings.plans.pro.features.realtime">
+                      Rapports en temps réel
+                    </li>
+                    <li data-i18n="settings.plans.pro.features.api">
+                      Accès API
+                    </li>
+                    <li data-i18n="settings.plans.pro.features.users">
+                      Nombre d'utilisateur : 10
+                    </li>
+                  </ul>
+                  <button class="plan-btn" data-i18n="actions.select">
+                    Sélectionner
+                  </button>
                 </div>
-            </details>
+                <div class="plan-card" data-plan="entreprise">
+                  <h3 data-i18n="settings.plans.enterprise.title">
+                    Entreprise
+                  </h3>
+                  <div class="plan-price">Sur devis</div>
+                  <p data-i18n="settings.plans.enterprise.description">
+                    Solution complète pour les grandes organisations
+                  </p>
+                  <ul>
+                    <li data-i18n="settings.plans.enterprise.features.advanced">
+                      Monitoring avancé
+                    </li>
+                    <li
+                      data-i18n="settings.plans.enterprise.features.integration"
+                    >
+                      Intégrations personnalisées
+                    </li>
+                    <li data-i18n="settings.plans.enterprise.features.users">
+                      Nombre d'utilisateur : Illimité
+                    </li>
+                    <li data-i18n="settings.plans.enterprise.features.training">
+                      Formation équipe
+                    </li>
+                    <li data-i18n="settings.plans.enterprise.features.support">
+                      Support dédié 24/7
+                    </li>
+                    <li data-i18n="settings.plans.enterprise.features.sla">
+                      SLA garanti
+                    </li>
+                  </ul>
+                  <button class="plan-btn" data-i18n="actions.select">
+                    Sélectionner
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Section des contacts -->
         <div id="contact" class="section">
-            <details id="contact-list" class="settings-section">
-                <summary><span data-i18n="settings.summary.contact">Nous contacter</span>
-                </summary>
-                <div class="details-content">
-                <p><span data-i18n="settings.fields.email">Email</span> : <span data-path="contact.email" data-readonly="true">—</span></p>
-                <p><span data-i18n="settings.fields.telephone">Téléphone</span> : <span data-path="contact.telephone" data-readonly="true">—</span></p>
-                <p><span data-i18n="settings.fields.adresse">Adresse postale</span> : <span data-path="contact.adresse_postale" data-readonly="true">—</span></p>
-                </div>
-            </details>
+          <div class="desktop-spacer" style="margin-top: 50px;"></div>
+          <div class="settings-card" id="card-contact">
+            <div class="card-header">
+              <h3 data-i18n="settings.summary.contact">Nous contacter</h3>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label data-i18n="settings.fields.email">Email</label>
+                <input type="text" class="form-control" data-path="contact.email" readonly>
+              </div>
+              <div class="form-group">
+                <label data-i18n="settings.fields.telephone">Téléphone</label>
+                <input type="text" class="form-control" data-path="contact.telephone" readonly>
+              </div>
+              <div class="form-group">
+                <label data-i18n="settings.fields.adresse">Adresse postale</label>
+                <input type="text" class="form-control" data-path="contact.adresse_postale" readonly>
+              </div>
+            </div>
+          </div>
         </div>
-    </main>
+      </main>
     </div>
     <div id="editModal" class="modal">
-    <div class="modal-content">
-        <span class="close">&times;</span>
+      <div class="modal-content">
+        <span class="close" onclick="document.getElementById('editModal').style.display='none'">&times;</span>
         <h2 data-i18n="modals.edit_title">Modifier les paramètres</h2>
         <form id="editForm">
-            <!-- Les champs seront générés dynamiquement ici -->
+          <!-- Les champs seront générés dynamiquement ici -->
         </form>
         <div class="form-actions">
-            <button type="button" class="btn-secondary close-modal" data-i18n="actions.cancel">Annuler</button>
-            <button type="submit" form="editForm" class="btn-primary" data-i18n="actions.save">Enregistrer</button>
+          <button
+            type="button"
+            class="btn-secondary close-modal"
+            data-i18n="actions.cancel"
+            onclick="document.getElementById('editModal').style.display='none'"
+          >
+            Annuler
+          </button>
+          <button
+            type="submit"
+            form="editForm"
+            class="btn-primary"
+            data-i18n="actions.save"
+          >
+            Enregistrer
+          </button>
         </div>
+      </div>
     </div>
+
+    <!-- Modal spécifique pour la configuration des modules (IoT) -->
+    <div id="modulesModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeEditModal()">&times;</span>
+        <h2 id="modalTitle">Modules</h2>
+        <div id="modalBody">
+            <!-- Contenu dynamique -->
+        </div>
+        <div id="modalFooter" class="form-actions">
+            <!-- Boutons dynamiques -->
+        </div>
+      </div>
     </div>
 
     <!-- Système de notification -->
     <div id="notification" class="notification"></div>
-</body>
+  </body>
 </html>

@@ -1,5 +1,11 @@
 {
     "brand": "IAQverse",
+    "account": {
+        "switch": "Konto wechseln",
+        "currentUser": "Aktueller Benutzer",
+        "otherAccount": "Anderes Konto",
+        "logout": "Abmelden"
+    },
     "nav": {
         "home": "Panel",
         "digitalTwin": "Digitaler Zwilling",
@@ -57,6 +63,7 @@
         "aboutTitle": "Über diese Seite",
         "aboutParagraph": "Verwenden Sie dieses Einstellungsfeld, um Ihre Präferenzen anzupassen.",
         "languageLabel": "Sprache",
+        "importButton": "Importieren",
         "summary": {
             "you": "Sie",
             "insurance": "Ihre Versicherung",
@@ -66,6 +73,7 @@
             "technologies": "Technologien",
             "type": "Typ",
             "manage_brands": "Standorte verwalten",
+            "digital_twin": "Digitaler Zwilling",
             "subscription": "Ihr Abonnement",
             "contact": "Kontakt"
         },
@@ -93,7 +101,16 @@
             "alertes": "Warnungen",
             "rappels": "Erinnerungen",
             "newsletters": "Newsletter",
-            "current_plan": "Aktueller Plan"
+            "current_plan": "Aktueller Plan",
+            "landscape": "Landschaft",
+            "auto_day_night": "Automatischer Tag-/Nachtmodus",
+            "email_alerts_enabled": "Kritische E-Mail-Warnungen aktivieren",
+            "landscape_options": {
+                "urban_night": "Städtisch (Nacht)",
+                "urban_day": "Städtisch (Tag)",
+                "garden_night": "Garten (Nacht)",
+                "garden_day": "Garten (Tag)"
+            }
         },
         "plans": {
             "basic": {
@@ -139,10 +156,10 @@
     "digitalTwin": {
         "title": "Digitaler Zwilling",
         "visualisation": "Visualisierung",
+        "loading": "Modell wird geladen...",
         "aboutTitle": "Über diese Seite",
         "aboutParagraph": "Diese Digital Twin-Schnittstelle ermöglicht es Ihnen, Warnungen zur Innenraumluftqualität in Echtzeit zu visualisieren, Räume in 3D zu erkunden und empfohlene Präventivmaßnahmen zu überprüfen.",
         "actions": "Aktionen",
-        "details": "Details",
         "preventive": {
             "title": "Präventive Maßnahmen",
             "subtitle": "Basierend auf Vorhersagen (30 Min.)",
@@ -161,12 +178,20 @@
                 "humidity_increase": "Luftfeuchtigkeit wird von {current}% auf {predicted}% ansteigen"
             },
             "priorities": {
+                "urgent": "Dringend",
                 "high": "Dringend",
                 "medium": "Empfohlen",
                 "low": "Optional"
             },
-            "arrow": "→"
+            "arrow": "→",
+            "mlPrediction": "ML-Vorhersage",
+            "forecast": "Vorhersage in {minutes} Minuten"
         },
+            "trend": {
+                "increasing": "Zunehmend",
+                "decreasing": "Abnehmend",
+                "stable": "Stabil"
+            },
         "table": {
             "state": "Zustand",
             "subject": "Betreff",
@@ -179,6 +204,17 @@
             "noDetails": "Keine Details verfügbar",
             "allGood": "Alle Parameter liegen im Normbereich",
             "recommendedAction": "Empfohlene Maßnahme"
+        },
+        "legend": {
+            "title": "Legende der Aktionen",
+            "urgent": "Dringend",
+            "urgentDesc": "Sofortiges Handeln erforderlich.",
+            "warning": "Warnung",
+            "warningDesc": "Empfohlene Aktion, um Verschlechterung zu vermeiden.",
+            "success": "Zufriedenstellend",
+            "successDesc": "Keine Aktion erforderlich, optimale Parameter.",
+            "info": "Information",
+            "infoDesc": "Neutraler Zustand oder keine Daten verfügbar."
         },
         "details": {
       "title": "Details",
@@ -198,7 +234,9 @@
         "alertCount": {
             "zero": "Keine Warnungen",
             "one": "1 Warnung",
-            "multiple": "{{count}} Warnungen"
+            "multiple": "{{count}} Warnungen",
+            "singular": "1 Warnung",
+            "plural": "{{count}} Warnungen"
         },
         "actionCount": {
             "zero": "Keine Aktionen",
@@ -229,6 +267,30 @@
             "humidity": {
                 "subject": "Luftfeuchtigkeit",
                 "action": "Regulieren"
+            },
+            "air_purifier": {
+                "subject": "Luftreiniger",
+                "action": "Einschalten"
+            },
+            "air_conditioning": {
+                "subject": "Klimaanlage",
+                "action": "Einschalten"
+            },
+            "heating": {
+                "subject": "Heizung",
+                "action": "Einstellen"
+            },
+            "cooling": {
+                "subject": "Kühlung",
+                "action": "Einstellen"
+            },
+            "humidifier": {
+                "subject": "Luftbefeuchter",
+                "action": "Einschalten"
+            },
+            "dehumidifier": {
+                "subject": "Luftentfeuchter",
+                "action": "Einschalten"
             }
         },
         "actionVerbs": {
@@ -237,7 +299,19 @@
             "increase": "Erhöhen",
             "decrease": "Verringern",
             "turn_on": "Einschalten",
-            "turn_off": "Ausschalten"
+            "turn_off": "Ausschalten",
+
+            "Augmenter la ventilation": "Belüftung erhöhen",
+            "Ouvrir les fenêtres immédiatement": "Fenster sofort öffnen",
+            "Évacuer la pièce et aérer complètement": "Raum evakuieren und vollständig lüften",
+            "Activer le purificateur d'air": "Luftreiniger einschalten",
+            "Purificateur à puissance maximale + ventilation": "Luftreiniger auf maximale Leistung + Lüftung",
+            "Éviter la pièce, purification intensive requise": "Raum meiden, intensive Reinigung erforderlich",
+            "Aérer la pièce pendant 15 minutes": "Raum 15 Minuten lüften",
+            "Ventilation intensive + identifier la source": "Intensive Lüftung + Quelle identifizieren",
+            "Évacuer et ventiler complètement la zone": "Evakuieren und Bereich vollständig lüften",
+            "Situation critique actuelle en augmentation": "Aktuelle kritische Situation nimmt zu",
+            "Situation critique avec amélioration prévue": "Kritische Situation mit erwarteter Verbesserung"
         }
     },
     "buttons": {

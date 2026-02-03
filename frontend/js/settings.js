@@ -6,6 +6,39 @@
 
 let settingsConfig = null; // configuration courante (local à cette page)
 let currentSection = '';
+let wsManager = null;
+
+// Initialize WebSocket connection
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof WebSocketManager !== 'undefined') {
+    wsManager = new WebSocketManager();
+    wsManager.connect();
+    
+    // Listen for config updates
+    wsManager.listeners.set('config_updated', (data) => {
+      console.log('🔄 Config updated remotely:', data);
+      if (data && data.config) {
+        settingsConfig = data.config;
+        
+        // Refresh UI based on current section
+        // We re-render everything to be safe
+        loadConfigToUI(); 
+        renderEnseignes();
+        
+        showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.config_synced') || 'Configuration synchronisée' : 'Configuration synchronisée');
+      }
+    });
+    
+    // Also listen for generic 'all' topic if needed, but 'config_updated' is specific enough
+    wsManager.listeners.set('all', (data) => {
+        if (data.type === 'config_updated' && data.config) {
+             settingsConfig = data.config;
+             loadConfigToUI();
+             renderEnseignes();
+        }
+    });
+  }
+});
 
 // Navigation des sections
 function showSection(id) {
@@ -199,8 +232,8 @@ function openEditModal(element) {
 
   const updates = {}; setByPath(updates, path, newVal); setByPath(settingsConfig, path, newVal);
     try {
-      const response = await fetch('http://localhost:8000/config', {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates)
+      const response = await fetch('/config', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(updates)
       });
       if (!response.ok) throw new Error('Erreur lors de la sauvegarde');
   const result = await response.json(); if (result && result.config) settingsConfig = result.config;
@@ -270,13 +303,17 @@ function renderEnseignes() {
     const cancelLabel = (t && t('actions.cancel')) || 'Annuler';
 
     const roomsHtml = (enseigne.pieces || []).map(piece => {
-      return `<span class="room-tag">${escapeHtml(piece.nom)} <button class="remove-btn" title="${removeLabel}" onclick="removePiece('${enseigne.id}','${piece.id}')">×</button></span>`;
+      return `<span class="room-tag">
+        ${escapeHtml(piece.nom)} 
+        <button class="edit-room-btn" title="Gérer les modules" onclick="editRoomModules('${enseigne.id}','${piece.id}')" style="background:none; border:none; cursor:pointer; font-size:12px; margin-left:5px;">⚙️</button>
+        <button class="remove-btn" title="${removeLabel}" onclick="removePiece('${enseigne.id}','${piece.id}')">×</button>
+      </span>`;
     }).join('');
 
     card.innerHTML = `
       <div class="actions">
-        <button class="edit-btn" title="${editLabel}" onclick="editEnseigne('${enseigne.id}')"><img src="/assets/icons/edit.png" alt="${editLabel}"></button>
-        <button class="remove-btn" title="${removeLabel}" onclick="removeEnseigne('${enseigne.id}')"><img src="/assets/icons/delete.png" alt="${removeLabel}"></button>
+        <button class="edit-btn" onclick="editEnseigne('${enseigne.id}')"><img src="/assets/icons/edit.png" alt="${editLabel}"></button>
+        <button class="remove-btn" onclick="removeEnseigne('${enseigne.id}')"><img src="/assets/icons/delete.png" alt="${removeLabel}"></button>
       </div>
       <h3>${escapeHtml(enseigne.nom || '—')}</h3>
       <p class="muted">${escapeHtml(enseigne.adresse || '')}</p>
@@ -344,8 +381,8 @@ function enableDragAndDrop() {
   settingsConfig.lieux.enseignes.sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
       if (settingsConfig.lieux.enseignes.length > 0) settingsConfig.lieux.active = settingsConfig.lieux.enseignes[0].id;
 
-      fetch('http://localhost:8000/config', {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settingsConfig)
+      fetch('/config', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(settingsConfig)
       }).then(() => showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.order_saved') || 'Nouvel ordre enregistré' : 'Nouvel ordre enregistré')).catch(err => console.error(err));
     });
 
@@ -396,9 +433,9 @@ function enablePieceDragAndDrop() {
 
         enseigne.pieces.sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
 
-        fetch('http://localhost:8000/config', {
+        fetch('/config', {
           method: 'PUT',
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settingsConfig)
+          method: 'PUT', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(settingsConfig)
   }).then(() => showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.rooms_order_saved') || 'Ordre des pièces enregistré' : 'Ordre des pièces enregistré')).catch(err => console.error(err));
       });
 
@@ -443,7 +480,7 @@ async function addEnseigne() {
   settingsConfig.lieux.active = newEn.id;
 
     try {
-  const response = await fetch('http://localhost:8000/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settingsConfig) });
+  const response = await fetch('/config', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(settingsConfig) });
       if (!response.ok) throw new Error('Erreur lors de la sauvegarde');
   const result = await response.json(); if (result && result.config) settingsConfig = result.config;
   document.getElementById('editModal').style.display = 'none';
@@ -457,7 +494,13 @@ async function addPiece(enseigneId) {
   openEditModalWith('modals.add_room', `
     <div class="form-group"><label data-i18n="settings.fields.nom">Nom de la pièce</label><input name="nom" type="text" required></div>
     <div class="form-group"><label data-i18n="settings.fields.type">Type</label>
-      <select name="type"><option value="salon">Salon</option><option value="cuisine">Cuisine</option><option value="chambre">Chambre</option><option value="bureau">Bureau</option><option value="autre">Autre</option></select>
+      <select name="type" class="styled-select">
+        <option value="salon">Salon</option>
+        <option value="cuisine">Cuisine</option>
+        <option value="chambre">Chambre</option>
+        <option value="bureau">Bureau</option>
+        <option value="autre">Autre</option>
+      </select>
     </div>
     <div class="form-group">
       <label data-i18n="modals.glb_label">Modèle 3D (.glb)</label>
@@ -489,7 +532,7 @@ async function addPiece(enseigneId) {
         fd.append('file', glbFile, filename);
         fd.append('filename', filename);
 
-        const upResp = await fetch('http://localhost:8000/api/rooms/files', {
+        const upResp = await fetch('/api/rooms/files', {
           method: 'PUT', body: fd
         });
         if (!upResp.ok) throw new Error('Erreur upload');
@@ -506,7 +549,7 @@ async function addPiece(enseigneId) {
     }
 
     try {
-      const response = await fetch('http://localhost:8000/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settingsConfig) });
+      const response = await fetch('/config', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(settingsConfig) });
       if (!response.ok) throw new Error('Erreur lors de la sauvegarde');
       const result = await response.json(); if (result && result.config) settingsConfig = result.config;
   document.getElementById('editModal').style.display = 'none';
@@ -551,7 +594,7 @@ async function editEnseigne(enseigneId) {
     enseigne.adresse = formData.get('adresse');
 
     try {
-      const response = await fetch('http://localhost:8000/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settingsConfig) });
+      const response = await fetch('/config', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(settingsConfig) });
       if (!response.ok) throw new Error('Erreur lors de la sauvegarde');
       const result = await response.json(); if (result && result.config) settingsConfig = result.config;
   document.getElementById('editModal').style.display = 'none';
@@ -584,7 +627,12 @@ async function removeEnseigne(enseigneId) {
   }
   try {
     if (pathsToDelete.length > 0) {
-      await fetch('http://localhost:8000/api/rooms/files', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pathsToDelete) });
+      const delResp = await fetch('/api/rooms/files', { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(pathsToDelete) });
+      if (!delResp.ok) console.error('Delete files failed:', delResp.status, delResp.statusText);
+      else {
+        const delResult = await delResp.json();
+        console.log('Delete files result:', delResult);
+      }
     }
     } catch (err) {
     console.error('Erreur suppression fichiers GLB:', err);
@@ -609,7 +657,12 @@ async function removePiece(enseigneId, pieceId) {
     if (piece && piece.glbModel) pathsToDelete.push(piece.glbModel);
     try {
       if (pathsToDelete.length > 0) {
-        await fetch('http://localhost:8000/api/rooms/files', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pathsToDelete) });
+        const delResp = await fetch('/api/rooms/files', { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(pathsToDelete) });
+        if (!delResp.ok) console.error('Delete files failed:', delResp.status, delResp.statusText);
+        else {
+          const delResult = await delResp.json();
+          console.log('Delete files result:', delResult);
+        }
       }
     } catch (err) {
       console.error('Erreur suppression fichier GLB:', err);
@@ -625,8 +678,8 @@ async function removePiece(enseigneId, pieceId) {
 
 // Enregistrement global de la configuration (envoi complet si nécessaire)
 async function saveConfigAll() {
-  const response = await fetch('http://localhost:8000/config', {
-    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settingsConfig)
+  const response = await fetch('/config', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(settingsConfig)
   });
   if (!response.ok) throw new Error('Erreur lors de la sauvegarde');
   const result = await response.json(); if (result && result.config) settingsConfig = result.config;
@@ -717,7 +770,7 @@ async function saveConfigSection() {
 
     } catch(e) { console.warn('saveConfigSection language apply failed', e); }
 
-    const response = await fetch('http://localhost:8000/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const response = await fetch('/config', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(payload) });
     const result = await response.json();
     console.info('saveConfigSection: save response ok=', response.ok, ' result=', result);
     if (!response.ok) throw new Error(result.detail || 'Erreur lors de la sauvegarde');
@@ -775,102 +828,241 @@ function updateDataPathsDisplay() {
   document.querySelectorAll('[data-path]').forEach(el => {
     const path = el.getAttribute('data-path');
     const value = getByPath(settingsConfig, path);
+
+    // Handle inputs (text, email, tel, date, select)
+    if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
+        if (el.type === 'checkbox') {
+            el.checked = !!value;
+        } else if (el.type === 'file') {
+            // Do nothing for file inputs
+        } else {
+            el.value = value || '';
+        }
+
+        // Handle email fields to make them clickable (mailto)
+        if (path.endsWith('.email')) {
+            if (el.hasAttribute('readonly')) {
+                el.style.cursor = 'pointer';
+                el.onclick = () => { if (el.value) window.location.href = `mailto:${el.value}`; };
+            } else {
+                // For editable fields, add a mail icon button
+                const parent = el.parentElement;
+                if (parent && parent.classList.contains('form-group')) {
+                    parent.style.position = 'relative';
+                    let mailBtn = parent.querySelector('.mail-action-btn');
+                    if (!mailBtn) {
+                        mailBtn = document.createElement('a');
+                        mailBtn.className = 'mail-action-btn';
+                        
+                        const iconImg = document.createElement('img');
+                        iconImg.src = '/assets/icons/mail.png';
+                        iconImg.alt = 'Email';
+                        iconImg.style.width = '20px';
+                        iconImg.style.height = '20px';
+                        iconImg.style.verticalAlign = 'middle';
+                        // Invert color for dark mode if needed, or rely on CSS. 
+                        // Assuming the icon is black/dark by default.
+                        // Let's add a class to the img to control it via CSS if needed.
+                        iconImg.className = 'mail-icon';
+                        iconImg.style.filter = (document.body.classList.contains('dark-mode') || window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'invert(1)' : 'none';
+                        
+                        mailBtn.appendChild(iconImg);
+
+                        mailBtn.style.position = 'absolute';
+                        mailBtn.style.right = '10px';
+                        mailBtn.style.bottom = '8px'; // Adjusted for image alignment
+                        mailBtn.style.textDecoration = 'none';
+                        parent.appendChild(mailBtn);
+                        el.style.paddingRight = '35px';
+                    }
+                    mailBtn.href = value ? `mailto:${value}` : '#';
+                    mailBtn.style.display = value ? 'block' : 'none';
+                }
+            }
+        }
+
+        // Handle phone fields to make them clickable (tel)
+        if (path.endsWith('.telephone')) {
+            if (el.hasAttribute('readonly')) {
+                el.style.cursor = 'pointer';
+                el.onclick = () => { if (el.value) window.location.href = `tel:${el.value}`; };
+            } else {
+                // For editable fields, add a phone icon button
+                const parent = el.parentElement;
+                if (parent && parent.classList.contains('form-group')) {
+                    parent.style.position = 'relative';
+                    let phoneBtn = parent.querySelector('.phone-action-btn');
+                    if (!phoneBtn) {
+                        phoneBtn = document.createElement('a');
+                        phoneBtn.className = 'phone-action-btn';
+                        
+                        const iconImg = document.createElement('img');
+                        // SVG Phone Icon
+                        iconImg.src = '../assets/icons/phone.png';
+                        iconImg.alt = 'Téléphone';
+                        iconImg.style.width = '20px';
+                        iconImg.style.height = '20px';
+                        iconImg.style.verticalAlign = 'middle';
+                        iconImg.className = 'phone-icon';
+                        iconImg.style.filter = (document.body.classList.contains('dark-mode') || window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'invert(1)' : 'none';
+                        
+                        phoneBtn.appendChild(iconImg);
+
+                        phoneBtn.style.position = 'absolute';
+                        phoneBtn.style.right = '10px';
+                        phoneBtn.style.bottom = '8px';
+                        phoneBtn.style.textDecoration = 'none';
+                        parent.appendChild(phoneBtn);
+                        el.style.paddingRight = '35px';
+                    }
+                    phoneBtn.href = value ? `tel:${value}` : '#';
+                    phoneBtn.style.display = value ? 'block' : 'none';
+                }
+            }
+        }
+
+        // Handle address fields to make them clickable (Google Maps)
+        if (path.endsWith('.adresse') || path.endsWith('.adresse_postale')) {
+            if (el.hasAttribute('readonly')) {
+                el.style.cursor = 'pointer';
+                el.onclick = () => { 
+                    if (el.value) window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(el.value)}`, '_blank'); 
+                };
+            } else {
+                // For editable fields, add a map icon button
+                const parent = el.parentElement;
+                if (parent && parent.classList.contains('form-group')) {
+                    parent.style.position = 'relative';
+                    let mapBtn = parent.querySelector('.map-action-btn');
+                    if (!mapBtn) {
+                        mapBtn = document.createElement('a');
+                        mapBtn.className = 'map-action-btn';
+                        
+                        const iconImg = document.createElement('img');
+                        // SVG Map Pin Icon
+                        iconImg.src = '../assets/icons/maps.png';
+                        iconImg.alt = 'Carte';
+                        iconImg.style.width = '20px';
+                        iconImg.style.height = '20px';
+                        iconImg.style.verticalAlign = 'middle';
+                        iconImg.className = 'map-icon';
+                        iconImg.style.filter = (document.body.classList.contains('dark-mode') || window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'invert(1)' : 'none';
+                        
+                        mapBtn.appendChild(iconImg);
+
+                        mapBtn.style.position = 'absolute';
+                        mapBtn.style.right = '10px';
+                        mapBtn.style.bottom = '8px';
+                        mapBtn.style.textDecoration = 'none';
+                        mapBtn.target = "_blank";
+                        parent.appendChild(mapBtn);
+                        el.style.paddingRight = '35px';
+                    }
+                    mapBtn.href = value ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}` : '#';
+                    mapBtn.style.display = value ? 'block' : 'none';
+                }
+            }
+        }
+
+        return;
+    }
+    
+    // Handle images (avatar)
+    if (el.tagName === 'IMG') {
+        // Default avatar
+        const defaultAvatar = '/assets/icons/profil.png';
+        
+        // Add timestamp to prevent caching if value exists
+        if (value) {
+            el.src = `${value}?t=${new Date().getTime()}`;
+        } else {
+            el.src = defaultAvatar;
+        }
+
+        // Add error handler to fallback if image is broken
+        el.onerror = function() {
+            if (this.getAttribute('src') !== defaultAvatar) {
+                this.src = defaultAvatar;
+            }
+            this.onerror = null; // Prevent infinite loop
+        };
+        return;
+    }
+
     el.classList.add('value-display');
 
-    if (typeof value === 'boolean') {
-      const t = (window.i18n && typeof window.i18n.t === 'function') ? window.i18n.t : (()=>undefined);
-      const yes = (t && t('actions.yes')) || 'Oui';
-      const no = (t && t('actions.no')) || 'Non';
-      el.innerHTML = `<span class="badge ${value ? 'badge-yes' : 'badge-no'}">${value ? yes : no}</span>`;
-      el.style.cursor = 'pointer';
-      el.onclick = () => openEditModal(el);
-      return;
-    }
-
-    if (path === 'affichage.mode') {
-      const currentMode = String(value || '').toLowerCase();
-      const select = document.createElement('select');
-      select.className = 'form-control';
-      const t = (window.i18n && typeof window.i18n.t === 'function') ? window.i18n.t : (()=>undefined);
-      const light = (t && t('modes.light')) || 'Clair';
-      const dark = (t && t('modes.dark')) || 'Sombre';
-      [ {val:'clair', label: light}, {val:'sombre', label: dark} ].forEach(mode => {
-        const option = document.createElement('option');
-        option.value = mode.val; option.textContent = mode.label; if (mode.val === currentMode) option.selected = true; select.appendChild(option);
-      });
-      el.innerHTML = '';
-      el.appendChild(select);
-      select.addEventListener('change', async () => {
-        const newMode = select.value === 'sombre' ? 'Sombre' : 'Clair';
-  const updates = {}; setByPath(updates, 'affichage.mode', newMode); setByPath(settingsConfig, 'affichage.mode', newMode);
-        try {
-          const r = await fetch('http://localhost:8000/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) });
-          if (r.ok) showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.mode_updated') || 'Mode mis à jour' : 'Mode mis à jour'); else showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.save_error') || 'Erreur lors de la sauvegarde' : 'Erreur lors de la sauvegarde', true);
-        } catch (err) { console.error(err); showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.save_error') || 'Erreur lors de la sauvegarde' : 'Erreur lors de la sauvegarde', true); }
-      });
-      return;
-    }
-
-    if (Array.isArray(value)) el.textContent = value.join(', ');
-    else if (path === 'affichage.langue') {
-      const t = (window.i18n && typeof window.i18n.t === 'function') ? window.i18n.t : (()=>undefined);
-      let display = '—';
-      if (value) {
-        const str = String(value).trim();
-        // if it's already a 2-letter code
-        if (/^[a-z]{2}$/i.test(str)) {
-          const code = str.toLowerCase();
-          display = (t && t(`languages.${code}`)) || code;
-        } else {
-          // try to find matching code from translations (label -> code)
-          try {
-            const langsObj = (t && typeof t === 'function') ? t('languages') : null;
-            if (langsObj && typeof langsObj === 'object') {
-              const found = Object.keys(langsObj).find(k => String(langsObj[k]).toLowerCase() === str.toLowerCase());
-              if (found) display = (t && t(`languages.${found}`)) || langsObj[found];
-              else {
-                // fallback heuristics
-                const s = str.toLowerCase();
-                if (s.includes('fr')) display = (t && t('languages.fr')) || 'Français';
-                else if (s.includes('en')) display = (t && t('languages.en')) || 'English';
-                else if (s.includes('es')) display = (t && t('languages.es')) || 'Español';
-                else if (s.includes('de')) display = (t && t('languages.de')) || 'Deutsch';
-                else if (s.includes('it')) display = (t && t('languages.it')) || 'Italiano';
-                else display = str;
-              }
-            } else {
-              display = str;
-            }
-          } catch (e) { display = str; }
-        }
-      }
-      el.textContent = display;
-    } else if (path === 'abonnement.plan_actuel') {
-      // Capitaliser la première lettre du nom du plan
+    // Handle static text displays (like plan name)
+    if (path === 'abonnement.plan_actuel') {
       const planName = value ? String(value).charAt(0).toUpperCase() + String(value).slice(1) : '—';
       el.textContent = planName;
-      el.style.cursor = 'pointer';
-      el.onclick = (e) => openEditModal(e.target);
-    } else if (path === 'contact.email' || path === 'vous.email' || path === 'assurance.email' || path === 'syndicat.email') {
-      // Rendre l'email cliquable pour ouvrir le client mail
-      if (value) {
-        el.innerHTML = `<a href="mailto:${value}" style="color: inherit; text-decoration: underline;">${value}</a>`;
-        el.removeAttribute('data-readonly'); // Permettre les clics sur le lien
-        // Ne pas ajouter onclick pour éviter le conflit avec le lien
-        return;
-      } else {
-        el.textContent = '—';
-      }
-      el.style.cursor = 'pointer';
-      el.onclick = (e) => openEditModal(e.target);
-    } else el.textContent = value || '—';
-    
-    // Ajouter onclick seulement pour les éléments éditables (pas pour contact.email)
-    if (path !== 'contact.email') {
-      el.style.cursor = 'pointer';
-      el.onclick = (e) => openEditModal(e.target);
+      return;
+    }
+
+    // Default text content for other non-input elements
+    if (Array.isArray(value)) {
+        el.textContent = value.join(', ');
+    } else {
+        el.textContent = value || '—';
     }
   });
+}
+
+// Save card function
+async function saveCard(sectionId) {
+    const card = document.getElementById(`card-${sectionId}`);
+    if (!card) return;
+    
+    const inputs = card.querySelectorAll('[data-path]');
+    const updates = {};
+    let modeChanged = false;
+    let newModeVal = '';
+    let langChanged = false;
+    
+    inputs.forEach(input => {
+        if (input.tagName === 'IMG') return; // Skip images
+        
+        const path = input.getAttribute('data-path');
+        let value = input.value;
+        
+        if (input.type === 'checkbox') value = input.checked;
+        
+        if (path === 'affichage.mode') {
+            modeChanged = true;
+            newModeVal = value;
+        }
+        if (path === 'affichage.langue') {
+            langChanged = true;
+        }
+        
+        setByPath(updates, path, value);
+        setByPath(settingsConfig, path, value);
+    });
+    
+    try {
+        const response = await fetch('/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+            body: JSON.stringify(updates)
+        });
+        
+        if (response.ok) {
+            showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.saved') || 'Modification sauvegardée' : 'Modification sauvegardée');
+            
+            if (modeChanged && typeof applyTheme === 'function') {
+                applyTheme(newModeVal);
+            }
+            
+            if (langChanged) {
+                // Reload to apply language change properly
+                setTimeout(() => location.reload(), 500);
+            }
+        } else {
+            throw new Error('Erreur sauvegarde');
+        }
+    } catch (e) {
+        console.error(e);
+        showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.save_error') || 'Erreur lors de la sauvegarde' : 'Erreur lors de la sauvegarde', true);
+    }
 }
 
 // Chargement config et initialisation UI
@@ -882,6 +1074,11 @@ async function loadConfigToUI() {
     updateDataPathsDisplay();
     if (typeof renderEnseignes === 'function') renderEnseignes();
   if (settingsConfig?.affichage?.mode) applyTheme(settingsConfig.affichage.mode);
+  
+  // Update plan buttons state
+  if (settingsConfig?.abonnement?.plan_actuel && typeof updatePlanButtons === 'function') {
+      updatePlanButtons(settingsConfig.abonnement.plan_actuel);
+  }
   } catch (error) {
     console.error('Erreur:', error);
     showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.load_failure') || 'Erreur lors du chargement de la configuration' : 'Erreur lors du chargement de la configuration', true);
@@ -889,14 +1086,28 @@ async function loadConfigToUI() {
 }
 
 // Restauration de l'état UI et listeners
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Charger la config dans l'UI d'abord pour avoir les préférences sauvegardées
+  await loadConfigToUI();
+
   // Section active
-  const savedSection = localStorage.getItem('lastSection') || 'compte';
+  const savedSection = (settingsConfig && settingsConfig.affichage && settingsConfig.affichage.lastSection) || 'compte';
   showSection(savedSection);
+
   document.querySelectorAll('.menu li').forEach(item => {
     item.addEventListener('click', () => {
       const id = (item.dataset && item.dataset.section) ? item.dataset.section : item.textContent.trim().toLowerCase();
-      localStorage.setItem('lastSection', id);
+      // Update local config object
+      if (!settingsConfig) settingsConfig = {};
+      if (!settingsConfig.affichage) settingsConfig.affichage = {};
+      settingsConfig.affichage.lastSection = id;
+      
+      // Save to backend silently
+      fetch('/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+          body: JSON.stringify({ affichage: { lastSection: id } })
+      }).catch(e => console.warn('Failed to save lastSection', e));
     });
   });
 
@@ -907,24 +1118,41 @@ document.addEventListener('DOMContentLoaded', () => {
       if (d.open) {
         // Fermer tous les autres quand celui-ci s'ouvre
         allDetails.forEach(other => { if (other !== d) other.open = false; });
-        localStorage.setItem('openDetail', d.id);
+        
+        // Save open detail
+        if (!settingsConfig) settingsConfig = {};
+        if (!settingsConfig.affichage) settingsConfig.affichage = {};
+        settingsConfig.affichage.openDetail = d.id;
+        
+        fetch('/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+            body: JSON.stringify({ affichage: { openDetail: d.id } })
+        }).catch(e => console.warn('Failed to save openDetail', e));
+
       } else {
-        // Si aucun n'est ouvert, nettoyer la clé
+        // Si aucun n'est ouvert
         const anyOpen = Array.from(allDetails).some(x => x.open);
-        if (!anyOpen) localStorage.removeItem('openDetail');
+        if (!anyOpen) {
+             if (settingsConfig && settingsConfig.affichage) settingsConfig.affichage.openDetail = null;
+             fetch('/config', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                body: JSON.stringify({ affichage: { openDetail: null } })
+             }).catch(e => console.warn('Failed to save openDetail', e));
+        }
       }
     });
   });
-  const openDetail = localStorage.getItem('openDetail');
+
+  // Restore open detail
+  const openDetail = settingsConfig && settingsConfig.affichage && settingsConfig.affichage.openDetail;
   if (openDetail) {
     const el = document.getElementById(openDetail);
     if (el && el.tagName.toLowerCase() === 'details') el.open = true;
   }
 
   // Cliquer hors modale -> utils.js prend en charge .close, etc.
-
-  // Charger la config dans l'UI
-  loadConfigToUI();
 });
 
 // Re-apply displayed values (labels) when language changes so translations loaded later update UI
@@ -950,6 +1178,57 @@ window.editSection = editSection;
 
 // Gestion de la sélection de plan d'abonnement
 document.addEventListener('DOMContentLoaded', function() {
+  // Avatar upload with backend persistence
+  const avatarInput = document.getElementById('avatar-upload');
+  if (avatarInput) {
+      avatarInput.addEventListener('change', async function(e) {
+          if (this.files && this.files[0]) {
+              const file = this.files[0];
+              
+              // 1. Preview immediately
+              const reader = new FileReader();
+              reader.onload = function(e) {
+                  const img = document.getElementById('avatar-img');
+                  if (img) img.src = e.target.result;
+              }
+              reader.readAsDataURL(file);
+              
+              // 2. Upload to backend
+              const formData = new FormData();
+              formData.append('file', file);
+              
+              try {
+                  const response = await fetch('/api/uploadAvatar', {
+                      method: 'POST',
+                      body: formData
+                  });
+                  
+                  if (response.ok) {
+                      const result = await response.json();
+                      if (result.path) {
+                          // 3. Update config and save
+                          setByPath(settingsConfig, 'vous.avatar', result.path);
+                          
+                          // Save config to persist the path
+                          await fetch('/config', {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                              body: JSON.stringify(settingsConfig)
+                          });
+                          
+                          showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.avatar_updated') || 'Avatar mis à jour' : 'Avatar mis à jour');
+                      }
+                  } else {
+                      throw new Error('Upload failed');
+                  }
+              } catch (err) {
+                  console.error('Avatar upload error:', err);
+                  showNotification('Erreur lors de l\'upload de l\'avatar', true);
+              }
+          }
+      });
+  }
+
   // Attacher les événements aux boutons de plan
   document.querySelectorAll('.plan-btn').forEach(btn => {
     btn.addEventListener('click', async function() {
@@ -973,16 +1252,24 @@ async function selectPlan(planType) {
 
   try {
     // Mettre à jour la configuration locale
+    if (!settingsConfig) settingsConfig = {};
     if (!settingsConfig.abonnement) {
       settingsConfig.abonnement = {};
     }
     settingsConfig.abonnement.plan_actuel = planType;
 
+    // Prepare updates object for partial update
+    const updates = {
+        abonnement: {
+            plan_actuel: planType
+        }
+    };
+
     // Sauvegarder via l'API
-    const response = await fetch('http://localhost:8000/config', {
+    const response = await fetch('/config', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settingsConfig)
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+      body: JSON.stringify(updates)
     });
 
     if (!response.ok) {

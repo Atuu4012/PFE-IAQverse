@@ -8,6 +8,9 @@ let activeRoom = null;
 // Store room scores for alert highlighting: key = "enseigneId:roomId", value = score
 const roomScores = new Map();
 
+// Global threshold for alerting tabs (rooms & enseignes). Change this to tune sensitivity.
+const ALERT_THRESHOLD = 81;
+
 /**
  * Initialise le gestionnaire de tabs
  */
@@ -22,25 +25,36 @@ async function initTabsManager() {
         }
 
         renderLocationTabs();
+        // Setup WebSocket listeners so tab alerts update instantly on new measurements
+        try {
+            setupWsListeners();
+        } catch (e) {
+            console.warn('[tabs-manager] setupWsListeners failed:', e);
+        }
         
-        // Restaurer l'enseigne et la pièce sauvegardées AVANT de rendre les tabs
-        const savedEnseigne = localStorage.getItem('activeEnseigne');
-        const savedRoom = localStorage.getItem('activeRoom');
+        // Removed localStorage. Using config.lieux.active / config.lieux.activeRoom instead.
+        const configActiveEnseigne = config.lieux.active;
+        const configActiveRoom = config.lieux.activeRoom;
 
         if (config.lieux.enseignes.length > 0) {
-            const defaultEnseigne = savedEnseigne ||
-                (config.lieux.enseignes.find(e => e.id === config.lieux.active) || config.lieux.enseignes[0]).id;
-
-            // Définir activeRoom AVANT d'appeler switchEnseigne pour éviter l'auto-sélection de la première pièce
-            const enseigne = config.lieux.enseignes.find(e => e.id === defaultEnseigne);
-            if (savedRoom && enseigne?.pieces?.some(p => p.id === savedRoom)) {
-                activeRoom = savedRoom;
+            // Locate the enseigne from config or default to first
+            let defaultEnseigne = configActiveEnseigne;
+            
+            // Verify it exists in the list
+            if (!config.lieux.enseignes.find(e => e.id === defaultEnseigne)) {
+                defaultEnseigne = config.lieux.enseignes[0].id;
             }
 
-                // Passer keepActiveRoom=true pour ne pas écraser activeRoom qui vient d'être restauré
-                switchEnseigne(defaultEnseigne, activeRoom !== null);
+            // Définir activeRoom s'il est valide pour cette enseigne
+            const enseigne = config.lieux.enseignes.find(e => e.id === defaultEnseigne);
+            if (configActiveRoom && enseigne?.pieces?.some(p => p.id === configActiveRoom)) {
+                activeRoom = configActiveRoom;
+            }
 
-            // Si savedRoom a été défini, émettre roomChanged explicitement
+            // Passer keepActiveRoom=true et save=false (init)
+            switchEnseigne(defaultEnseigne, activeRoom !== null, false);
+
+            // Si activeRoom a été défini, émettre roomChanged explicitement
             if (activeRoom) {
                 document.dispatchEvent(new CustomEvent('roomChanged', { 
                     detail: { roomId: activeRoom, enseigneId: defaultEnseigne } 
@@ -74,7 +88,7 @@ function renderLocationTabs() {
     config.lieux.enseignes.forEach(ens => {
         let enseigneHasAlert = false;
         for (const [storedKey, storedScore] of roomScores.entries()) {
-            if (storedKey.startsWith(ens.id + ':') && storedScore < 70) {
+            if (storedKey.startsWith(ens.id + ':') && storedScore < ALERT_THRESHOLD) {
                 enseigneHasAlert = true;
                 break;
             }
@@ -123,7 +137,7 @@ function renderRoomTabs(enseigneId) {
         if (pieceScore !== undefined) {
             const roomTab = document.querySelector(`.room-tab[data-room-id="${piece.id}"]`);
             if (roomTab) {
-                if (pieceScore < 70) {
+                if (pieceScore < ALERT_THRESHOLD) {
                     roomTab.classList.add('has-alert');
                 } else {
                     roomTab.classList.remove('has-alert');
@@ -132,25 +146,39 @@ function renderRoomTabs(enseigneId) {
         }
     });
 
-    // Si aucune pièce n'est active, activer la première SEULEMENT si pas en cours de restauration localStorage
+    // Si aucune pièce n'est active, activer la première
     if (!activeRoom && enseigne.pieces.length > 0) {
-        // N'auto-sélectionner que si on n'est pas en train de restaurer depuis localStorage
-        // (activeRoom sera déjà défini par initTabsManager dans ce cas)
-        switchRoom(enseigne.pieces[0].id);
+        // save=true is implied for this auto-select? 
+        // Actually, if user switches enseigne, we auto-select room. Ideally we should save it.
+        switchRoom(enseigne.pieces[0].id, true);
     }
 }
 
 /**
  * Change l'enseigne active
  * @param {string} enseigneId - L'ID de l'enseigne
- * @param {boolean} keepActiveRoom - Si true, ne pas réinitialiser activeRoom (utilisé lors de la restauration depuis localStorage)
+ * @param {boolean} keepActiveRoom - Si true, ne pas réinitialiser activeRoom
+ * @param {boolean} save - Si true, sauvegarde la config sur le backend
  */
-function switchEnseigne(enseigneId, keepActiveRoom = false) {
+function switchEnseigne(enseigneId, keepActiveRoom = false, save = true) {
+    // Vérifier si on change vraiment d'enseigne
+    const previousEnseigne = activeEnseigne;
+    
     activeEnseigne = enseigneId;
     if (!keepActiveRoom) {
-        activeRoom = null; // Réinitialiser la pièce active (sauf si on restaure depuis localStorage)
+        activeRoom = null; // Réinitialiser la pièce active
     }
-    localStorage.setItem('activeEnseigne', enseigneId);
+    
+    if (save && typeof window.saveConfig === 'function') {
+        // We only save the active enseigne here. Active room will be saved when switchRoom is called (or reset).
+        // If we reset room, maybe we should save activeRoom: null? 
+        // For now, let's just save the active Enseigne.
+        window.saveConfig({ lieux: { active: enseigneId } });
+        if (!keepActiveRoom && activeRoom === null) {
+            // Optional: clear activeRoom in config? 
+            // window.saveConfig({ lieux: { activeRoom: null } }); // If API supports it
+        }
+    }
     
     // Mettre à jour l'apparence des onglets d'enseignes
     document.querySelectorAll('.location-tab').forEach(tab => {
@@ -169,10 +197,21 @@ function switchEnseigne(enseigneId, keepActiveRoom = false) {
 /**
  * Change la pièce active
  * @param {string} roomId - L'ID de la pièce
+ * @param {boolean} save - Si true, sauvegarde la config sur le backend
  */
-function switchRoom(roomId) {
+function switchRoom(roomId, save = true) {
+    // Vérifier si on change vraiment de pièce
+    const previousRoom = activeRoom;
+    
     activeRoom = roomId;
-    localStorage.setItem('activeRoom', roomId);
+    
+    if (save && typeof window.saveConfig === 'function') {
+        window.saveConfig({ lieux: { activeRoom: roomId } });
+    }
+    
+    // Sauvegarder aussi dans sessionStorage pour occupants-display.js
+    sessionStorage.setItem('activePieceId', roomId);
+    sessionStorage.setItem('activeEnseigneId', activeEnseigne);
     
     // Mettre à jour l'apparence des onglets
     document.querySelectorAll('.room-tab').forEach(tab => {
@@ -183,6 +222,11 @@ function switchRoom(roomId) {
     document.dispatchEvent(new CustomEvent('roomChanged', { 
         detail: { roomId, enseigneId: activeEnseigne } 
     }));
+    
+    // Mettre à jour l'affichage des occupants si la fonction existe
+    if (typeof window.fetchOccupantsFromAPI === 'function') {
+        setTimeout(() => window.fetchOccupantsFromAPI(), 100);
+    }
 }
 
 /**
@@ -199,6 +243,48 @@ function getActiveEnseigne() {
  */
 function getActiveRoom() {
     return activeRoom;
+}
+
+/**
+ * Enregistre un listener WebSocket pour les nouveaux messages 'measurement'
+ * et met à jour immédiatement les alertes d'onglets en utilisant le score
+ */
+function setupWsListeners() {
+    if (typeof window === 'undefined' || !window.wsManager || typeof window.wsManager.on !== 'function') return;
+
+    // Prevent double registration: try to add only once
+    if (window.__tabsManagerWsRegistered) return;
+    window.__tabsManagerWsRegistered = true;
+
+    window.wsManager.on('measurements', (msg) => {
+        try {
+            // msg should contain enseigne, salle and global_score (added server-side)
+            const enseigneName = msg.enseigne || msg.enseigneName || msg.building;
+            const salleName = msg.salle || msg.room || msg.salleName;
+            const score = (typeof msg.global_score === 'number') ? msg.global_score : null;
+
+            if (!enseigneName || !salleName || score === null) return;
+
+            const config = getConfig();
+            if (!config || !config.lieux || !Array.isArray(config.lieux.enseignes)) return;
+
+            const enseigne = config.lieux.enseignes.find(e => e.nom === enseigneName || e.id === enseigneName || (e.nom && e.nom.toLowerCase() === String(enseigneName).toLowerCase()));
+            if (!enseigne) return;
+
+            let piece = (enseigne.pieces || []).find(p => p.nom === salleName || p.id === salleName);
+            if (!piece) {
+                piece = (enseigne.pieces || []).find(p => p.nom && p.nom.toLowerCase() === String(salleName).toLowerCase());
+            }
+            if (!piece) return;
+
+            const key = `${enseigne.id}:${piece.id}`;
+            roomScores.set(key, score);
+            // Refresh UI immediately
+            if (typeof refreshAllTabAlerts === 'function') refreshAllTabAlerts();
+        } catch (err) {
+            console.error('[tabs-manager] Error handling WS measurement:', err);
+        }
+    });
 }
 
 // Initialiser au chargement de la page
@@ -220,9 +306,20 @@ let monitoringInterval = null;
 
 async function fetchRoomScore(enseigneNom, roomNom) {
     try {
-        const url = `http://localhost:8000/api/iaq/data?enseigne=${encodeURIComponent(enseigneNom)}&salle=${encodeURIComponent(roomNom)}&hours=1`;
+        const baseUrl = (window.API_ENDPOINTS && window.API_ENDPOINTS.measurements)
+            ? window.API_ENDPOINTS.measurements
+            : "/api/iaq/data";
+        const url = `${baseUrl}?enseigne=${encodeURIComponent(enseigneNom)}&salle=${encodeURIComponent(roomNom)}&hours=1`;
         
-        const response = await fetch(url);
+        const headers = { 'ngrok-skip-browser-warning': 'true' };
+        try {
+            if (typeof getAuthToken === 'function') {
+                const token = await getAuthToken();
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+            }
+        } catch(e) { console.warn('Auth error', e); }
+
+        const response = await fetch(url, { headers });
         if (!response.ok) {
             return null;
         }
@@ -299,7 +396,7 @@ function refreshAllTabAlerts() {
         }
         
         if (roomScore !== null && roomScore !== undefined) {
-            if (roomScore < 70) {
+            if (roomScore < ALERT_THRESHOLD) {
                 roomTab.classList.add('has-alert');
             } else {
                 roomTab.classList.remove('has-alert');
@@ -311,7 +408,7 @@ function refreshAllTabAlerts() {
     config.lieux.enseignes.forEach(ens => {
         let enseigneHasAlert = false;
         for (const [storedKey, storedScore] of roomScores.entries()) {
-            if (storedKey.startsWith(ens.id + ':') && storedScore < 70) {
+            if (storedKey.startsWith(ens.id + ':') && storedScore < ALERT_THRESHOLD) {
                 enseigneHasAlert = true;
                 break;
             }

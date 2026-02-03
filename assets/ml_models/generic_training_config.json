@@ -29,18 +29,12 @@
     "humidity"
   ],
   "trained_rooms": [
-    "Bureau",
-    "Chambre",
-    "Open Space",
-    "Salon"
+    "Bureau"
   ],
   "trained_sensors": [
     "Bureau1",
     "Bureau2",
     "Bureau3",
-    "Bureau4",
-    "bureau1",
-    "openspace1",
-    "salon1"
+    "Bureau4"
   ]
 }

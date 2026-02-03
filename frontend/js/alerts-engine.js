@@ -1,7 +1,7 @@
 /* Alerts Engine: evaluates IAQ data against thresholds and toggles alert-points visibility/severity */
 (function (window) {
     const REFRESH_MS = 5000; // polling frequency
-    const API_URL_DATA = "http://localhost:8000/api/iaq/data";
+    const API_URL_DATA = (window.API_ENDPOINTS && window.API_ENDPOINTS.measurements) ? window.API_ENDPOINTS.measurements : "/api/iaq/data";
     // Centralise all thresholds here to avoid magic numbers
     const THRESHOLDS = {
         CO2: { WARNING: 800, DANGER: 1200 },
@@ -87,14 +87,16 @@
             push("window", sCO2);
             push("door", sCO2);
         }
-        // PM2.5: ventil
+        // PM2.5: ventil + air_purifier
         if (sPM && sPM !== "info") {
             push("window", sPM);
             push("ventilation", sPM);
+            push("air_purifier", sPM);
         }
-        // TVOC: ventil
+        // TVOC: ventil + air_purifier
         if (sTVOC && sTVOC !== "info") {
             push("ventilation", sTVOC);
+            push("air_purifier", sTVOC);
         }
         // Température: radiator (chauffage) & window (aération) selon extrêmes
         if (sTemp && sTemp !== 'info') {
@@ -187,6 +189,8 @@
                     addTemp(); addHum(); break;
                 case 'door':
                     addCO2(); break;
+                case 'air_purifier':
+                    addPM(); addTVOC(); break;
                 default:
                     addCO2(); addPM(); addTVOC(); addTemp(); addHum(); break;
             }
@@ -210,9 +214,11 @@
             // Activer ou désactiver selon la map
             // Tous les alert-points de la pièce active sont activés avec "info" par défaut
             const severity = (map && map[key]) ? map[key] : 'info';
-            console.log(`[alerts-engine] Activating alert-point ${key} with severity: ${severity} (was in map: ${!!(map && map[key])})`);
             el.setAttribute("data-active", "true");
             el.setAttribute("data-severity", severity);
+            
+            // Préserver data-state s'il existe déjà (géré par three-scene.js)
+            // Ne pas l'écraser avec la severity
             
             if (actionsMap && actionsMap[key]) {
                 el.setAttribute("data-action-key", actionsMap[key]);
@@ -227,7 +233,10 @@
             if (severity === 'info') {
                 el.style.display = 'none';
             } else {
-                el.style.display = ''; // Afficher les autres sévérités
+                // Seulement afficher si l'objet est dans le champ de vision
+                if (el.getAttribute('data-in-view') !== 'false') {
+                    el.style.display = ''; // Afficher les autres sévérités
+                }
                 activatedCount++;
             }
         });
@@ -258,7 +267,8 @@
         const allPoints = document.querySelectorAll('.alert-point');
         const visiblePoints = Array.from(allPoints).filter(point => {
             const style = window.getComputedStyle(point);
-            return style.display !== 'none' && point.offsetWidth > 0 && point.offsetHeight > 0;
+            const severity = point.getAttribute('data-severity');
+            return style.display !== 'none' && point.offsetWidth > 0 && point.offsetHeight > 0 && severity !== 'info';
         });
         
         // Grouper par position pour éviter de compter les points superposés
@@ -323,8 +333,6 @@
      * Met à jour les attributs des alert-points existants au lieu de les recréer
      */
     function renderAlertPoints(enseigneId, pieceId) {
-        console.log(`[alerts-engine] renderAlertPoints called for ${enseigneId}/${pieceId}`);
-
         const container = document.getElementById('alert-points-container');
         if (!container) {
             console.error('[alerts-engine] alert-points-container not found in DOM!');
@@ -333,19 +341,16 @@
 
         // Au lieu de vider complètement, mettre à jour les attributs des alert-points existants
         const existingPoints = container.querySelectorAll('.alert-point');
-        console.log(`[alerts-engine] Found ${existingPoints.length} existing alert-points to update`);
 
         existingPoints.forEach(point => {
             // Mettre à jour les attributs sans changer les noms d'objets 3D
             point.setAttribute('data-enseigne', enseigneId);
             point.setAttribute('data-piece', pieceId);
             point.setAttribute('data-active', 'false'); // Par défaut inactif
-            console.log(`[alerts-engine] Updated alert-point: ${point.getAttribute('data-i18n-key')}`);
         });
 
         // Si aucun point n'existe, ne rien faire (les points seront créés par autoGenerateAlertPoints)
         if (existingPoints.length === 0) {
-            console.log('[alerts-engine] No existing points found - they will be created by autoGenerateAlertPoints');
             return;
         }
     }
@@ -439,6 +444,84 @@
         }
     });
 
+    // Fonction de traitement des données IAQ (HTTP ou WS)
+    function processIAQData(data) {
+        if (!data) return;
+        latestSample = data;
+        try { window.latestIAQLastSample = data; } catch(e){}
+
+        // Dispatch event pour l'UI (overlay, tableau, etc.)
+        const event = new CustomEvent('iaqDataUpdated', { detail: data });
+        document.dispatchEvent(event);
+
+        const map = deriveAlertPointSeverities(data || {});
+        // Build recommended actions per alert-point key
+        const suggestActionFor = (key, sev, last) => {
+            const t = Number(last.temperature);
+            const h = Number(last.humidity);
+            const co2 = Number(last.co2);
+            const pm = Number(last.pm25);
+            const tvoc = Number(last.tvoc);
+            
+            switch (key) {
+                case 'window':
+                    if (!isNaN(pm) && pm >= THRESHOLDS.PM25.DANGER && (isNaN(co2) || co2 < THRESHOLDS.CO2.WARNING)) return 'close';
+                    if (!isNaN(h) && h < THRESHOLDS.HUM.ACTION_TOO_DRY) return 'close';
+                    if (!isNaN(t) && t < THRESHOLDS.TEMP.ACTION_COLD) return 'close';
+                    return 'open';
+                case 'door':
+                    if (!isNaN(co2) && co2 >= THRESHOLDS.CO2.WARNING) return 'open';
+                    return 'close';
+                case 'ventilation':
+                    if ((!isNaN(co2) && co2 >= THRESHOLDS.CO2.WARNING)
+                        || (!isNaN(tvoc) && tvoc >= THRESHOLDS.TVOC.WARNING)
+                        || (!isNaN(pm) && pm >= THRESHOLDS.PM25.WARNING_MED)
+                        || (!isNaN(h) && h > THRESHOLDS.HUM.ACTION_TOO_HUMID)) return 'turn_on';
+                    if (!isNaN(h) && h < THRESHOLDS.HUM.ACTION_TOO_DRY) return 'turn_off';
+                    return 'turn_on';
+                case 'radiator':
+                    if (!isNaN(t) && t < THRESHOLDS.TEMP.ACTION_COLD) return 'increase';
+                    if (!isNaN(t) && t > THRESHOLDS.TEMP.ACTION_HOT) return 'decrease';
+                    return 'decrease';
+                case 'temperature':
+                    if (!isNaN(t) && t < THRESHOLDS.TEMP.ACTION_COLD) return 'increase';
+                    if (!isNaN(t) && t > THRESHOLDS.TEMP.ACTION_HOT) return 'decrease';
+                    return 'decrease';
+                case 'humidity':
+                    if (!isNaN(h) && h < THRESHOLDS.HUM.ACTION_TOO_DRY) return 'close'; 
+                    if (!isNaN(h) && h > THRESHOLDS.HUM.ACTION_OPEN_THRESHOLD) return 'open';
+                    return 'open';
+                default:
+                    return 'turn_on';
+            }
+        };
+
+        const actionsMap = {};
+        Object.keys(map).forEach((key) => { actionsMap[key] = suggestActionFor(key, map[key], data); });
+        applyAlertPointsActivation(map, actionsMap);
+
+        // Notifications UI
+        try {
+            const t = (window.i18n && window.i18n.t) ? window.i18n.t : (k=>k);
+            const notify = (sev, label, value) => {
+                if (typeof window.showNotification !== 'function') return;
+                const sevTxt = sev === 'danger' ? (t('severity.danger') || 'Danger') : (t('severity.warning') || 'Avertissement');
+                const msg = `${sevTxt}: ${label} = ${value}`;
+                window.showNotification(msg, sev === 'danger');
+            };
+            const tempSev = evalTemp(Number(data.temperature));
+            const humSev = evalHum(Number(data.humidity));
+            if ((tempSev === 'danger' || tempSev === 'warning') && tempSev !== lastNotified.temp) {
+                notify(tempSev, t('digitalTwin.sample.temperature') || 'Température', data.temperature);
+                lastNotified.temp = tempSev;
+            }
+            if ((humSev === 'danger' || humSev === 'warning') && humSev !== lastNotified.hum) {
+                notify(humSev, t('digitalTwin.sample.humidity') || 'Humidité', data.humidity);
+                lastNotified.hum = humSev;
+            }
+        } catch(e) {}
+    }
+
     async function fetchLatestIAQ() {
         try {
             if (!activeEnseigneName || !activeRoomName) initActiveContext();
@@ -449,7 +532,7 @@
                 step: "5min",
             });
             const url = `${API_URL_DATA}?${params.toString()}`;
-            const res = await fetch(url, { cache: "no-store" });
+            const res = await fetch(url, { cache: "no-store", headers: { 'ngrok-skip-browser-warning': 'true' } });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
             if (!Array.isArray(data) || data.length === 0) {
@@ -458,82 +541,33 @@
             }
             data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
             const last = data[data.length - 1];
-            latestSample = last;
-            try { window.latestIAQLastSample = last; } catch(e){}
-            const map = deriveAlertPointSeverities(last || {});
-            // Build recommended actions per alert-point key
-            const suggestActionFor = (key, sev, last) => {
-                const t = Number(last.temperature);
-                const h = Number(last.humidity);
-                const co2 = Number(last.co2);
-                const pm = Number(last.pm25);
-                const tvoc = Number(last.tvoc);
-                // defaults by device
-                switch (key) {
-                    case 'window':
-                        // CO2 élevé => ouvrir; PM2.5 élevé sans CO2 => fermer; humidité élevée => ouvrir; humidité basse => fermer; trop chaud => ouvrir; trop froid => fermer
-                        if (!isNaN(pm) && pm >= THRESHOLDS.PM25.DANGER && (isNaN(co2) || co2 < THRESHOLDS.CO2.WARNING)) return 'close';
-                        if (!isNaN(h) && h < THRESHOLDS.HUM.ACTION_TOO_DRY) return 'close';
-                        if (!isNaN(t) && t < THRESHOLDS.TEMP.ACTION_COLD) return 'close';
-                        return 'open';
-                    case 'door':
-                        // CO2 élevé => ouvrir; sinon fermer par défaut
-                        if (!isNaN(co2) && co2 >= THRESHOLDS.CO2.WARNING) return 'open';
-                        return 'close';
-                    case 'ventilation':
-                        // CO2/TVOC/PM élevés ou humidité élevée => allumer/augmenter; humidité trop basse => réduire/éteindre
-                        if ((!isNaN(co2) && co2 >= THRESHOLDS.CO2.WARNING)
-                            || (!isNaN(tvoc) && tvoc >= THRESHOLDS.TVOC.WARNING)
-                            || (!isNaN(pm) && pm >= THRESHOLDS.PM25.WARNING_MED)
-                            || (!isNaN(h) && h > THRESHOLDS.HUM.ACTION_TOO_HUMID)) return 'turn_on';
-                        if (!isNaN(h) && h < THRESHOLDS.HUM.ACTION_TOO_DRY) return 'turn_off';
-                        return 'turn_on';
-                    case 'radiator':
-                        // Trop froid => augmenter; trop chaud => diminuer
-                        if (!isNaN(t) && t < THRESHOLDS.TEMP.ACTION_COLD) return 'increase';
-                        if (!isNaN(t) && t > THRESHOLDS.TEMP.ACTION_HOT) return 'decrease';
-                        return 'decrease';
-                    case 'temperature':
-                        if (!isNaN(t) && t < THRESHOLDS.TEMP.ACTION_COLD) return 'increase';
-                        if (!isNaN(t) && t > THRESHOLDS.TEMP.ACTION_HOT) return 'decrease';
-                        return 'decrease';
-                    case 'humidity':
-                        if (!isNaN(h) && h < THRESHOLDS.HUM.ACTION_TOO_DRY) return 'close'; // fermer fenêtres pour conserver l'humidité
-                        if (!isNaN(h) && h > THRESHOLDS.HUM.ACTION_OPEN_THRESHOLD) return 'open';
-                        return 'open';
-                    default:
-                        return 'turn_on';
-                }
-            };
-            const actionsMap = {};
-            Object.keys(map).forEach((key) => { actionsMap[key] = suggestActionFor(key, map[key], last); });
-            applyAlertPointsActivation(map, actionsMap);
-            // Notifications push locales (UI) pour danger (et warning optionnel)
-            try {
-                const t = (window.i18n && window.i18n.t) ? window.i18n.t : (k=>k);
-                const notify = (sev, label, value) => {
-                    if (typeof window.showNotification !== 'function') return;
-                    const keyBase = sev === 'danger' ? 'notifications.alert.danger' : 'notifications.alert.warning';
-                    // Fallback si clé absente
-                    const sevTxt = sev === 'danger' ? (t('severity.danger') || 'Danger') : (t('severity.warning') || 'Avertissement');
-                    const msg = `${sevTxt}: ${label} = ${value}`;
-                    window.showNotification(msg, sev === 'danger');
-                };
-                const tempSev = evalTemp(Number(last.temperature));
-                const humSev = evalHum(Number(last.humidity));
-                if ((tempSev === 'danger' || tempSev === 'warning') && tempSev !== lastNotified.temp) {
-                    notify(tempSev, t('digitalTwin.sample.temperature') || 'Température', last.temperature);
-                    lastNotified.temp = tempSev;
-                }
-                if ((humSev === 'danger' || humSev === 'warning') && humSev !== lastNotified.hum) {
-                    notify(humSev, t('digitalTwin.sample.humidity') || 'Humidité', last.humidity);
-                    lastNotified.hum = humSev;
-                }
-            } catch(e) {}
+            processIAQData(last);
         } catch (e) {
-            // on error, do not modify current activation state
             // console.warn('alerts-engine fetch error', e);
         }
+    }
+
+    // Connecter au WebSocket Manager
+    function setupWebSocket() {
+        // Retry si wsManager pas encore là
+        if (!window.wsManager) {
+             setTimeout(setupWebSocket, 1000);
+             return;
+        }
+
+        console.log('[alerts-engine] WebSocket connection init');
+        if (!window.wsManager.isConnectionActive && typeof window.wsManager.connect === 'function') {
+            window.wsManager.connect();
+        }
+        
+        // Abonnement
+        window.wsManager.on('measurements', (payload) => {
+             const data = payload.data || payload; 
+             if (data && data.enseigne === activeEnseigneName && data.salle === activeRoomName) {
+                console.log('[alerts-engine] Received WS data:', data);
+                 processIAQData(data);
+             }
+        });
     }
 
     async function start() {
@@ -551,13 +585,17 @@
         
         initActiveContext();
         
+        // Initialiser le WebSocket
+        setupWebSocket();
+        
         // Attendre le premier roomChanged pour être sûr que le contexte est correctement restauré
         let isFirstLoad = true;
         const handleFirstRoomChange = () => {
             if (isFirstLoad) {
                 isFirstLoad = false;
-                fetchLatestIAQ();
-                setInterval(fetchLatestIAQ, REFRESH_MS);
+                fetchLatestIAQ(); // Premier chargement HTTP
+                // Fallback polling long (30s) au lieu de 5s
+                setInterval(fetchLatestIAQ, 30000);
             }
         };
         

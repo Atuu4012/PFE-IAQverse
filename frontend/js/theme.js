@@ -7,35 +7,33 @@
 function applyTheme(mode) {
     const theme = mode === 'sombre' || mode === 'Sombre' ? 'sombre' : 'clair';
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
+    // localStorage support removed
     console.log(`Thème appliqué: ${theme}`);
 }
 
 // Fonction pour initialiser le thème au chargement de la page
-function initTheme() {
-    let savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-        document.documentElement.setAttribute('data-theme', savedTheme);
-        return;
-    }
-    fetch('http://localhost:8000/config')
-        .then(response => response.json())
-        .then(config => {
+async function initTheme() {
+    // Prefer window.loadConfig()
+    if (typeof window.loadConfig === 'function') {
+        try {
+            const config = await window.loadConfig();
             const mode = config?.affichage?.mode || 'clair';
             applyTheme(mode);
-        })
-        .catch(() => {
-            console.log('Impossible de charger le thème depuis la config, utilisation du mode clair par défaut');
-            applyTheme('clair');
-        });
+            return;
+        } catch(e) {
+            console.warn('Theme: loadConfig failed', e);
+        }
+    }
+    // Fallback to default
+    applyTheme('clair');
 }
 
 // Fonction pour changer le thème
-function toggleTheme() {
+async function toggleTheme() {
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'clair';
     const newTheme = currentTheme === 'clair' ? 'sombre' : 'clair';
     applyTheme(newTheme);
-    updateThemeInConfig(newTheme);
+    await updateThemeInConfig(newTheme);
     if (typeof refreshChartsTheme === 'function') {
         refreshChartsTheme();
     }
@@ -43,15 +41,15 @@ function toggleTheme() {
 
 // Mettre à jour le thème dans la configuration serveur
 async function updateThemeInConfig(theme) {
-    try {
-        const response = await fetch('http://localhost:8000/api/saveConfig', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ affichage: { mode: theme === 'sombre' ? 'Sombre' : 'Clair' } })
-        });
-        if (response.ok) console.log('Thème sauvegardé dans la configuration');
-    } catch (error) {
-        console.error('Erreur lors de la sauvegarde du thème:', error);
+    if (typeof window.saveConfig === 'function') {
+        try {
+            // Use standardized saveConfig
+            await window.saveConfig({ affichage: { mode: theme === 'sombre' ? 'Sombre' : 'Clair' } });
+            console.log('Thème sauvegardé via /api/config');
+            return;
+        } catch(e) {
+            console.error('Erreur saveConfig (theme):', e);
+        }
     }
 }
 

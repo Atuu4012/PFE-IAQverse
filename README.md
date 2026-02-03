@@ -2,7 +2,7 @@
 
 Plateforme complète de surveillance et prédiction de la qualité de l'air intérieur (IAQ) avec jumeau numérique 3D, Machine Learning et IoT.
 
-## 🚀 Démarrage rapide
+## Démarrage rapide
 
 ```powershell
 # Démarrer l'application
@@ -14,7 +14,7 @@ docker-compose up -d
 - InfluxDB: http://localhost:8086
 ```
 
-## 📁 Architecture
+## Architecture
 
 ```
 ├── backend/          # API FastAPI + ML
@@ -32,27 +32,30 @@ docker-compose up -d
 └── database/        # Données InfluxDB
 ```
 
-## 🎯 Fonctionnalités
+## Fonctionnalités
 
 ### Dashboard Principal (`index.html`)
+
 - Visualisation en temps réel (CO₂, PM2.5, TVOC, Température, Humidité)
 - Score IAQ actuel et prédit (30 min)
 - Graphiques interactifs Plotly
 - Multi-pièces et multi-enseignes
 
 ### Jumeau Numérique 3D (`digital-twin.html`)
+
 - Modèle 3D interactif de la pièce
 - Points d'alerte visuels (ventilation, fenêtres, radiateur...)
 - Actions préventives basées sur ML
 - Changement de couleur selon sévérité
 
 ### Machine Learning
+
 - Prédiction des paramètres IAQ à 30 minutes
 - Ensemble Voting (RandomForest + GradientBoosting)
 - Actions préventives intelligentes
 - Score IAQ prédit en temps réel
 
-## 🔧 Configuration
+## Configuration
 
 ### Variables d'environnement (`.env`)
 
@@ -75,9 +78,10 @@ ML_MODELS_DIR=/app/assets/ml_models
 docker exec iaqverse-backend python backend/ml/ml_train.py
 ```
 
-## 📡 API Endpoints
+## API Endpoints
 
 ### Ingestion de données
+
 ```http
 POST /api/ingest/iaq
 Content-Type: application/json
@@ -94,39 +98,43 @@ Content-Type: application/json
 ```
 
 ### Requête de données
+
 ```http
 GET /api/iaq/data?enseigne=Maison&salle=Bureau&hours=1
 ```
 
 ### Prédiction ML
+
 ```http
 GET /api/predict/score?enseigne=Maison&salle=Bureau
 GET /api/predict/preventive-actions?enseigne=Maison&salle=Bureau
 ```
 
-## 🧪 Tests
+## Tests
 
 ### Envoyer des données de test
+
 ```powershell
 .\send_test_data.ps1
 ```
 
 ### Vérifier la santé
+
 ```http
 GET /health
 ```
 
-## 📊 Seuils IAQ
+## Seuils IAQ
 
-| Paramètre | Bon | Moyen | Mauvais |
-|-----------|-----|-------|---------|
-| CO₂ | < 800 ppm | 800-1200 ppm | > 1200 ppm |
-| PM2.5 | < 5 µg/m³ | 5-35 µg/m³ | > 35 µg/m³ |
-| TVOC | < 300 ppb | 300-1000 ppb | > 1000 ppb |
-| Température | 18-22°C | 16-18 ou 22-24°C | < 16 ou > 24°C |
-| Humidité | 40-60% | 30-40 ou 60-70% | < 30 ou > 70% |
+| Paramètre   | Bon         | Moyen             | Mauvais         |
+| ------------ | ----------- | ----------------- | --------------- |
+| CO₂         | < 800 ppm   | 800-1200 ppm      | > 1200 ppm      |
+| PM2.5        | < 5 µg/m³ | 5-35 µg/m³      | > 35 µg/m³    |
+| TVOC         | < 300 ppb   | 300-1000 ppb      | > 1000 ppb      |
+| Température | 18-22°C    | 16-18 ou 22-24°C | < 16 ou > 24°C |
+| Humidité    | 40-60%      | 30-40 ou 60-70%   | < 30 ou > 70%   |
 
-## 🛠️ Développement
+## Développement
 
 ### Structure du code
 
@@ -145,11 +153,11 @@ GET /health
 
 Éditer `frontend/js/three-scene.js` pour modifier le modèle 3D ou les points d'alerte.
 
-## 📝 Licence
+## Licence
 
 Projet de fin d'études - IAQverse Platform
 
-## 🤝 Support
+## Support
 
 Pour toute question, consulter `/docs` de l'API ou examiner les logs :
 

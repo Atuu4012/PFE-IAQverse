@@ -12,6 +12,34 @@
  * @returns {Promise<Response>}
  */
 async function fetchWithRetry(url, options = {}, maxRetries = 3, retryDelay = 1000) {
+    // Add ngrok header to avoid browser warning on API calls
+    if (!options.headers) {
+        options.headers = {};
+    }
+
+    // Add Authorization header if available
+    try {
+        if (typeof getAuthToken === 'function') {
+            const token = await getAuthToken();
+            if (token) {
+                if (options.headers instanceof Headers) {
+                    options.headers.append('Authorization', `Bearer ${token}`);
+                } else {
+                    options.headers['Authorization'] = `Bearer ${token}`;
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('Error adding auth token:', e);
+    }
+
+    // Check if headers is Headers object or plain object
+    if (options.headers instanceof Headers) {
+        options.headers.append('ngrok-skip-browser-warning', 'true');
+    } else {
+        options.headers['ngrok-skip-browser-warning'] = 'true';
+    }
+
     let lastError;
     
     for (let attempt = 0; attempt <= maxRetries; attempt++) {

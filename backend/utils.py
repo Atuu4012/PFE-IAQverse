@@ -9,6 +9,7 @@ import numpy as np
 import math
 import json
 import logging
+from .core.supabase import supabase
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -173,3 +174,30 @@ def extract_sensors_from_config(config):
                 })
     
     return sensors
+
+
+def load_user_config(user_id: str):
+    """Charge la configuration depuis Supabase pour un utilisateur spécifique"""
+    if not supabase:
+        return load_config() # Repli sur le fichier local
+
+    response = supabase.table("user_configs").select("config_data").eq("user_id", user_id).execute()
+    
+    # Si l'utilisateur n'a pas encore de config, on renvoie la config par défaut
+    if not response.data:
+        default_cfg = load_config()
+        # Optionnel : On crée automatiquement la ligne pour l'utilisateur
+        # save_user_config(user_id, default_cfg) 
+        return default_cfg
+        
+    return response.data[0]['config_data']
+
+def save_user_config(user_id: str, new_config: dict):
+    """Sauvegarde la configuration d'un utilisateur"""
+    if not supabase:
+        return save_config(new_config)
+
+    # Upsert (Insérer ou Mettre à jour)
+    data = {"user_id": user_id, "config_data": new_config}
+    supabase.table("user_configs").upsert(data).execute()
+    return True

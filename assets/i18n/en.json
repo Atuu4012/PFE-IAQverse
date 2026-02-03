@@ -1,5 +1,11 @@
 {
   "brand": "IAQverse",
+  "account": {
+    "switch": "Switch Account",
+    "currentUser": "Current User",
+    "otherAccount": "Other Account",
+    "logout": "Logout"
+  },
   "nav": {
     "home": "Home",
     "digitalTwin": "Digital Twin",
@@ -16,6 +22,7 @@
     "scoreFeature": "Real-time IAQ score",
     "predictionFeature": "Score prediction in 30 minutes",
     "alertsFeature": "Automatic alerts on tabs",
+    "occupants": "occupants",
     "score": {
       "title": "Air Quality Score",
       "label": "Global Score",
@@ -57,6 +64,7 @@
     "aboutTitle": "About this page",
     "aboutParagraph": "Use this settings panel to adjust your preferences for a better experience.",
     "languageLabel": "Language",
+    "importButton": "Import",
     "summary": {
       "you": "You",
       "insurance": "Your insurance",
@@ -66,6 +74,7 @@
       "technologies": "Technologies",
       "type": "Type",
       "manage_brands": "Manage locations",
+      "digital_twin": "Digital Twin",
       "subscription": "Your subscription",
       "contact": "Contact"
     },
@@ -93,7 +102,16 @@
       "alertes": "Alerts",
       "rappels": "Reminders",
       "newsletters": "Newsletters",
-      "current_plan": "Current plan"
+      "current_plan": "Current plan",
+      "landscape": "Landscape",
+      "auto_day_night": "Automatic Day/Night Mode",
+      "email_alerts_enabled": "Enable critical email alerts",
+      "landscape_options": {
+        "urban_night": "Urban (Night)",
+        "urban_day": "Urban (Day)",
+        "garden_night": "Garden (Night)",
+        "garden_day": "Garden (Day)"
+      }
     },
     "plans": {
       "basic": {
@@ -136,6 +154,7 @@
   "digitalTwin": {
     "title": "Digital Twin",
     "visualisation": "Visualization",
+    "loading": "Loading model...",
     "aboutTitle": "About this page",
     "aboutParagraph": "This Digital Twin interface lets you visualize indoor air quality alerts in real time, explore rooms in 3D, and review recommended preventive actions.",
     "actions": "Actions",
@@ -157,11 +176,19 @@
         "humidity_increase": "Humidity will increase from {current}% to {predicted}%"
       },
       "priorities": {
+        "urgent": "Urgent",
         "high": "Urgent",
         "medium": "Recommended",
         "low": "Optional"
       },
-      "arrow": "→"
+      "arrow": "→",
+      "mlPrediction": "ML Prediction",
+      "forecast": "Forecast in {minutes} minutes"
+    },
+    "trend": {
+      "increasing": "Increasing",
+      "decreasing": "Decreasing",
+      "stable": "Stable"
     },
     "table": {
       "state": "State",
@@ -175,6 +202,17 @@
       "noDetails": "No details available",
       "allGood": "All parameters are within normal range",
       "recommendedAction": "Recommended action"
+    },
+    "legend": {
+      "title": "Actions Legend",
+      "urgent": "Urgent",
+      "urgentDesc": "Critical action required immediately.",
+      "warning": "Warning",
+      "warningDesc": "Action recommended to avoid degradation.",
+      "success": "Satisfactory",
+      "successDesc": "No action required, optimal parameters.",
+      "info": "Information",
+      "infoDesc": "Neutral state or data not available."
     },
     "details": {
       "title": "Details",
@@ -192,14 +230,16 @@
       }
     },
     "alertCount": {
-      "zero": "No alerts",
+      "zero": "No Alerts",
       "one": "1 Alert",
-      "multiple": "{{count}} Alerts"
+      "multiple": "{{count}} Alerts",
+      "singular": "1 Alert",
+      "plural": "{{count}} Alerts"
     },
     "actionCount": {
-      "zero": "No actions",
-      "one": "1 action",
-      "multiple": "{{count}} actions"
+      "zero": "No Actions",
+      "one": "1 Action",
+      "multiple": "{{count}} Actions"
     },
   "sample": {
       "window": {
@@ -225,6 +265,30 @@
       "humidity": {
         "subject": "Humidity",
         "action": "Regulate"
+      },
+      "air_purifier": {
+        "subject": "Air Purifier",
+        "action": "Turn on"
+      },
+      "air_conditioning": {
+        "subject": "Air Conditioning",
+        "action": "Turn on"
+      },
+      "heating": {
+        "subject": "Heating",
+        "action": "Adjust"
+      },
+      "cooling": {
+        "subject": "Cooling",
+        "action": "Adjust"
+      },
+      "humidifier": {
+        "subject": "Humidifier",
+        "action": "Turn on"
+      },
+      "dehumidifier": {
+        "subject": "Dehumidifier",
+        "action": "Turn on"
       }
     },
     "actionVerbs": {
@@ -233,7 +297,19 @@
       "increase": "Increase",
       "decrease": "Decrease",
       "turn_on": "Turn on",
-      "turn_off": "Turn off"
+      "turn_off": "Turn off",
+
+      "Augmenter la ventilation": "Increase ventilation",
+      "Ouvrir les fenêtres immédiatement": "Open windows immediately",
+      "Évacuer la pièce et aérer complètement": "Evacuate the room and ventilate completely",
+      "Activer le purificateur d'air": "Turn on the air purifier",
+      "Purificateur à puissance maximale + ventilation": "Run purifier at max power + ventilation",
+      "Éviter la pièce, purification intensive requise": "Avoid the room, intensive purification required",
+      "Aérer la pièce pendant 15 minutes": "Air the room for 15 minutes",
+      "Ventilation intensive + identifier la source": "Intensive ventilation + identify source",
+      "Évacuer et ventiler complètement la zone": "Evacuate and ventilate the area completely",
+      "Situation critique actuelle en augmentation": "Current critical situation is increasing",
+      "Situation critique avec amélioration prévue": "Critical situation with expected improvement"
     }
   },
   "buttons": {

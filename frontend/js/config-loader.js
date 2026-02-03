@@ -6,62 +6,50 @@
 let config = null;
 
 /**
- * Charge la configuration depuis le backend ou le fichier statique
+ * Charge la configuration depuis le backend
  * @returns {Promise<Object>} La configuration chargée
  */
 async function loadConfig() {
     try {
-        // Essayer d'abord l'API du backend
-        const response = await fetch('http://localhost:8000/config');
+        const token = await getAuthToken(); // Nouvelle ligne
+        const headers = { 
+            'ngrok-skip-browser-warning': 'true' 
+        };
+        // Injection du token
+        if (token) headers['Authorization'] = `Bearer ${token}`; 
+
+        const response = await fetch('/api/config', { headers });
         if (response.ok) {
             config = await response.json();
-            console.log('Configuration chargée depuis le backend');
             return config;
         }
     } catch (error) {
-        console.warn('Backend non disponible, tentative de chargement du fichier statique');
+        console.warn('Backend non disponible', error);
     }
-
-    // Sinon essayer de charger le fichier statique
-    const candidates = ['/assets/config.json', '../assets/config.json', 'assets/config.json'];
-    for (const path of candidates) {
-        try {
-            const response = await fetch(path, { cache: 'no-store' });
-            if (!response.ok) continue;
-            config = await response.json();
-            console.log(`Configuration chargée depuis ${path}`);
-            return config;
-        } catch (error) {
-            continue;
-        }
-    }
-
     throw new Error('Impossible de charger la configuration');
 }
 
-/**
- * Sauvegarde la configuration sur le backend
- * @param {Object} updates - Les mises à jour à appliquer
- * @returns {Promise<Object>} La configuration mise à jour
- */
 async function saveConfig(updates = null) {
     try {
+        const token = await getAuthToken(); // Nouvelle ligne
+        const headers = { 
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+        };
+        // Injection du token
+        if (token) headers['Authorization'] = `Bearer ${token}`; 
+
         const dataToSend = updates || config;
-        const response = await fetch('http://localhost:8000/api/saveConfig', {
+        const response = await fetch('/api/config', {
             method: 'PUT',
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(dataToSend)
         });
 
-        if (!response.ok) {
-            throw new Error('Erreur lors de la sauvegarde');
-        }
+        if (!response.ok) throw new Error('Erreur lors de la sauvegarde');
 
         const result = await response.json();
-        if (result && result.config) {
-            config = result.config;
-        }
+        if (result && result.config) config = result.config;
 
         return config;
     } catch (error) {

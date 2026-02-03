@@ -203,7 +203,7 @@ function getComfortShapes(maxTemp, maxHum) {
 // Configuration
 const REFRESH_MS = 3000; // 3s (fallback HTTP uniquement)
 /* Fichier des graphiques IAQ - mise à jour dynamique sans rechargement de la page */
-const API_URL_DATA = "http://localhost:8000/api/iaq/data";
+const API_URL_DATA = (window.API_ENDPOINTS && window.API_ENDPOINTS.measurements) ? window.API_ENDPOINTS.measurements : "/api/iaq/data";
 const chartIds = ["co2-chart", "pm25-chart", "comfort-chart", "tvoc-chart"];
 // Evite le conflit avec la variable globale "config" utilisée par index.html
 const plotlyConfig = { responsive: true, displayModeBar: false };
@@ -363,20 +363,23 @@ function makeCommonLayout(title, yTitle) {
     // Increase bottom margin to avoid truncating date labels
     margin: {
       t: 40,
-      r: isSmallScreen ? 60 : 100,
-      b: isSmallScreen ? 110 : 130,
-      l: 50,
+      r: isSmallScreen ? 30 : 100,
+      b: isSmallScreen ? 80 : 130,
+      l: isSmallScreen ? 40 : 50,
     },
     xaxis: {
       title: isSmallScreen ? "" : timeLabel,
       type: "date",
-      showticklabels: !isSmallScreen,
+      showticklabels: true,
+      automargin: true,
+      tickformat: isSmallScreen ? "%H:%M" : undefined,
       color: isDark ? "#a8b2c1" : "#2c3e50",
       gridcolor: isDark ? "#3a4049" : "#e2e8f0",
     },
     title: { text: title, font: { color: isDark ? "#e4e7eb" : "#2c3e50" } },
     yaxis: {
-      title: yTitle,
+      title: isSmallScreen ? "" : yTitle,
+      automargin: true,
       color: isDark ? "#a8b2c1" : "#2c3e50",
       gridcolor: isDark ? "#3a4049" : "#e2e8f0",
     },
@@ -456,9 +459,9 @@ function initEmptyCharts() {
       // responsive minimum margins
       const isSmallScreen =
         typeof window !== "undefined" && window.innerWidth <= 820;
-      const minR = isSmallScreen ? 70 : 140; // increase desktop right margin to avoid truncation
-      const minL = isSmallScreen ? 60 : 100;
-      const minB = isSmallScreen ? 90 : 120; // reserve space for legend + gap
+      const minR = isSmallScreen ? 60 : 140; // Increased right margin
+      const minL = isSmallScreen ? 40 : 100;
+      const minB = isSmallScreen ? 130 : 120; // Increased bottom margin for legend
       // retirer le titre 'Heure' pour libérer de l'espace pour la légende tout en gardant les ticks visibles
       base.xaxis = Object.assign({}, base.xaxis, {
         title: "",
@@ -466,9 +469,10 @@ function initEmptyCharts() {
       });
       // ensure yaxis2 uses same color as primary yaxis for title/ticks
       const y2 = {
-        title: humidityTitle,
+        title: isSmallScreen ? "" : humidityTitle,
         overlaying: "y",
         side: "right",
+        automargin: true,
         color: base.yaxis && base.yaxis.color,
       };
       // position legend: bottom; increase the gap from the plot by lowering 'y'
@@ -477,8 +481,8 @@ function initEmptyCharts() {
             orientation: "h",
             x: 0.5,
             xanchor: "center",
-            y: -0.12,
-            yanchor: "bottom",
+            y: -0.2,
+            yanchor: "top",
           } // plus d'espace sous le graphe en mobile
         : {
             orientation: "h",
@@ -488,7 +492,7 @@ function initEmptyCharts() {
             yanchor: "bottom",
           }; // plus d'espace sous le graphe desktop
       return Object.assign(base, {
-        margin: { r: minR, l: minL, b: minB },
+        margin: { r: minR, l: minL, b: minB, t: 40 },
         yaxis2: y2,
         legend: legend,
       });
@@ -685,8 +689,8 @@ function updateChartsWithData(data) {
   );
   const isSmallScreen =
     typeof window !== "undefined" && window.innerWidth <= 820;
-  const minComfortR = isSmallScreen ? 70 : 140;
-  const minComfortB = isSmallScreen ? 90 : 120;
+  const minComfortR = isSmallScreen ? 60 : 140;
+  const minComfortB = isSmallScreen ? 130 : 120;
   baseComfortLayout.margin = Object.assign({}, baseComfortLayout.margin, {
     r: Math.max(
       (baseComfortLayout.margin && baseComfortLayout.margin.r) || 50,
@@ -696,13 +700,15 @@ function updateChartsWithData(data) {
       (baseComfortLayout.margin && baseComfortLayout.margin.b) || 50,
       minComfortB
     ),
+    l: isSmallScreen ? 40 : 50,
   });
   baseComfortLayout.yaxis2 = Object.assign(
     {},
     {
-      title: (t && t("charts.humidityY")) || "Humidité (%)",
+      title: isSmallScreen ? "" : ((t && t("charts.humidityY")) || "Humidité (%)"),
       overlaying: "y",
       side: "right",
+      automargin: true,
     },
     { color: baseComfortLayout.yaxis && baseComfortLayout.yaxis.color }
   );
@@ -712,7 +718,7 @@ function updateChartsWithData(data) {
     showticklabels: true,
   });
   const legend = isSmallScreen
-    ? { orientation: "h", x: 0.5, xanchor: "center", y: -0.12, yanchor: "top" }
+    ? { orientation: "h", x: 0.5, xanchor: "center", y: -0.2, yanchor: "top" }
     : { orientation: "h", x: 0.5, xanchor: "center", y: -0.18, yanchor: "top" }; // plus d'espace sous le graphe desktop
 
   // Suppression des bandes de zones (OMS) pour un affichage épuré
@@ -748,10 +754,26 @@ function updateChartsWithData(data) {
     const globalScore =
       typeof last.global_score === "number" ? last.global_score : null;
     if (globalScore !== null && window.setRoomScore) {
-      const trend =
-        globalScore >= 90 ? "good" : globalScore >= 70 ? "ok" : "bad";
-      const trendLabel =
-        globalScore >= 90 ? "A" : globalScore >= 70 ? "B" : "C";
+      let trend = "bad";
+      let trendLabel = "E";
+      
+      if (globalScore >= 81) {
+        trend = "good";
+        trendLabel = "A";
+      } else if (globalScore >= 61) {
+        trend = "good";
+        trendLabel = "B";
+      } else if (globalScore >= 41) {
+        trend = "ok";
+        trendLabel = "C";
+      } else if (globalScore >= 21) {
+        trend = "bad";
+        trendLabel = "D";
+      } else {
+        trend = "bad";
+        trendLabel = "E";
+      }
+      
       window.setRoomScore(globalScore, { trend, trendLabel, note: "" });
 
       // Ajouter le score à l'historique avec timestamp
@@ -781,9 +803,18 @@ async function fetchAndUpdate() {
     });
     const url = `${API_URL_DATA}?${params.toString()}`;
     console.debug("IAQ fetch:", url);
-    const res = await window.fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    // Préparation des headers avec Auth
+    const headers = { 'ngrok-skip-browser-warning': 'true' };
+    try {
+        if (typeof getAuthToken === 'function') {
+            const token = await getAuthToken();
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+        }
+    } catch(e) { }
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
     if (!Array.isArray(data) || data.length === 0) {
       chartIds.forEach((id) => renderEmpty(id));
       return;
@@ -919,10 +950,19 @@ async function fetchAndUpdate() {
 // Helper function to fetch predicted score from API
 async function getPredictedScore(enseigne, salle) {
   try {
-    const url = `http://localhost:8000/api/predict/score?enseigne=${encodeURIComponent(
+    const url = `/api/predict/score?enseigne=${encodeURIComponent(
       enseigne
     )}&salle=${encodeURIComponent(salle)}`;
-    const response = await fetch(url);
+    
+    const headers = { 'ngrok-skip-browser-warning': 'true' };
+    try {
+        if (typeof getAuthToken === 'function') {
+            const token = await getAuthToken();
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+        }
+    } catch (e) { }
+
+    const response = await fetch(url, { headers: headers });
     if (!response.ok) {
       console.warn(`Failed to fetch prediction: ${response.status}`);
       return null;
@@ -978,19 +1018,28 @@ function updatePredictedScoreUI(data) {
   const predictedScore = Math.round(data.predicted_score);
   valueEl.textContent = predictedScore;
 
-  // Styliser selon le niveau prédit (A = vert, B = orange, C = rouge)
+  // Styliser selon le niveau prédit (A-E)
   if (predictedContainer) {
     predictedContainer.classList.remove(
       "predicted-excellent",
       "predicted-warning",
-      "predicted-danger"
+      "predicted-danger",
+      "predicted-a",
+      "predicted-b",
+      "predicted-c",
+      "predicted-d",
+      "predicted-e"
     );
-    if (predictedScore >= 90) {
-      predictedContainer.classList.add("predicted-excellent");
-    } else if (predictedScore >= 70) {
-      predictedContainer.classList.add("predicted-warning");
+    if (predictedScore >= 81) {
+      predictedContainer.classList.add("predicted-a");
+    } else if (predictedScore >= 61) {
+      predictedContainer.classList.add("predicted-b");
+    } else if (predictedScore >= 41) {
+      predictedContainer.classList.add("predicted-c");
+    } else if (predictedScore >= 21) {
+      predictedContainer.classList.add("predicted-d");
     } else {
-      predictedContainer.classList.add("predicted-danger");
+      predictedContainer.classList.add("predicted-e");
     }
   }
 
@@ -1041,11 +1090,11 @@ if (typeof window !== "undefined" && typeof Plotly !== "undefined") {
 
       if (USE_WEBSOCKET && window.wsManager) {
         // Mode WebSocket temps réel
-        console.log("🔌 Démarrage mode WebSocket temps réel");
+        console.log("--- Démarrage mode WebSocket temps réel ---");
         initWebSocketMode();
       } else {
         // Mode polling HTTP classique
-        console.log("🔄 Démarrage mode polling HTTP");
+        console.log("Démarrage mode polling HTTP");
         fetchAndUpdate();
         httpPollingInterval = setInterval(fetchAndUpdate, REFRESH_MS);
       }
@@ -1129,26 +1178,28 @@ function initWebSocketMode() {
 
     // Écouter les nouveaux messages de mesures
     window.wsManager.on("measurements", (data) => {
-      console.log("📊 Nouvelles mesures WebSocket:", data);
+      console.log(" == Nouvelles mesures WebSocket:", data);
       handleWebSocketMeasurement(data);
     });
 
     // Fallback HTTP si WebSocket se déconnecte
     window.wsManager.on("error", () => {
-      console.warn("⚠️ WebSocket erreur, fallback sur polling HTTP");
+      console.warn(" WebSocket erreur, fallback sur polling HTTP ");
       if (!httpPollingInterval) {
         httpPollingInterval = setInterval(fetchAndUpdate, REFRESH_MS);
       }
     });
 
-    // Écouter la reconnexion pour arrêter le polling HTTP
+    // Écouter la connexion/reconnexion pour arrêter le polling HTTP
     window.wsManager.on("connected", () => {
-      console.log("✅ WebSocket reconnecté, arrêt du polling HTTP");
       if (httpPollingInterval) {
+        console.log(" WebSocket actif : arrêt du polling HTTP ");
         clearInterval(httpPollingInterval);
         httpPollingInterval = null;
+      } else {
+        console.log(" --- WebSocket actif ---");
       }
-      // Recharger les données après reconnexion
+      // Recharger les données pour être sûr d'être à jour
       fetchAndUpdate();
     });
   }
@@ -1242,9 +1293,9 @@ function handleWebSocketMeasurement(data) {
     // Mettre à jour les sévérités et le score global
     updateChartSeverities(measurement);
 
-    console.debug("✅ Graphiques mis à jour via WebSocket");
+    console.debug(" Graphiques mis à jour via WebSocket ");
   } catch (error) {
-    console.error("❌ Erreur mise à jour graphiques WebSocket:", error);
+    console.error(" Erreur mise à jour graphiques WebSocket:", error);
   }
 }
 
@@ -1284,17 +1335,21 @@ function updateChartSeverities(measurement) {
     // Mettre à jour le score global si disponible
     if (typeof measurement.global_score === "number" && window.setRoomScore) {
       const trend =
-        measurement.global_score >= 90
+        measurement.global_score >= 81
           ? "good"
-          : measurement.global_score >= 70
+          : measurement.global_score >= 61
           ? "ok"
           : "bad";
       const trendLabel =
-        measurement.global_score >= 90
+        measurement.global_score >= 81
           ? "A"
-          : measurement.global_score >= 70
+          : measurement.global_score >= 61
           ? "B"
-          : "C";
+          : measurement.global_score >= 41
+          ? "C"
+          : measurement.global_score >= 21
+          ? "D"
+          : "E";
       window.setRoomScore(measurement.global_score, {
         trend,
         trendLabel,
@@ -1302,7 +1357,7 @@ function updateChartSeverities(measurement) {
       });
     }
   } catch (error) {
-    console.error("❌ Erreur updateChartSeverities:", error);
+    console.error(" Erreur updateChartSeverities:", error);
   }
 }
 

@@ -179,16 +179,13 @@ def extract_sensors_from_config(config):
 def load_user_config(user_id: str):
     """Charge la configuration depuis Supabase pour un utilisateur spécifique"""
     if not supabase:
-        return load_config() # Repli sur le fichier local
+        return None # Pas de supabase, pas de config user
 
     response = supabase.table("user_configs").select("config_data").eq("user_id", user_id).execute()
     
-    # Si l'utilisateur n'a pas encore de config, on renvoie la config par défaut
+    # Si l'utilisateur n'a pas encore de config, on renvoie None
     if not response.data:
-        default_cfg = load_config()
-        # Optionnel : On crée automatiquement la ligne pour l'utilisateur
-        # save_user_config(user_id, default_cfg) 
-        return default_cfg
+        return None
         
     return response.data[0]['config_data']
 

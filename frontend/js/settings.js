@@ -678,11 +678,12 @@ async function removePiece(enseigneId, pieceId) {
 
 // Enregistrement global de la configuration (envoi complet si nécessaire)
 async function saveConfigAll() {
-  const response = await fetch('/config', {
-    method: 'PUT', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(settingsConfig)
-  });
-  if (!response.ok) throw new Error('Erreur lors de la sauvegarde');
-  const result = await response.json(); if (result && result.config) settingsConfig = result.config;
+  try {
+    await saveConfig(settingsConfig);
+  } catch (err) {
+    console.error('Erreur lors de la sauvegarde:', err);
+    throw new Error('Erreur lors de la sauvegarde');
+  }
 }
 
 // Édition par section (modale multi-champs)

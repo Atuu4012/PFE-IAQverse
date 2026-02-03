@@ -110,26 +110,19 @@ def _apply_config_updates(config: dict, updates: dict) -> dict:
 @router.post("/api/uploadAvatar")
 async def upload_avatar(file: UploadFile = File(...)):
     """
-    Upload d'un avatar utilisateur.
-    Sauvegarde dans assets/icons/user_avatar.png (ou extension d'origine).
+    Upload d'un avatar utilisateur (Local).
+    Sauvegarde dans assets/icons/user_avatar.png (Partagé).
     """
     try:
-        # Définir le dossier de destination
-        # On suppose que le dossier assets est à la racine du projet, accessible via settings.BASE_DIR ou relatif
-        # settings.ROOMS_DIR pointe vers assets/rooms, donc on peut remonter
-        
-        # Fallback si settings.ASSETS_DIR n'existe pas
+        # Retour au stockage local pour les icônes/avatars
         assets_dir = _get_assets_dir()
         
         icons_dir = assets_dir / "icons"
         icons_dir.mkdir(parents=True, exist_ok=True)
         
-        # Nettoyer le nom de fichier ou utiliser un nom fixe pour l'utilisateur principal
-        # Pour simplifier, on utilise un nom fixe avec l'extension d'origine
-        ext = Path(file.filename).suffix
-        if not ext:
-            ext = ".png"
+        ext = Path(file.filename).suffix or ".png"
             
+        # Nom fixe "user_avatar" comme demandé
         filename = f"user_avatar{ext}"
         target_path = icons_dir / filename
         
@@ -151,7 +144,15 @@ async def get_config(user_id: str = Depends(get_current_user_id)):
     """Retourne la configuration spécifique à l'utilisateur"""
     cfg = load_user_config(user_id)
     if cfg is None:
-        raise HTTPException(status_code=500, detail="Impossible de charger la configuration")
+        # Retourner une config vierge par défaut au lieu de config.json
+        cfg = {
+            "vous": {},
+            "lieux": {"enseignes": []},
+            "assurance": {},
+            "syndicat": {},
+            "notifications": {},
+            "affichage": {"mode": "auto"}
+        }
     return cfg
 
 
@@ -162,7 +163,15 @@ async def update_config(updates: dict = Body(...), user_id: str = Depends(get_cu
     
     current_config = load_user_config(user_id)
     if not current_config:
-        current_config = load_config() or {} # Fallback
+         # Initialisation avec une config vierge si inexistante
+        current_config = {
+            "vous": {},
+            "lieux": {"enseignes": []},
+            "assurance": {},
+            "syndicat": {},
+            "notifications": {},
+            "affichage": {"mode": "auto"}
+        }
     
     # Appliquer les mises à jour (fonction existante)
     def update_recursive(base, upd):
@@ -216,23 +225,55 @@ def get_sensors_config():
 
 
 @router.put("/api/rooms/files")
-async def upload_glb(file: UploadFile = File(...), filename: str = Form(...)):
+async def upload_glb(
+    file: UploadFile = File(...), 
+    filename: str = Form(...),
+    user_id: str = Depends(get_current_user_id)
+):
     """
-    Upload d'un fichier .glb via multipart/form-data.
-    Le fichier est enregistré dans assets/rooms/.
+    Upload d'un fichier .glb vers Supabase Storage.
+    Bucket: 'assets'
+    Path: '{user_id}/rooms/{filename}'
     """
     try:
         if not filename or not filename.lower().endswith('.glb'):
             raise HTTPException(status_code=400, detail="Le nom de fichier doit se terminer par .glb")
-
-        rooms_dir = _get_rooms_dir()
+            
+        # Lire le fichier
+        content = await file.read()
         safe_name = _normalize_glb_name(filename)
-        target = rooms_dir / safe_name
-        await _save_upload_file(file, target)
+        bucket_name = "assets"
+        storage_path = f"{user_id}/rooms/{safe_name}"
 
-        rel = f"/assets/rooms/{safe_name}"
-        logger.info(f"Uploaded GLB to {target}")
-        return {"path": rel}
+        if supabase:
+            try:
+                # Upload vers Supabase Storage
+                res = supabase.storage.from_(bucket_name).upload(
+                    path=storage_path,
+                    file=content,
+                    file_options={"content-type": "model/gltf-binary", "upsert": "true"}
+                )
+                
+                public_url = supabase.storage.from_(bucket_name).get_public_url(storage_path)
+                logger.info(f"GLB uploaded to Supabase Storage: {public_url}")
+                return {"path": public_url}
+                
+            except Exception as storage_error:
+                logger.error(f"Supabase Storage GLB Error: {storage_error}")
+                raise HTTPException(status_code=500, detail=f"Stockage distant indisponible: {storage_error}")
+        
+        else:
+            # Fallback Local
+            logger.warning("Supabase non configuré, fallback sur stockage local GLB")
+            rooms_dir = _get_rooms_dir()
+            target = rooms_dir / safe_name
+            
+            with target.open("wb") as buffer:
+                buffer.write(content)
+
+            rel = f"/assets/rooms/{safe_name}"
+            return {"path": rel}
+            
     except HTTPException:
         raise
     except Exception as e:
@@ -241,30 +282,63 @@ async def upload_glb(file: UploadFile = File(...), filename: str = Form(...)):
 
 
 @router.delete("/api/rooms/files")
-async def delete_room_files(payload: Union[List[str], Dict[str, List[str]]] = Body(...)):
+async def delete_room_files(
+    payload: Union[List[str], Dict[str, List[str]]] = Body(...),
+    user_id: str = Depends(get_current_user_id)
+):
     """
-    Supprime des fichiers de pièces dans le dossier assets/rooms.
-    Validation de sécurité pour éviter suppression arbitraire.
+    Supprime des fichiers de pièces (Supabase Storage ou Local).
     """
-    rooms_dir = _get_rooms_dir()
-    
     deleted = []
     not_found = []
     errors = {}
 
     paths = _extract_paths(payload)
-    logger.info(f"Request to delete files: {paths}")
+    logger.info(f"Request to delete files by user {user_id}: {paths}")
+    
+    bucket_name = "assets"
 
     for p in paths:
         try:
-            target = _sanitize_room_path(p, rooms_dir)
-            if target.exists():
-                target.unlink()
-                deleted.append(f"/assets/rooms/{target.name}")
-                logger.info(f"Deleted file: {target}")
+            # Détection si c'est une URL Supabase ou un chemin local
+            is_supabase_url = "supabase" in p and "/storage/v1/object/public/" in p
+            
+            if is_supabase_url and supabase:
+                # Extraction du path relatif dans le bucket
+                # Format URL: .../public/assets/{user_id}/rooms/file.glb
+                # On veut: {user_id}/rooms/file.glb
+                if f"/public/{bucket_name}/" in p:
+                    storage_path = p.split(f"/public/{bucket_name}/")[1]
+                    
+                    # Sécurité simple: vérifier que le path commence par le user_id
+                    if not storage_path.startswith(f"{user_id}/"):
+                        logger.warning(f"User {user_id} tried to delete asset of another user: {storage_path}")
+                        errors[p] = "Permission denied"
+                        continue
+
+                    # Suppression Supabase
+                    supabase.storage.from_(bucket_name).remove([storage_path])
+                    deleted.append(p)
+                    logger.info(f"Deleted from Supabase Storage: {storage_path}")
+                else:
+                    errors[p] = "Invalid Supabase URL structure"
+
             else:
-                not_found.append(p)
-                logger.warning(f"File not found: {target}")
+                # Gestion Suppression Locale (Legacy ou Fallback)
+                # On évite de laisser supprimer n'importe quoi sur le disque
+                if p.startswith("http") or ".." in p:
+                    # Ignorer les URLs qui ne sont pas identifiées comme Supabase ou chemins suspects
+                    continue
+                    
+                rooms_dir = _get_rooms_dir()
+                target = _sanitize_room_path(p, rooms_dir)
+                if target.exists():
+                    target.unlink()
+                    deleted.append(f"/assets/rooms/{target.name}")
+                    logger.info(f"Deleted local file: {target}")
+                else:
+                    not_found.append(p)
+
         except Exception as e:
             errors[p] = str(e)
             logger.error(f"Error deleting {p}: {e}")

@@ -61,7 +61,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (signupBtn) {
         signupBtn.addEventListener('click', handleSignup);
     }
+
+    const googleBtn = document.getElementById('google-btn');
+    if (googleBtn) {
+        googleBtn.addEventListener('click', handleGoogleLogin);
+    }
+
+    const forgotPasswordLink = document.getElementById('forgot-password-link');
+    if (forgotPasswordLink) {
+        forgotPasswordLink.addEventListener('click', handlePasswordReset);
+    }
 });
+
+async function handleGoogleLogin() {
+    if (!supabaseClient) await initSupabase();
+    try {
+        const { data, error } = await supabaseClient.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: window.location.origin + '/index.html'
+            }
+        })
+        if (error) throw error;
+    } catch (error) {
+        console.error(error);
+        alert("Erreur Google Login: " + error.message);
+    }
+}
+
+async function handlePasswordReset(e) {
+    e.preventDefault();
+    const email = document.getElementById('email').value;
+    if (!email) {
+        alert("Veuillez d'abord entrer votre adresse email dans le champ Email.");
+        return;
+    }
+
+    if (!supabaseClient) await initSupabase();
+
+    try {
+        const { data, error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin + '/reset-password.html',
+        });
+        if (error) throw error;
+        alert("Email de réinitialisation envoyé ! Vérifiez votre boîte de réception.");
+    } catch (error) {
+        console.error(error);
+        alert("Erreur: " + error.message);
+    }
+}
 
 async function handleSignup(e) {
     e.preventDefault();

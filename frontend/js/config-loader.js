@@ -11,7 +11,13 @@ let config = null;
  */
 async function loadConfig() {
     try {
-        const token = await getAuthToken(); // Nouvelle ligne
+        let token = null;
+        try {
+            token = await getAuthToken(); // Nouvelle ligne
+        } catch (e) {
+            console.warn("Auth token not available yet", e);
+        }
+        
         const headers = { 
             'ngrok-skip-browser-warning': 'true' 
         };

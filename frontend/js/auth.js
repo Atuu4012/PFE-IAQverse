@@ -55,7 +55,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
     }
+    
+    // Ajout bouton Sign Up
+    const signupBtn = document.getElementById('signup-btn');
+    if (signupBtn) {
+        signupBtn.addEventListener('click', handleSignup);
+    }
 });
+
+async function handleSignup(e) {
+    e.preventDefault();
+    if (!supabaseClient) await initSupabase();
+
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const errorMsg = document.getElementById('error-msg');
+    
+    errorMsg.style.display = 'none';
+    
+    try {
+        const { data, error } = await supabaseClient.auth.signUp({
+            email,
+            password
+        });
+        
+        if (error) throw error;
+        
+        alert("Inscription réussie ! Vérifiez vos emails pour confirmer l'inscription.");
+    } catch (error) {
+        console.error(error);
+        errorMsg.textContent = "Échec de l'inscription : " + (error.message || "Erreur inconnue");
+        errorMsg.style.display = 'block';
+    }
+}
 
 async function handleLogin(e) {
     e.preventDefault();

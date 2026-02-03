@@ -88,6 +88,24 @@
             background: var(--accent-hover);
         }
 
+        .btn-signup {
+            background: transparent;
+            color: var(--accent-color);
+            border: 1px solid var(--accent-color);
+            padding: 12px;
+            width: 100%;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn-signup:hover {
+            background: var(--accent-color);
+            color: white;
+        }
+
         .error-message {
             color: var(--error-color);
             margin-bottom: 20px;
@@ -132,7 +150,8 @@
                 <input type="password" id="password" required placeholder="••••••••">
             </div>
 
-            <button type="submit" class="btn-login">Se connecter</button>
+            <button type="submit" class="btn-login" id="login-btn">Se connecter</button>
+            <button type="button" class="btn-signup" id="signup-btn">Créer un compte</button>
         </form>
     </div>
 

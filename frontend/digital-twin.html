@@ -173,6 +173,9 @@
 
             <!-- Bouton pour recentrer / cadrer le modèle -->
             <button id="frame-btn" title="F" data-i18n="buttons.frame" class="frame-btn">Centrer</button>
+            <button id="fullscreen-btn" class="fullscreen-btn" title="Plein écran">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            </button>
 
             <!-- Les alert-points sont maintenant au-dessus du canvas -->
             <div id="alert-points-container"></div>
@@ -314,6 +317,17 @@
     </footer>
 
     <script type="module" src="js/three-scene.js"></script>
-    
+    <script>
+        document.getElementById('fullscreen-btn')?.addEventListener('click', () => {
+            const container = document.querySelector('.room-visual');
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().catch(err => {
+                    console.error(`Erreur lors du passage en plein écran: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        });
+    </script>
 </body>
 </html>

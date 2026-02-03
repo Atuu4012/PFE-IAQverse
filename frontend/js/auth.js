@@ -1,29 +1,54 @@
-// Configuration Supabase - À REMPLACER PAR VOS VRAIES CLÉS LORS DU DÉPLOIEMENT
-// Ces clés pourront être chargées dynamiquement ou injectées au build
-const SUPABASE_URL = os.getenv('SUPABASE_URL'); 
-const SUPABASE_KEY = os.getenv('SUPABASE_KEY');
-
-// Initialisation du client
+// Configuration Supabase - Chargée dynamiquement
 let supabaseClient = null;
+let initPromise = null;
 
-function initSupabase() {
-    if (typeof supabase !== 'undefined') {
-        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    } else {
-        console.error("SDK Supabase non chargé");
+async function fetchAuthConfig() {
+     try {
+        const response = await fetch('/api/auth/config', {
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+        if (response.ok) {
+            return await response.json();
+        }
+    } catch (e) {
+        console.error("Impossible de charger la config Auth", e);
     }
+    return null;
+}
+
+async function initSupabase() {
+    if (supabaseClient) return supabaseClient;
+    if (initPromise) return initPromise;
+
+    initPromise = (async () => {
+        const config = await fetchAuthConfig();
+        if (config && config.supabaseUrl && config.supabaseKey) {
+            if (typeof supabase !== 'undefined') {
+                supabaseClient = supabase.createClient(config.supabaseUrl, config.supabaseKey);
+            } else {
+                console.error("SDK Supabase non chargé");
+            }
+        } else {
+             console.warn("Supabase credentials not found");
+        }
+        return supabaseClient;
+    })();
+    
+    return initPromise;
 }
 
 // Gestion du formulaire de login
 document.addEventListener('DOMContentLoaded', async () => {
-    initSupabase();
+    await initSupabase();
 
-    // Vérifier si déjà connecté
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session && window.location.pathname.endsWith('login.html')) {
-        // Redirection si déjà connecté
-        window.location.href = 'index.html';
-        return;
+    if (supabaseClient) {
+        // Vérifier si déjà connecté
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session && window.location.pathname.endsWith('login.html')) {
+            // Redirection si déjà connecté
+            window.location.href = 'index.html';
+            return;
+        }
     }
 
     const loginForm = document.getElementById('login-form');
@@ -35,6 +60,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function handleLogin(e) {
     e.preventDefault();
     
+    if (!supabaseClient) await initSupabase();
+
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     const errorMsg = document.getElementById('error-msg');
@@ -67,14 +94,17 @@ async function handleLogin(e) {
 
 // Fonction utilitaire pour récupérer le token dans les autres fichiers
 async function getAuthToken() {
-    if (!supabaseClient) initSupabase();
+    if (!supabaseClient) await initSupabase();
+    if (!supabaseClient) return null;
     const { data } = await supabaseClient.auth.getSession();
     return data.session?.access_token || null;
 }
 
 // Fonction de déconnexion
 async function logout() {
-    if (!supabaseClient) initSupabase();
-    await supabaseClient.auth.signOut();
+    if (!supabaseClient) await initSupabase();
+    if (supabaseClient) {
+        await supabaseClient.auth.signOut();
+    }
     window.location.href = 'login.html';
 }

@@ -182,6 +182,15 @@ async def update_config(updates: dict = Body(...), user_id: str = Depends(get_cu
     raise HTTPException(status_code=500, detail="Erreur lors de la sauvegarde")
 
 
+@router.get("/api/auth/config")
+def get_auth_config():
+    """Returns the public Supabase configuration for the frontend."""
+    return {
+        "supabaseUrl": settings.SUPABASE_URL,
+        "supabaseKey": settings.SUPABASE_KEY
+    }
+
+
 @router.get("/api/config/sensors")
 def get_sensors_config():
     """

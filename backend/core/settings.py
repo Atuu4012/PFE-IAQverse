@@ -62,6 +62,10 @@ class Settings:
     DATA_RETENTION_DAYS: int = int(os.getenv("DATA_RETENTION_DAYS", "90"))
     MAX_MEMORY_RECORDS: int = int(os.getenv("MAX_MEMORY_RECORDS", "10000"))
 
+    # Supabase
+    SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY: Optional[str] = os.getenv("SUPABASE_KEY")
+
 
 # Instance globale
 settings = Settings()

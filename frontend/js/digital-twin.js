@@ -213,7 +213,6 @@ async function fetchAndDisplayPreventiveScore(params) {
     if (!scoreElement || !trendElement || !containerElement) return;
     
     try {
-        // Récupérer depuis /api/iaq/actions/preventive
         const response = await fetch(`${API_ENDPOINTS.preventiveActions}?${params}`, {
             headers: { 'ngrok-skip-browser-warning': 'true' }
         });

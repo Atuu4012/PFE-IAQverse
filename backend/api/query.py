@@ -102,8 +102,6 @@ def get_iaq_data(
                     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
                     |> sort(columns: ["_time"])
             '''
-            
-            # logger.info(f"Flux Query: {flux_query}")
             influx_data = influx.query_data(flux_query)
             
             if influx_data:

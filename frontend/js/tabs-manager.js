@@ -306,7 +306,10 @@ let monitoringInterval = null;
 
 async function fetchRoomScore(enseigneNom, roomNom) {
     try {
-        const url = `http://localhost:8000/api/iaq/data?enseigne=${encodeURIComponent(enseigneNom)}&salle=${encodeURIComponent(roomNom)}&hours=1`;
+        const baseUrl = (window.API_ENDPOINTS && window.API_ENDPOINTS.measurements)
+            ? window.API_ENDPOINTS.measurements
+            : "/api/iaq/data";
+        const url = `${baseUrl}?enseigne=${encodeURIComponent(enseigneNom)}&salle=${encodeURIComponent(roomNom)}&hours=1`;
         
         const response = await fetch(url);
         if (!response.ok) {

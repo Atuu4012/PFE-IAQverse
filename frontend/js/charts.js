@@ -1072,11 +1072,11 @@ if (typeof window !== "undefined" && typeof Plotly !== "undefined") {
 
       if (USE_WEBSOCKET && window.wsManager) {
         // Mode WebSocket temps réel
-        console.log("🔌 Démarrage mode WebSocket temps réel");
+        console.log("--- Démarrage mode WebSocket temps réel ---");
         initWebSocketMode();
       } else {
         // Mode polling HTTP classique
-        console.log("🔄 Démarrage mode polling HTTP");
+        console.log("Démarrage mode polling HTTP");
         fetchAndUpdate();
         httpPollingInterval = setInterval(fetchAndUpdate, REFRESH_MS);
       }
@@ -1160,13 +1160,13 @@ function initWebSocketMode() {
 
     // Écouter les nouveaux messages de mesures
     window.wsManager.on("measurements", (data) => {
-      console.log("📊 Nouvelles mesures WebSocket:", data);
+      console.log(" == Nouvelles mesures WebSocket:", data);
       handleWebSocketMeasurement(data);
     });
 
     // Fallback HTTP si WebSocket se déconnecte
     window.wsManager.on("error", () => {
-      console.warn("⚠️ WebSocket erreur, fallback sur polling HTTP");
+      console.warn(" WebSocket erreur, fallback sur polling HTTP ");
       if (!httpPollingInterval) {
         httpPollingInterval = setInterval(fetchAndUpdate, REFRESH_MS);
       }
@@ -1175,11 +1175,11 @@ function initWebSocketMode() {
     // Écouter la connexion/reconnexion pour arrêter le polling HTTP
     window.wsManager.on("connected", () => {
       if (httpPollingInterval) {
-        console.log("✅ WebSocket actif : arrêt du polling HTTP");
+        console.log(" WebSocket actif : arrêt du polling HTTP ");
         clearInterval(httpPollingInterval);
         httpPollingInterval = null;
       } else {
-        console.log("✅ WebSocket actif");
+        console.log(" --- WebSocket actif ---");
       }
       // Recharger les données pour être sûr d'être à jour
       fetchAndUpdate();
@@ -1275,9 +1275,9 @@ function handleWebSocketMeasurement(data) {
     // Mettre à jour les sévérités et le score global
     updateChartSeverities(measurement);
 
-    console.debug("✅ Graphiques mis à jour via WebSocket");
+    console.debug(" Graphiques mis à jour via WebSocket ");
   } catch (error) {
-    console.error("❌ Erreur mise à jour graphiques WebSocket:", error);
+    console.error(" Erreur mise à jour graphiques WebSocket:", error);
   }
 }
 
@@ -1339,7 +1339,7 @@ function updateChartSeverities(measurement) {
       });
     }
   } catch (error) {
-    console.error("❌ Erreur updateChartSeverities:", error);
+    console.error(" Erreur updateChartSeverities:", error);
   }
 }
 

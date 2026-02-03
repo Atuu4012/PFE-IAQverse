@@ -32,7 +32,7 @@ const ALERT_MODAL_HTML = `
 
 function ensureAlertModalExists() {
     if (!document.getElementById('alertEmailModal')) {
-        console.log('📢 Injection de la modale alerte dans le DOM');
+        console.log('Injection de la modale alerte dans le DOM');
         const div = document.createElement('div');
         div.innerHTML = ALERT_MODAL_HTML;
         document.body.appendChild(div.firstElementChild);
@@ -61,7 +61,7 @@ function setupAlertListener() {
     window.wsManager.subscribe(['alerts']);
     
     window.wsManager.on('alerts', (msg) => {
-        console.log("🔔 Alerte reçue (Global):", msg);
+        console.log(" Alerte reçue (Global):", msg);
         
         // Structure de message attendue:
         // { type: "alert_email_sent", data: { ... } }
@@ -81,9 +81,9 @@ function setupAlertListener() {
                 
                 // Show modal
                 modal.style.display = 'flex'; // Use flex for centering (from CSS) or block
-                console.log("✅ Modale affichée");
+                console.log(" Modale affichée");
             } else {
-                console.error("❌ ERREUR: Modale 'alertEmailModal' introuvable dans le DOM malgré l'injection.");
+                console.error(" ERREUR: Modale 'alertEmailModal' introuvable dans le DOM malgré l'injection.");
                 // Tentative de réinjection de secours
                 ensureAlertModalExists();
                 const retryModal = document.getElementById('alertEmailModal');

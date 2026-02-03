@@ -1,13 +1,11 @@
 """
 API endpoints pour la configuration de l'application
 """
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Body
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Union
 import logging
 import shutil
-import os
 
 from ..utils import load_config, save_config, extract_sensors_from_config
 from ..core import get_websocket_manager, settings
@@ -15,6 +13,70 @@ from ..core import get_websocket_manager, settings
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["config"])
+
+
+def _get_assets_dir() -> Path:
+    assets_dir = getattr(settings, "ASSETS_DIR", Path("assets"))
+    return Path(assets_dir)
+
+
+def _get_rooms_dir() -> Path:
+    rooms_dir = getattr(settings, "ROOMS_DIR", _get_assets_dir() / "rooms")
+    rooms_dir.mkdir(parents=True, exist_ok=True)
+    return Path(rooms_dir)
+
+
+def _normalize_glb_name(filename: str) -> str:
+    name = Path(filename).name
+    if not name.lower().endswith(".glb"):
+        name = f"{Path(name).stem}.glb"
+    return name
+
+
+def _extract_paths(payload: Union[List[str], Dict[str, List[str]]]) -> List[str]:
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict):
+        return payload.get("paths") or payload.get("files") or payload.get("items") or []
+    return []
+
+
+def _sanitize_room_path(p: str, rooms_dir: Path) -> Path:
+    name = str(p or "")
+    if name.startswith("/"):
+        name = name.lstrip("/")
+    if name.startswith("assets/rooms/"):
+        name = name[len("assets/rooms/"):]
+    name = Path(name).name
+    target = rooms_dir / name
+    resolved = target.resolve()
+    if resolved.parent != rooms_dir.resolve():
+        raise ValueError("Path outside allowed directory")
+    return target
+
+
+async def _save_upload_file(file: UploadFile, target_path: Path) -> None:
+    with target_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+
+async def _broadcast_config_update(config: dict) -> None:
+    try:
+        manager = get_websocket_manager()
+        await manager.broadcast({"type": "config_updated", "config": config}, topic="all")
+    except Exception as e:
+        logger.error(f"Failed to broadcast config update: {e}")
+
+
+def _apply_config_updates(config: dict, updates: dict) -> dict:
+    def update_config_recursive(base, upd):
+        for key, value in upd.items():
+            if isinstance(value, dict) and key in base and isinstance(base[key], dict):
+                update_config_recursive(base[key], value)
+            else:
+                base[key] = value
+    update_config_recursive(config, updates)
+    return config
 
 
 @router.post("/api/uploadAvatar")
@@ -29,9 +91,7 @@ async def upload_avatar(file: UploadFile = File(...)):
         # settings.ROOMS_DIR pointe vers assets/rooms, donc on peut remonter
         
         # Fallback si settings.ASSETS_DIR n'existe pas
-        assets_dir = Path("assets")
-        if hasattr(settings, "ASSETS_DIR"):
-            assets_dir = settings.ASSETS_DIR
+        assets_dir = _get_assets_dir()
         
         icons_dir = assets_dir / "icons"
         icons_dir.mkdir(parents=True, exist_ok=True)
@@ -45,8 +105,7 @@ async def upload_avatar(file: UploadFile = File(...)):
         filename = f"user_avatar{ext}"
         target_path = icons_dir / filename
         
-        with target_path.open("wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        await _save_upload_file(file, target_path)
             
         # Retourner le chemin relatif pour le frontend
         relative_path = f"/assets/icons/{filename}"
@@ -59,72 +118,7 @@ async def upload_avatar(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Erreur upload avatar: {str(e)}")
 
 
-@router.post("/api/uploadGlb")
-async def upload_glb(file: UploadFile = File(...), filename: str = Form(...)):
-    """
-    Upload d'un fichier GLB (modèle 3D) pour une pièce.
-    Sauvegarde dans assets/rooms/{filename}.glb
-    """
-    try:
-        # Utiliser settings.ROOMS_DIR
-        rooms_dir = Path("assets/rooms")
-        if hasattr(settings, "ROOMS_DIR"):
-            rooms_dir = settings.ROOMS_DIR
-            
-        rooms_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Nettoyer le nom de fichier
-        safe_filename = Path(filename).stem
-        # S'assurer que c'est bien un .glb
-        target_filename = f"{safe_filename}.glb"
-        target_path = rooms_dir / target_filename
-        
-        with target_path.open("wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-            
-        # Retourner le chemin relatif
-        relative_path = f"/assets/rooms/{target_filename}"
-        
-        logger.info(f"GLB uploaded to {target_path}")
-        return {"path": relative_path}
-        
-    except Exception as e:
-        logger.error(f"Error uploading GLB: {e}")
-        raise HTTPException(status_code=500, detail=f"Erreur upload GLB: {str(e)}")
-
-
-def get_locations():
-    """
-    Retourne les emplacements disponibles (enseignes et salles) à partir des données
-    """
-    try:
-        config = load_config()
-        if not config:
-            return {}
-            
-        sensors = extract_sensors_from_config(config)
-        
-        locations: Dict[str, List[str]] = {}
-        
-        for s in sensors:
-            enseigne = s.get("enseigne")
-            salle = s.get("salle")
-            
-            if enseigne and salle:
-                if enseigne not in locations:
-                    locations[enseigne] = []
-                if salle not in locations[enseigne]:
-                    locations[enseigne].append(salle)
-        
-        logger.info(f"Locations disponibles (config): {locations}")
-        return locations
-        
-    except Exception as e:
-        logger.error(f"Erreur lors de la récupération des locations: {e}")
-        return {}
-
-
-@router.get("/config")
+@router.get("/api/config")
 def get_config():
     """Retourne la configuration complète de l'application"""
     config = load_config()
@@ -133,7 +127,7 @@ def get_config():
     return config
 
 
-@router.put("/config")
+@router.put("/api/config")
 async def update_config(updates: dict):
     """Met à jour la configuration complète de l'application"""
     logger.info(f"Received config updates: {list(updates.keys())}")
@@ -141,52 +135,11 @@ async def update_config(updates: dict):
     if config is None:
         raise HTTPException(status_code=500, detail="Impossible de charger la configuration")
     
-    def update_config_recursive(base, updates):
-        for key, value in updates.items():
-            if isinstance(value, dict) and key in base and isinstance(base[key], dict):
-                update_config_recursive(base[key], value)
-            else:
-                base[key] = value
-    
-    update_config_recursive(config, updates)
+    _apply_config_updates(config, updates)
     
     if save_config(config):
-        # Broadcast config update via WebSocket
-        try:
-            manager = get_websocket_manager()
-            await manager.broadcast({"type": "config_updated", "config": config}, topic="all")
-        except Exception as e:
-            logger.error(f"Failed to broadcast config update: {e}")
+        await _broadcast_config_update(config)
             
-        return {"message": "Configuration mise à jour", "config": config}
-    raise HTTPException(status_code=500, detail="Erreur lors de la sauvegarde")
-
-
-@router.post("/api/saveConfig")
-async def save_config_endpoint(updates: dict):
-    """Sauvegarde les modifications de la configuration"""
-    logger.info(f"Received config updates: {list(updates.keys())}")
-    config = load_config()
-    if config is None:
-        raise HTTPException(status_code=500, detail="Impossible de charger la configuration")
-    
-    def update_config(base, updates):
-        for key, value in updates.items():
-            if isinstance(value, dict) and key in base and isinstance(base[key], dict):
-                update_config(base[key], value)
-            else:
-                base[key] = value
-    
-    update_config(config, updates)
-    
-    if save_config(config):
-        # Broadcast config update via WebSocket
-        try:
-            manager = get_websocket_manager()
-            await manager.broadcast({"type": "config_updated", "config": config}, topic="all")
-        except Exception as e:
-            logger.error(f"Failed to broadcast config update: {e}")
-
         return {"message": "Configuration mise à jour", "config": config}
     raise HTTPException(status_code=500, detail="Erreur lors de la sauvegarde")
 
@@ -215,26 +168,20 @@ def get_sensors_config():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/api/uploadGlb")
+@router.put("/api/rooms/files")
 async def upload_glb(file: UploadFile = File(...), filename: str = Form(...)):
     """
     Upload d'un fichier .glb via multipart/form-data.
     Le fichier est enregistré dans assets/rooms/.
     """
     try:
-        if not filename.lower().endswith('.glb'):
+        if not filename or not filename.lower().endswith('.glb'):
             raise HTTPException(status_code=400, detail="Le nom de fichier doit se terminer par .glb")
 
-        from ..core import settings
-        rooms_dir = settings.ROOMS_DIR
-        rooms_dir.mkdir(parents=True, exist_ok=True)
-
-        safe_name = Path(filename).name
+        rooms_dir = _get_rooms_dir()
+        safe_name = _normalize_glb_name(filename)
         target = rooms_dir / safe_name
-
-        contents = await file.read()
-        with open(target, 'wb') as f:
-            f.write(contents)
+        await _save_upload_file(file, target)
 
         rel = f"/assets/rooms/{safe_name}"
         logger.info(f"Uploaded GLB to {target}")
@@ -245,127 +192,27 @@ async def upload_glb(file: UploadFile = File(...), filename: str = Form(...)):
         logger.exception(f"Erreur lors de l'upload GLB: {e}")
         raise HTTPException(status_code=500, detail="Erreur lors de l'upload du fichier")
 
-
-@router.put("/api/rooms/files")
-async def upload_room_file(file: UploadFile = File(...), filename: str = Form(...)):
-    """
-    Upload d'un fichier .glb pour une pièce via PUT.
-    Le fichier est enregistré dans assets/rooms/.
-    """
-    try:
-        if not filename.lower().endswith('.glb'):
-            raise HTTPException(status_code=400, detail="Le nom de fichier doit se terminer par .glb")
-
-        from ..core import settings
-        rooms_dir = settings.ROOMS_DIR
-        rooms_dir.mkdir(parents=True, exist_ok=True)
-
-        safe_name = Path(filename).name
-        target = rooms_dir / safe_name
-
-        contents = await file.read()
-        with open(target, 'wb') as f:
-            f.write(contents)
-
-        rel = f"/assets/rooms/{safe_name}"
-        logger.info(f"Uploaded room GLB to {target}")
-        return {"path": rel}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception(f"Erreur lors de l'upload du fichier de pièce: {e}")
-        raise HTTPException(status_code=500, detail="Erreur lors de l'upload du fichier")
-
-
 @router.delete("/api/rooms/files")
-async def delete_room_files(paths: List[str]):
+async def delete_room_files(payload: Union[List[str], Dict[str, List[str]]] = Body(...)):
     """
     Supprime des fichiers de pièces dans le dossier assets/rooms.
     Validation de sécurité pour éviter suppression arbitraire.
     """
-    from ..core import settings
-    rooms_dir = settings.ROOMS_DIR
-    rooms_dir.mkdir(parents=True, exist_ok=True)
+    rooms_dir = _get_rooms_dir()
     
     deleted = []
     not_found = []
     errors = {}
-    
-    for p in paths:
-        try:
-            name = str(p or '')
-            if name.startswith('/'):
-                name = name.lstrip('/')
-            if name.startswith('assets/rooms/'):
-                name = name[len('assets/rooms/'):]
-            name = Path(name).name
-            target = rooms_dir / name
-            
-            try:
-                resolved = target.resolve()
-            except Exception as e:
-                errors[p] = f"Invalid path: {e}"
-                continue
-            
-            if resolved.parent != rooms_dir.resolve():
-                errors[p] = 'Path outside allowed directory'
-                continue
-            
-            if target.exists():
-                target.unlink()
-                deleted.append(f"/assets/rooms/{name}")
-            else:
-                not_found.append(p)
-        except Exception as e:
-            errors[p] = str(e)
-    
-    return {"deleted": deleted, "not_found": not_found, "errors": errors}
 
-
-@router.post("/api/deleteFiles")
-async def delete_files(paths: List[str]):
-    """
-    Supprime des fichiers listés dans le dossier assets/rooms.
-    Validation de sécurité pour éviter suppression arbitraire.
-    """
-    from ..core import settings
-    rooms_dir = settings.ROOMS_DIR
-    rooms_dir.mkdir(parents=True, exist_ok=True)
-    
-    deleted = []
-    not_found = []
-    errors = {}
-    
+    paths = _extract_paths(payload)
     logger.info(f"Request to delete files: {paths}")
 
     for p in paths:
         try:
-            name = str(p or '')
-            if name.startswith('/'):
-                name = name.lstrip('/')
-            if name.startswith('assets/rooms/'):
-                name = name[len('assets/rooms/'):]
-            name = Path(name).name
-            target = rooms_dir / name
-            
-            logger.info(f"Processing deletion for: {p} -> Target: {target}")
-
-            try:
-                resolved = target.resolve()
-                logger.info(f"Resolved path: {resolved}")
-            except Exception as e:
-                errors[p] = f"Invalid path: {e}"
-                logger.error(f"Invalid path {p}: {e}")
-                continue
-            
-            if resolved.parent != rooms_dir.resolve():
-                errors[p] = 'Path outside allowed directory'
-                logger.warning(f"Path outside allowed directory: {resolved} vs {rooms_dir.resolve()}")
-                continue
-            
+            target = _sanitize_room_path(p, rooms_dir)
             if target.exists():
                 target.unlink()
-                deleted.append(f"/assets/rooms/{name}")
+                deleted.append(f"/assets/rooms/{target.name}")
                 logger.info(f"Deleted file: {target}")
             else:
                 not_found.append(p)

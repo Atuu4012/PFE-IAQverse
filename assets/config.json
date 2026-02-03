@@ -24,7 +24,7 @@
         "mode": "Clair",
         "langue": "fr",
         "localisation": "Europe, Paris",
-        "lastSection": "compte"
+        "lastSection": "lieux"
     },
     "notifications": {
         "technologies": {
@@ -70,7 +70,7 @@
                                 "name": "Clim01",
                                 "type": "ventilation",
                                 "is_iot": true,
-                                "state": "off"
+                                "state": "on"
                             },
                             {
                                 "id": "Radiator01",
@@ -94,6 +94,12 @@
                                 "state": "on"
                             }
                         ]
+                    },
+                    {
+                        "id": "piece_1770120343365",
+                        "nom": "salon",
+                        "type": "salon",
+                        "glbModel": "/assets/rooms/ens_1762004765975_piece_1770120343365.glb"
                     }
                 ]
             },

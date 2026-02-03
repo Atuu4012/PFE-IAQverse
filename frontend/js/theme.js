@@ -24,20 +24,7 @@ async function initTheme() {
             console.warn('Theme: loadConfig failed', e);
         }
     }
-    
-    // Fallback if loadConfig is not ready or failed
-    try {
-        const response = await fetch('/config', { headers: { 'ngrok-skip-browser-warning': 'true' } });
-        if (response.ok) {
-            const config = await response.json();
-            const mode = config?.affichage?.mode || 'clair';
-            applyTheme(mode);
-            return;
-        }
-    } catch(e) { 
-        console.warn('Theme: direct fetch failed', e);
-    }
-    
+    // Fallback to default
     applyTheme('clair');
 }
 
@@ -58,25 +45,11 @@ async function updateThemeInConfig(theme) {
         try {
             // Use standardized saveConfig
             await window.saveConfig({ affichage: { mode: theme === 'sombre' ? 'Sombre' : 'Clair' } });
-            console.log('Thème sauvegardé via saveConfig');
+            console.log('Thème sauvegardé via /api/config');
             return;
         } catch(e) {
             console.error('Erreur saveConfig (theme):', e);
         }
-    }
-    // Fallback (should be covered by config-loader but kept for safety if loader missing)
-    try {
-        const response = await fetch('/api/saveConfig', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true' 
-            },
-            body: JSON.stringify({ affichage: { mode: theme === 'sombre' ? 'Sombre' : 'Clair' } })
-        });
-        if (response.ok) console.log('Thème sauvegardé (fallback fetch)');
-    } catch (error) {
-        console.error('Erreur lors de la sauvegarde du thème (fallback):', error);
     }
 }
 

@@ -12,7 +12,7 @@ let config = null;
 async function loadConfig() {
     try {
         // Essayer d'abord l'API du backend (via le reverse proxy)
-        const response = await fetch('/config', {
+        const response = await fetch('/api/config', {
             headers: { 'ngrok-skip-browser-warning': 'true' }
         });
         if (response.ok) {
@@ -35,8 +35,8 @@ async function saveConfig(updates = null) {
     try {
         const dataToSend = updates || config;
         // Utiliser le chemin relatif via le reverse proxy
-        const response = await fetch('/api/saveConfig', {
-            method: 'POST',
+        const response = await fetch('/api/config', {
+            method: 'PUT',
             headers: { 
                 'Content-Type': 'application/json',
                 'ngrok-skip-browser-warning': 'true'

@@ -26,13 +26,13 @@ class WebSocketManager {
         }
 
         const wsUrl = API_ENDPOINTS.websocket;
-        console.log(`🔌 Connexion WebSocket: ${wsUrl}`);
+        console.log(`--- Connexion WebSocket: ${wsUrl} ---`);
 
         try {
             this.ws = new WebSocket(wsUrl);
 
             this.ws.onopen = () => {
-                console.log('✅ WebSocket connecté');
+                console.log('==== WebSocket connecté ====');
                 this.isConnected = true;
                 this.reconnectAttempts = 0;
                 
@@ -49,11 +49,11 @@ class WebSocketManager {
             this.ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
-                    console.debug('📩 WebSocket message:', data);
+                    console.debug('- WebSocket message:', data);
                     
                     // Dispatcher le message selon le type/topic
                     if (data.type === 'pong') {
-                        console.debug('🏓 Pong reçu');
+                        console.debug('Pong reçu');
                     } else if (data.topic) {
                         this.notifyListeners(data.topic, data.data || data);
                     } else if (data.type === 'measurement') {
@@ -64,17 +64,17 @@ class WebSocketManager {
                         this.notifyListeners('config', data);
                     }
                 } catch (error) {
-                    console.error('❌ Erreur parsing WebSocket message:', error);
+                    console.error('Erreur parsing WebSocket message:', error);
                 }
             };
 
             this.ws.onerror = (error) => {
-                console.error('❌ WebSocket erreur:', error);
+                console.error('WebSocket erreur:', error);
                 this.isConnected = false;
             };
 
             this.ws.onclose = (event) => {
-                console.log(`🔌 WebSocket déconnecté (code: ${event.code})`);
+                console.log(`--- WebSocket déconnecté (code: ${event.code}) ---`);
                 this.isConnected = false;
                 this.stopPing();
                 
@@ -82,16 +82,16 @@ class WebSocketManager {
                 if (this.shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
                     this.reconnectAttempts++;
                     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1); // Exponential backoff
-                    console.log(`🔄 Reconnexion dans ${delay}ms (tentative ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+                    console.log(`--- Reconnexion dans ${delay}ms (tentative ${this.reconnectAttempts}/${this.maxReconnectAttempts}) ---`);
                     setTimeout(() => this.connect(), delay);
                 } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-                    console.error('❌ Nombre maximum de tentatives de reconnexion atteint');
+                    console.error('Nombre maximum de tentatives de reconnexion atteint');
                     this.notifyListeners('error', { message: 'Impossible de se reconnecter au serveur' });
                 }
             };
 
         } catch (error) {
-            console.error('❌ Erreur création WebSocket:', error);
+            console.error(' Erreur création WebSocket:', error);
         }
     }
 
@@ -108,7 +108,7 @@ class WebSocketManager {
         }
         
         this.isConnected = false;
-        console.log('🔌 WebSocket déconnecté manuellement');
+        console.log('--- WebSocket déconnecté manuellement ---');
     }
 
     /**
@@ -129,7 +129,7 @@ class WebSocketManager {
 
         this.ws.send(JSON.stringify(message));
         topics.forEach(t => this.subscriptions.add(t));
-        console.log('📢 Abonné aux topics:', topics);
+        console.log('--- Abonné aux topics:', topics, '---');
     }
 
     /**
@@ -148,7 +148,7 @@ class WebSocketManager {
 
         this.ws.send(JSON.stringify(message));
         topics.forEach(t => this.subscriptions.delete(t));
-        console.log('🔇 Désabonné des topics:', topics);
+        console.log('--- Désabonné des topics:', topics, '---');
     }
 
     /**
@@ -190,7 +190,7 @@ class WebSocketManager {
             try {
                 callback(data);
             } catch (error) {
-                console.error(`❌ Erreur dans listener ${topic}:`, error);
+                console.error(` Erreur dans listener ${topic}:`, error);
             }
         });
     }
@@ -204,7 +204,7 @@ class WebSocketManager {
         this.pingInterval = setInterval(() => {
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                 this.ws.send(JSON.stringify({ type: 'ping' }));
-                console.debug('🏓 Ping envoyé');
+                console.debug('Ping envoyé');
             }
         }, 30000); // Ping toutes les 30 secondes
     }
@@ -234,4 +234,4 @@ window.wsManager = new WebSocketManager();
 // Export
 window.WebSocketManager = WebSocketManager;
 
-console.log('✅ WebSocket Manager chargé');
+console.log('WebSocket Manager chargé');

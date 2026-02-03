@@ -2,7 +2,7 @@
 // À exécuter directement dans la console du navigateur (F12)
 
 function forceAlertModal(timeout = 0) {
-    console.log("🚀 Simulation force de la modale d'alerte...");
+    console.log("Simulation force de la modale d'alerte...");
     
     // Simuler le message WebSocket attendu par le dashboard.js
     const fakeMessage = {
@@ -20,11 +20,11 @@ function forceAlertModal(timeout = 0) {
     setTimeout(() => {
         // Obtenir le manager WebSocket s'il existe
         if (window.wsManager) {
-            console.log("📡 Injection de l'alerte via WebSocketManager listeners");
+            console.log("Injection de l'alerte via WebSocketManager listeners");
             // On notifie manuellement les listeners du topic 'alerts'
             window.wsManager.notifyListeners('alerts', fakeMessage);
         } else {
-            console.error("❌ WebSocketManager non trouvé (wsManager)");
+            console.error("WebSocketManager non trouvé (wsManager)");
         }
     }, timeout);
 }
@@ -32,4 +32,4 @@ function forceAlertModal(timeout = 0) {
 // Pour faciliter l'accès, on l'attache à window
 window.forceAlertModal = forceAlertModal;
 
-console.log("ℹ️ Commande chargée: window.forceAlertModal() pour tester");
+console.log("Commande chargée: window.forceAlertModal() pour tester");

@@ -16,7 +16,7 @@ const API_ENDPOINTS = {
     
     // Ingestion
     ingest: `${API_BASE_URL}/api/ingest`,
-    ingestIaq: `${API_BASE_URL}/api/ingest/iaq`,
+    ingestIaq: `${API_BASE_URL}/api/iaq`,
     
     // Configuration
     config: `${API_BASE_URL}/config`,

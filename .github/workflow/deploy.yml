@@ -20,10 +20,7 @@ jobs:
           script: |
             # 1. Aller dans le dossier du projet
 
-            # créer le fichier et repo git 
-            mkdir -p /prod/iaqverse
-            
-            cd /prod/iaqverse 
+            cd /prod/PFE-IAQVerse
 
             # 2. Récupérer le dernier code
             git pull origin test-vps

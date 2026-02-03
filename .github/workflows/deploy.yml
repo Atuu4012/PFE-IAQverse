@@ -19,7 +19,6 @@ jobs:
           debug: true 
           script: |
             # 1. Aller dans le dossier du projet
-
             cd /home/ubuntu/prod/PFE-IAQverse
 
             # 2. Récupérer le dernier code

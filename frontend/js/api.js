@@ -19,7 +19,7 @@ const API_ENDPOINTS = {
     ingestIaq: `${API_BASE_URL}/api/iaq`,
     
     // Configuration
-    config: `${API_BASE_URL}/config`,
+    config: `${API_BASE_URL}/api/config`,
     
     // Prédictions ML
     predictScore: `${API_BASE_URL}/api/predict/score`,

@@ -161,6 +161,14 @@ async def update_config(updates: dict = Body(...), user_id: str = Depends(get_cu
     """Met à jour la configuration de l'utilisateur"""
     logger.info(f"Received config updates for user {user_id}")
     
+    # Vérification explicite de la disponibilité du stockage
+    if not supabase:
+        logger.error("Attempt to update config but Supabase is not configured")
+        raise HTTPException(
+            status_code=503, 
+            detail="Service de stockage indisponible. Veuillez configurer Supabase."
+        )
+
     current_config = load_user_config(user_id)
     if not current_config:
          # Initialisation avec une config vierge si inexistante

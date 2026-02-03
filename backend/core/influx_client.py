@@ -30,7 +30,7 @@ class InfluxDBClient:
         """Initialise la connexion à InfluxDB si disponible"""
         try:
             from influxdb_client import InfluxDBClient as InfluxClient
-            from influxdb_client.client.write_api import SYNCHRONOUS
+            from influxdb_client.client.write_api import ASYNCHRONOUS
             
             self.client = InfluxClient(
                 url=self.url,
@@ -38,14 +38,18 @@ class InfluxDBClient:
                 org=self.org
             )
             
-            # Test de connexion
-            self.client.ping()
-            
-            self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
+            # Test de connexion (non bloquant si échec rapide)
+            try:
+                self.client.ping()
+            except Exception as e:
+                logger.warning(f"InfluxDB ping failed at startup: {e}")
+
+            # Mode ASYNCHRONOUS pour ne pas bloquer l'event loop en cas de latence/panne
+            self.write_api = self.client.write_api(write_options=ASYNCHRONOUS)
             self.query_api = self.client.query_api()
             self._available = True
             
-            logger.info(f"✅ InfluxDB connecté: {self.url}")
+            logger.info(f"✅ InfluxDB connecté (Mode Async): {self.url}")
             
         except ImportError:
             logger.warning("⚠️  influxdb-client non installé. Fonctionnement en mode mémoire.")

@@ -26,11 +26,11 @@ jobs:
 
             # 3. Copier le .env racine vers le dossier docker si nécessaire
             # (Optionnel mais recommandé si docker-compose cherche dans le dossier courant)
-            # cp .env docker/.env 
+            cp .env docker/.env 
 
             # 4. Lancer la production avec le bon fichier
             # On utilise explicitement le fichier de PROD
             docker compose -f docker/docker-compose.prod.yml --env-file .env up -d --build --remove-orphans
-
+            
             # 5. Nettoyer les vieilles images
             docker image prune -f

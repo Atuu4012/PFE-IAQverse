@@ -11,47 +11,45 @@ let config = null;
  */
 async function loadConfig() {
     try {
-        // Essayer d'abord l'API du backend (via le reverse proxy)
-        const response = await fetch('/api/config', {
-            headers: { 'ngrok-skip-browser-warning': 'true' }
-        });
+        const token = await getAuthToken(); // Nouvelle ligne
+        const headers = { 
+            'ngrok-skip-browser-warning': 'true' 
+        };
+        // Injection du token
+        if (token) headers['Authorization'] = `Bearer ${token}`; 
+
+        const response = await fetch('/api/config', { headers });
         if (response.ok) {
             config = await response.json();
             return config;
         }
     } catch (error) {
-        console.warn('Backend non disponible');
+        console.warn('Backend non disponible', error);
     }
-
     throw new Error('Impossible de charger la configuration');
 }
 
-/**
- * Sauvegarde la configuration sur le backend
- * @param {Object} updates - Les mises à jour à appliquer
- * @returns {Promise<Object>} La configuration mise à jour
- */
 async function saveConfig(updates = null) {
     try {
+        const token = await getAuthToken(); // Nouvelle ligne
+        const headers = { 
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+        };
+        // Injection du token
+        if (token) headers['Authorization'] = `Bearer ${token}`; 
+
         const dataToSend = updates || config;
-        // Utiliser le chemin relatif via le reverse proxy
         const response = await fetch('/api/config', {
             method: 'PUT',
-            headers: { 
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true'
-            },
+            headers,
             body: JSON.stringify(dataToSend)
         });
 
-        if (!response.ok) {
-            throw new Error('Erreur lors de la sauvegarde');
-        }
+        if (!response.ok) throw new Error('Erreur lors de la sauvegarde');
 
         const result = await response.json();
-        if (result && result.config) {
-            config = result.config;
-        }
+        if (result && result.config) config = result.config;
 
         return config;
     } catch (error) {

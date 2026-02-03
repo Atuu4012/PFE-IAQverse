@@ -16,6 +16,23 @@ async function fetchWithRetry(url, options = {}, maxRetries = 3, retryDelay = 10
     if (!options.headers) {
         options.headers = {};
     }
+
+    // Add Authorization header if available
+    try {
+        if (typeof getAuthToken === 'function') {
+            const token = await getAuthToken();
+            if (token) {
+                if (options.headers instanceof Headers) {
+                    options.headers.append('Authorization', `Bearer ${token}`);
+                } else {
+                    options.headers['Authorization'] = `Bearer ${token}`;
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('Error adding auth token:', e);
+    }
+
     // Check if headers is Headers object or plain object
     if (options.headers instanceof Headers) {
         options.headers.append('ngrok-skip-browser-warning', 'true');

@@ -410,11 +410,11 @@ def train_best_model(csv_path, n_trials=10, n_epochs=20):
             else:
                 dir_acc = 0
             
-            mlflow.log_metric(f"{target_name}_mae_t+30min", mae)
-            mlflow.log_metric(f"{target_name}_rmse_t+30min", rmse)
-            mlflow.log_metric(f"{target_name}_r2_t+30min", r2)
-            mlflow.log_metric(f"{target_name}_correlation_t+30min", corr)
-            mlflow.log_metric(f"{target_name}_mape_t+30min", mape)
+            mlflow.log_metric(f"{target_name}_mae_t30min", mae)
+            mlflow.log_metric(f"{target_name}_rmse_t30min", rmse)
+            mlflow.log_metric(f"{target_name}_r2_t30min", r2)
+            mlflow.log_metric(f"{target_name}_correlation_t30min", corr)
+            mlflow.log_metric(f"{target_name}_mape_t30min", mape)
             mlflow.log_metric(f"{target_name}_directional_accuracy", dir_acc)
         
         # 2. Métriques par horizon (moyenne sur tous les targets)
@@ -432,8 +432,8 @@ def train_best_model(csv_path, n_trials=10, n_epochs=20):
                 corr_horizon.append(corr)
                 mae_horizon.append(mae)
             
-            mlflow.log_metric(f"avg_correlation_t+{(h+1)*5}min", np.mean(corr_horizon))
-            mlflow.log_metric(f"avg_mae_t+{(h+1)*5}min", np.mean(mae_horizon))
+            mlflow.log_metric(f"avg_correlation_t{(h+1)*5}min", np.mean(corr_horizon))
+            mlflow.log_metric(f"avg_mae_t{(h+1)*5}min", np.mean(mae_horizon))
         
         # --- Génération de graphiques ---
         # 1. Courbe de Loss

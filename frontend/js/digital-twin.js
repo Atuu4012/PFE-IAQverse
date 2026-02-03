@@ -213,9 +213,10 @@ async function fetchAndDisplayPreventiveScore(params) {
     if (!scoreElement || !trendElement || !containerElement) return;
     
     try {
-        const response = await fetch(`${API_ENDPOINTS.preventiveActions}?${params}`, {
-            headers: { 'ngrok-skip-browser-warning': 'true' }
-        });
+         const headers = { 'ngrok-skip-browser-warning': 'true' };
+         try { if(typeof getAuthToken === 'function') { const t=await getAuthToken(); if(t) headers['Authorization'] = `Bearer ${t}`; } } catch(e){}
+
+        const response = await fetch(`${API_ENDPOINTS.preventiveActions}?${params}`, { headers });
         const data = await response.json();
         
         // Le score prédit est inclus dans les actions préventives
@@ -358,7 +359,10 @@ async function fetchAndDisplayPreventiveActions() {
         } else {
             // Fallback : fetch standard sans retry
             console.warn('[preventive] apiCallWithCache not available, using standard fetch');
-            const response = await fetch(url);
+            const headers = { 'ngrok-skip-browser-warning': 'true' };
+            try { if(typeof getAuthToken === 'function') { const t=await getAuthToken(); if(t) headers['Authorization'] = `Bearer ${t}`; } } catch(e){}
+
+            const response = await fetch(url, { headers });
             const data = await response.json();
             
             sessionStorage.setItem('preventiveActions', JSON.stringify(data));

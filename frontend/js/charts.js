@@ -803,9 +803,18 @@ async function fetchAndUpdate() {
     });
     const url = `${API_URL_DATA}?${params.toString()}`;
     console.debug("IAQ fetch:", url);
-    const res = await window.fetch(url, { cache: "no-store", headers: { 'ngrok-skip-browser-warning': 'true' } });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    // Préparation des headers avec Auth
+    const headers = { 'ngrok-skip-browser-warning': 'true' };
+    try {
+        if (typeof getAuthToken === 'function') {
+            const token = await getAuthToken();
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+        }
+    } catch(e) { }
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
     if (!Array.isArray(data) || data.length === 0) {
       chartIds.forEach((id) => renderEmpty(id));
       return;
@@ -944,7 +953,16 @@ async function getPredictedScore(enseigne, salle) {
     const url = `/api/predict/score?enseigne=${encodeURIComponent(
       enseigne
     )}&salle=${encodeURIComponent(salle)}`;
-    const response = await fetch(url, { headers: { 'ngrok-skip-browser-warning': 'true' } });
+    
+    const headers = { 'ngrok-skip-browser-warning': 'true' };
+    try {
+        if (typeof getAuthToken === 'function') {
+            const token = await getAuthToken();
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+        }
+    } catch (e) { }
+
+    const response = await fetch(url, { headers: headers });
     if (!response.ok) {
       console.warn(`Failed to fetch prediction: ${response.status}`);
       return null;

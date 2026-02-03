@@ -322,9 +322,20 @@ async function updateModuleConfig(enseigneId, pieceId, moduleId, newState, modul
             module_type: moduleType,
             state: newState
         };
+        const headers = { 'Content-Type': 'application/json' };
+        // Add auth token
+        try {
+            if (typeof getAuthToken === 'function') {
+                const token = await getAuthToken();
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+            }
+        } catch (e) {
+            console.warn('[three-scene] Auth token error:', e);
+        }
+
         await fetch('/api/config/module_state', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: headers,
             body: JSON.stringify(payload)
         });
         console.log(`[three-scene] Updated module ${moduleId} state to ${newState}`);

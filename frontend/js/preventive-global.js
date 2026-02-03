@@ -81,9 +81,15 @@ async function fetchAndDisplayGlobalPreventiveActions() {
                         salle: salle.nom || 'Unknown'
                     });
                     
-                    const actionsResponse = await fetch(`${API_ENDPOINTS.preventiveActions}?${actionsParams}`, {
-                        headers: { 'ngrok-skip-browser-warning': 'true' }
-                    });
+                    const headers = { 'ngrok-skip-browser-warning': 'true' };
+                    try {
+                        if (typeof getAuthToken === 'function') {
+                            const token = await getAuthToken();
+                            if (token) headers['Authorization'] = `Bearer ${token}`;
+                        }
+                    } catch(e){}
+
+                    const actionsResponse = await fetch(`${API_ENDPOINTS.preventiveActions}?${actionsParams}`, { headers });
                     // Defensive: some responses may be HTML error pages (502/Bad Gateway from proxy)
                     // Read as text first and try to parse JSON to avoid Uncaught SyntaxError
                     let actionsData = null;

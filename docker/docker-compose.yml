@@ -34,9 +34,9 @@ services:
       - ../assets:/app/assets
       - ../database:/app/database
     environment:
-      - INFLUXDB_ENABLED=${INFLUXDB_ENABLED:-true}
+      - INFLUXDB_ENABLED=${INFLUXDB_ENABLED}
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-iaqverse-secret-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-iaqverse}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-iaq_data}
       - WEBSOCKET_ENABLED=${WEBSOCKET_ENABLED:-true}
@@ -97,8 +97,8 @@ services:
       # Montage nécessaire pour partager les artifacts MLflow (Mode Local)
       - ../backend/dl/mlflow_data:/mlflow
     environment:
-      - RETRAIN_INTERVAL=${RETRAIN_INTERVAL:-24}
-      - INFLUXDB_ENABLED=${INFLUXDB_ENABLED:-true}
+      - RETRAIN_INTERVAL=${RETRAIN_INTERVAL}
+      - INFLUXDB_ENABLED=${INFLUXDB_ENABLED}
       - API_URL=http://backend:8000/api/iaq/data?hours=72
       - PYTHONUNBUFFERED=1
       - MLFLOW_TRACKING_URI=http://mlflow:5000

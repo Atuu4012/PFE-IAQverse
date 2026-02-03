@@ -104,7 +104,15 @@ async function fetchOccupantsFromAPI() {
         }
         
         // Récupérer les dernières données depuis l'API
-        const response = await fetch(`/api/iaq/data?enseigne=${encodeURIComponent(enseigneNom)}&salle=${encodeURIComponent(pieceNom)}&hours=1`);
+        const headers = { 'ngrok-skip-browser-warning': 'true' };
+        try {
+            if (typeof getAuthToken === 'function') {
+                const token = await getAuthToken();
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+            }
+        } catch(e) {}
+
+        const response = await fetch(`/api/iaq/data?enseigne=${encodeURIComponent(enseigneNom)}&salle=${encodeURIComponent(pieceNom)}&hours=1`, { headers });
         
         if (!response.ok) {
             console.warn('[occupants-display] Erreur lors de la récupération des données');

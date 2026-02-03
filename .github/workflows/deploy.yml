@@ -3,7 +3,7 @@ name: Deploy to VPS
 on:
   push:
     branches:
-      - test-vps
+      - main
 
 jobs:
   deploy:
@@ -22,7 +22,7 @@ jobs:
             cd /home/ubuntu/prod/PFE-IAQverse
 
             # 2. Récupérer le dernier code
-            git pull origin test-vps
+            git pull origin main
 
             # 3. Copier le .env racine vers le dossier docker si nécessaire
             # (Optionnel mais recommandé si docker-compose cherche dans le dossier courant)

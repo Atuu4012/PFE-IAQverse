@@ -1,0 +1,10 @@
+FROM nginx:alpine
+
+# Copier la configuration nginx
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+
+# Copier le code frontend
+COPY frontend /usr/share/nginx/html
+
+# Copier les assets
+COPY assets /usr/share/nginx/html/assets

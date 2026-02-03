@@ -21,7 +21,7 @@ services:
   # Backend API
   backend:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile.backend
     container_name: iaqverse-backend
     restart: always
@@ -68,7 +68,7 @@ services:
   # ML Scheduler - Réentraînement automatique
   ml-scheduler:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile.ml-scheduler
     container_name: iaqverse-ml-scheduler
     restart: always
@@ -91,7 +91,7 @@ services:
   # Frontend Nginx - Serveur Web Principal
   frontend:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile.frontend
     container_name: iaqverse-frontend
     restart: always

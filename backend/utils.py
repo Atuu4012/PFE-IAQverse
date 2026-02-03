@@ -192,7 +192,10 @@ def load_user_config(user_id: str):
 def save_user_config(user_id: str, new_config: dict):
     """Sauvegarde la configuration d'un utilisateur"""
     if not supabase:
-        return save_config(new_config)
+        # Si pas de Supabase, on ne sauvegarde PAS dans config.json pour éviter d'écraser la config globale
+        # On peut soit retourner False, soit logguer un warning.
+        # save_config(new_config) 
+        return False
 
     # Upsert (Insérer ou Mettre à jour)
     data = {"user_id": user_id, "config_data": new_config}

@@ -81,11 +81,7 @@ function saveRoomModules(enseigneId, pieceId) {
     }
 
     // Sauvegarde en utilisant le même endpoint que settings.js
-    fetch('/config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
-        body: JSON.stringify(settingsConfig)
-    })
+    saveConfig(settingsConfig)
     .then(() => {
         if (typeof showNotification === 'function') showNotification('Modules enregistrés');
         closeEditModal();

@@ -232,11 +232,7 @@ function openEditModal(element) {
 
   const updates = {}; setByPath(updates, path, newVal); setByPath(settingsConfig, path, newVal);
     try {
-      const response = await fetch('/config', {
-        method: 'PUT', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(updates)
-      });
-      if (!response.ok) throw new Error('Erreur lors de la sauvegarde');
-  const result = await response.json(); if (result && result.config) settingsConfig = result.config;
+      await saveConfig(updates);
 
   if (Array.isArray(newVal)) element.textContent = newVal.join(', ');
   else if (typeof newVal === 'boolean') element.innerHTML = `<span class="badge ${newVal ? 'badge-yes' : 'badge-no'}">${newVal ? (window.i18n && window.i18n.t ? window.i18n.t('actions.yes') || 'Oui' : 'Oui') : (window.i18n && window.i18n.t ? window.i18n.t('actions.no') || 'Non' : 'Non')}</span>`;
@@ -381,12 +377,9 @@ function enableDragAndDrop() {
   settingsConfig.lieux.enseignes.sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
       if (settingsConfig.lieux.enseignes.length > 0) settingsConfig.lieux.active = settingsConfig.lieux.enseignes[0].id;
 
-      fetch('/config', {
-        method: 'PUT', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(settingsConfig)
-      }).then(() => showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.order_saved') || 'Nouvel ordre enregistré' : 'Nouvel ordre enregistré')).catch(err => console.error(err));
-    });
-
-    card.addEventListener('dragover', (e) => {
+      saveConfig(settingsConfig)
+        .then(() => showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.order_saved') || 'Nouvel ordre enregistré' : 'Nouvel ordre enregistré'))
+        .catch(err => console.error(err));
       e.preventDefault();
       const dragging = container.querySelector('.dragging');
       const afterElement = getDragAfterElementHorizontal(container, e.clientX);
@@ -433,13 +426,10 @@ function enablePieceDragAndDrop() {
 
         enseigne.pieces.sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
 
-        fetch('/config', {
-          method: 'PUT',
-          method: 'PUT', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(settingsConfig)
-  }).then(() => showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.rooms_order_saved') || 'Ordre des pièces enregistré' : 'Ordre des pièces enregistré')).catch(err => console.error(err));
-      });
-
-      tag.addEventListener('dragover', (e) => {
+        saveConfig(settingsConfig)
+          .then(() => showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.rooms_order_saved') || 'Ordre des pièces enregistré' : 'Ordre des pièces enregistré'))
+          .catch(err => console.error(err));
+          
         e.preventDefault();
         const dragging = roomContainer.querySelector('.dragging');
         const afterElement = getDragAfterElement(roomContainer, e.clientX);
@@ -480,10 +470,8 @@ async function addEnseigne() {
   settingsConfig.lieux.active = newEn.id;
 
     try {
-  const response = await fetch('/config', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(settingsConfig) });
-      if (!response.ok) throw new Error('Erreur lors de la sauvegarde');
-  const result = await response.json(); if (result && result.config) settingsConfig = result.config;
-  document.getElementById('editModal').style.display = 'none';
+      await saveConfig(settingsConfig);
+      document.getElementById('editModal').style.display = 'none';
   showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.add_success') || 'Enseigne ajoutée avec succès' : 'Enseigne ajoutée avec succès');
       renderEnseignes();
   } catch (err) { console.error(err); showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.add_error') || "Erreur lors de l'ajout de l'enseigne" : "Erreur lors de l'ajout de l'enseigne", true); }
@@ -518,30 +506,48 @@ async function addPiece(enseigneId) {
     const piece = { id: 'piece_' + Date.now(), nom: pieceName, type: pieceType, glbModel: null };
     if (!Array.isArray(enseigne.pieces)) enseigne.pieces = [];
     enseigne.pieces.push(piece);
-    // If a GLB file was selected, upload it to the backend with the naming convention enseigne_piece.glb
     try {
       if (glbFile) {
-  // Build deterministic filename using enseigne and piece IDs but normalize them to avoid empty values
-  const rawEns = String(enseigne.id || enseigneId || 'unknown');
-  const rawPiece = String(piece.id || Date.now());
-  // Use raw IDs and strip any existing 'ens'/'piece' prefixes — no sanitize here to debug the issue
-  const ensSuffix = rawEns.replace(/^ens[_-]?/, '') || 'unknown';
-  const pieceSuffix = rawPiece.replace(/^piece[_-]?/, '') || String(Date.now());
-  const filename = `ens_${ensSuffix}_piece_${pieceSuffix}.glb`;
-        const fd = new FormData();
-        fd.append('file', glbFile, filename);
-        fd.append('filename', filename);
+        // Build filename
+        const rawEns = String(enseigne.id || enseigneId || 'unknown');
+        const rawPiece = String(piece.id || Date.now());
+        const ensSuffix = rawEns.replace(/^ens[_-]?/, '') || 'unknown';
+        const pieceSuffix = rawPiece.replace(/^piece[_-]?/, '') || String(Date.now());
+        const filename = `ens_${ensSuffix}_piece_${pieceSuffix}.glb`;
 
-        const upResp = await fetch('/api/rooms/files', {
-          method: 'PUT', body: fd
+        // 1. Get Signed URL from Backend
+        const urlParams = { filename: filename };
+        let token = null; 
+        try { token = await getAuthToken(); } catch(e){}
+        const headers = { 
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true' 
+        };
+        if(token) headers['Authorization'] = `Bearer ${token}`;
+
+        const urlResp = await fetch('/api/rooms/upload-url', {
+             method: 'POST',
+             headers: headers,
+             body: JSON.stringify(urlParams)
         });
-        if (!upResp.ok) throw new Error('Erreur upload');
-        const upJson = await upResp.json();
-        if (upJson && upJson.path) {
-          piece.glbModel = upJson.path;
-        } else {
-          showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.upload_error') || 'Upload du modèle .glb échoué, la pièce sera créée sans 3D' : 'Upload du modèle .glb échoué, la pièce sera créée sans 3D', true);
-        }
+        
+        if (!urlResp.ok) throw new Error('Impossible d\'obtenir l\'URL d\'upload');
+        const { uploadUrl, publicUrl } = await urlResp.json();
+
+        // 2. Upload file directly to Supabase Storage
+        // Supabase Signed URL expects a PUT request with the file body
+        const uploadResp = await fetch(uploadUrl, {
+            method: 'PUT',
+            body: glbFile,
+            headers: {
+                'Content-Type': 'model/gltf-binary'
+            }
+        });
+
+        if (!uploadResp.ok) throw new Error('Erreur lors de l\'upload vers Storage');
+
+        // 3. Save public URL in config
+        piece.glbModel = publicUrl;
       }
     } catch (err) {
       console.error('Upload GLB error', err);
@@ -549,11 +555,14 @@ async function addPiece(enseigneId) {
     }
 
     try {
-      const response = await fetch('/config', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(settingsConfig) });
-      if (!response.ok) throw new Error('Erreur lors de la sauvegarde');
-      const result = await response.json(); if (result && result.config) settingsConfig = result.config;
-  document.getElementById('editModal').style.display = 'none';
-  showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.piece_added') || 'Pièce ajoutée avec succès' : 'Pièce ajoutée avec succès');
+      if (typeof saveConfigAll === 'function') {
+        await saveConfigAll();
+      } else {
+        // Fallback or old method
+        await saveConfig(settingsConfig);
+      }
+      document.getElementById('editModal').style.display = 'none';
+      showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.piece_added') || 'Pièce ajoutée avec succès' : 'Pièce ajoutée avec succès');
       renderEnseignes();
   } catch (err) { console.error(err); showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.piece_add_error') || "Erreur lors de l'ajout de la pièce" : "Erreur lors de l'ajout de la pièce", true); }
   });
@@ -594,10 +603,8 @@ async function editEnseigne(enseigneId) {
     enseigne.adresse = formData.get('adresse');
 
     try {
-      const response = await fetch('/config', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(settingsConfig) });
-      if (!response.ok) throw new Error('Erreur lors de la sauvegarde');
-      const result = await response.json(); if (result && result.config) settingsConfig = result.config;
-  document.getElementById('editModal').style.display = 'none';
+      await saveConfig(settingsConfig);
+      document.getElementById('editModal').style.display = 'none';
   showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.update_success') || 'Enseigne modifiée avec succès' : 'Enseigne modifiée avec succès');
       renderEnseignes();
   } catch (err) { console.error(err); showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.update_error') || "Erreur lors de la modification de l'enseigne" : "Erreur lors de la modification de l'enseigne", true); loadConfigToUI(); }
@@ -771,13 +778,10 @@ async function saveConfigSection() {
 
     } catch(e) { console.warn('saveConfigSection language apply failed', e); }
 
-    const response = await fetch('/config', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, body: JSON.stringify(payload) });
-    const result = await response.json();
-    console.info('saveConfigSection: save response ok=', response.ok, ' result=', result);
-    if (!response.ok) throw new Error(result.detail || 'Erreur lors de la sauvegarde');
-    if (result && result.config) settingsConfig = result.config;
+    await saveConfig(payload);
+    
     document.getElementById('editModal').style.display = 'none';
-  showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.config_saved') || 'Configuration sauvegardée avec succès' : 'Configuration sauvegardée avec succès');
+    showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.config_saved') || 'Configuration sauvegardée avec succès' : 'Configuration sauvegardée avec succès');
     // rafraîchir affichage
     updateDataPathsDisplay();
     if (typeof renderEnseignes === 'function') renderEnseignes();
@@ -1040,25 +1044,17 @@ async function saveCard(sectionId) {
     });
     
     try {
-        const response = await fetch('/config', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
-            body: JSON.stringify(updates)
-        });
+        await saveConfig(updates);
         
-        if (response.ok) {
-            showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.saved') || 'Modification sauvegardée' : 'Modification sauvegardée');
-            
-            if (modeChanged && typeof applyTheme === 'function') {
-                applyTheme(newModeVal);
-            }
-            
-            if (langChanged) {
-                // Reload to apply language change properly
-                setTimeout(() => location.reload(), 500);
-            }
-        } else {
-            throw new Error('Erreur sauvegarde');
+        showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.saved') || 'Modification sauvegardée' : 'Modification sauvegardée');
+        
+        if (modeChanged && typeof applyTheme === 'function') {
+            applyTheme(newModeVal);
+        }
+        
+        if (langChanged) {
+            // Reload to apply language change properly
+            setTimeout(() => location.reload(), 500);
         }
     } catch (e) {
         console.error(e);
@@ -1104,11 +1100,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       settingsConfig.affichage.lastSection = id;
       
       // Save to backend silently
-      fetch('/config', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
-          body: JSON.stringify({ affichage: { lastSection: id } })
-      }).catch(e => console.warn('Failed to save lastSection', e));
+      if (typeof saveConfig === 'function') {
+        saveConfig({ affichage: { lastSection: id } })
+            .catch(e => console.warn('Failed to save lastSection', e));
+      }
     });
   });
 
@@ -1125,22 +1120,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!settingsConfig.affichage) settingsConfig.affichage = {};
         settingsConfig.affichage.openDetail = d.id;
         
-        fetch('/config', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
-            body: JSON.stringify({ affichage: { openDetail: d.id } })
-        }).catch(e => console.warn('Failed to save openDetail', e));
+        if (typeof saveConfig === 'function') {
+            saveConfig({ affichage: { openDetail: d.id } })
+                .catch(e => console.warn('Failed to save openDetail', e));
+        }
 
       } else {
         // Si aucun n'est ouvert
         const anyOpen = Array.from(allDetails).some(x => x.open);
         if (!anyOpen) {
              if (settingsConfig && settingsConfig.affichage) settingsConfig.affichage.openDetail = null;
-             fetch('/config', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
-                body: JSON.stringify({ affichage: { openDetail: null } })
-             }).catch(e => console.warn('Failed to save openDetail', e));
+             if (typeof saveConfig === 'function') {
+                saveConfig({ affichage: { openDetail: null } })
+                    .catch(e => console.warn('Failed to save openDetail', e));
+             }
         }
       }
     });
@@ -1211,11 +1204,9 @@ document.addEventListener('DOMContentLoaded', function() {
                           setByPath(settingsConfig, 'vous.avatar', result.path);
                           
                           // Save config to persist the path
-                          await fetch('/config', {
-                              method: 'PUT',
-                              headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
-                              body: JSON.stringify(settingsConfig)
-                          });
+                          if (typeof saveConfig === 'function') {
+                              await saveConfig(settingsConfig);
+                          }
                           
                           showNotification((window.i18n && window.i18n.t) ? window.i18n.t('notifications.avatar_updated') || 'Avatar mis à jour' : 'Avatar mis à jour');
                       }
@@ -1267,14 +1258,16 @@ async function selectPlan(planType) {
     };
 
     // Sauvegarder via l'API
-    const response = await fetch('/config', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
-      body: JSON.stringify(updates)
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+    if (typeof saveConfig === 'function') {
+        await saveConfig(updates);
+    } else {
+         // Fallback manual fetch using correct API endpoint if saveConfig is somehow missing
+         const response = await fetch('/api/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+            body: JSON.stringify(updates)
+         });
+         if (!response.ok) throw new Error(`HTTP ${response.status}`);
     }
 
     // Mettre à jour l'affichage
@@ -1350,3 +1343,61 @@ function showEnterpriseContactModal() {
   document.body.appendChild(modal);
   modal.style.display = 'block';
 }
+
+/* ========== Gestion de la Modale Compte ========== */
+function toggleAccountModal() {
+  const modal = document.getElementById('accountModal');
+  if (modal) {
+    if (modal.style.display === 'block') {
+      modal.style.display = 'none';
+      modal.classList.remove('show');
+    } else {
+      modal.style.display = 'block';
+      modal.classList.add('show');
+    }
+  }
+}
+// Expose globally
+window.toggleAccountModal = toggleAccountModal;
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Bouton Déconnexion
+    const logoutBtn = document.querySelector('.account-action.logout');
+    if (logoutBtn) {
+        logoutBtn.style.cursor = 'pointer';
+        logoutBtn.addEventListener('click', () => {
+             console.log('Déconnexion...');
+             if (typeof logout === 'function') logout();
+             else if (typeof window.logout === 'function') window.logout();
+             else window.location.href = 'login.html';
+        });
+    }
+
+    // 2. Bouton "Autre Compte" (Changera de compte -> Logout)
+    const accountItems = document.querySelectorAll('.account-item');
+    accountItems.forEach(item => {
+        if (item.innerHTML.includes('account.otherAccount') || item.textContent.includes('Autre Compte') || item.textContent.includes('Other Account')) {
+            item.style.cursor = 'pointer';
+            item.addEventListener('click', () => {
+                 console.log('Changement de compte...');
+                 if (typeof logout === 'function') logout();
+                 else if (typeof window.logout === 'function') window.logout();
+                 else window.location.href = 'login.html';
+            });
+        }
+    });
+
+    // Fermeture de la modale si clic à l'extérieur
+    window.addEventListener('click', (e) => {
+        const modal = document.getElementById('accountModal');
+        const trigger = document.querySelector('.header-avatar-link');
+        const triggerImg = document.getElementById('header-avatar');
+        
+        if (modal && (modal.style.display === 'block' || modal.classList.contains('show'))) {
+             if (!modal.contains(e.target) && e.target !== trigger && e.target !== triggerImg && !trigger?.contains(e.target)) {
+                 modal.style.display = 'none';
+                 modal.classList.remove('show');
+             }
+        }
+    });
+});

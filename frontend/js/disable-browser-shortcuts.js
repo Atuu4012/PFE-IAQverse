@@ -7,7 +7,7 @@ document.addEventListener('keydown', function(e) {
   // Liste des raccourcis à bloquer
   const isCtrl = e.ctrlKey || e.metaKey; // metaKey pour Mac (Cmd)
   const isShift = e.shiftKey;
-  const key = e.key.toLowerCase();
+  const key = e.key ? e.key.toLowerCase() : '';
 
   // Bloquer les raccourcis courants du navigateur
   if (isCtrl) {

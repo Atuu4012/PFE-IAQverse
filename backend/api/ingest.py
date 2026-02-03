@@ -124,10 +124,9 @@ async def ingest_measurement(measurement: IAQMeasurement):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
 @router.get("/ingest/stats")
 def get_ingest_stats():
-    """Retourne des statistiques sur l'ingestion"""
+    """Retourne des statistiques sur l'ingestion, debug only."""
     return {
         "influxdb_enabled": settings.INFLUXDB_ENABLED,
         "websocket_enabled": settings.WEBSOCKET_ENABLED

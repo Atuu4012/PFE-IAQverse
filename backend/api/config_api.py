@@ -144,10 +144,10 @@ async def update_config(updates: dict):
     raise HTTPException(status_code=500, detail="Erreur lors de la sauvegarde")
 
 
-@router.get("/api/sensors-config")
+@router.get("/api/config/sensors")
 def get_sensors_config():
     """
-    Retourne la liste des capteurs configurés.
+    Retourne la liste des capteurs configurés. debug only.
     Extrait automatiquement depuis config.json.
     """
     try:
@@ -157,14 +157,14 @@ def get_sensors_config():
         
         sensors = extract_sensors_from_config(config)
         
-        logger.info(f"GET /api/sensors-config: {len(sensors)} capteur(s) configuré(s)")
+        logger.info(f"GET /api/config/sensors: {len(sensors)} capteur(s) configuré(s)")
         
         return {"sensors": sensors}
     
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Erreur dans GET /api/sensors-config: {e}")
+        logger.error(f"Erreur dans GET /api/config/sensors: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -191,6 +191,7 @@ async def upload_glb(file: UploadFile = File(...), filename: str = Form(...)):
     except Exception as e:
         logger.exception(f"Erreur lors de l'upload GLB: {e}")
         raise HTTPException(status_code=500, detail="Erreur lors de l'upload du fichier")
+
 
 @router.delete("/api/rooms/files")
 async def delete_room_files(payload: Union[List[str], Dict[str, List[str]]] = Body(...)):

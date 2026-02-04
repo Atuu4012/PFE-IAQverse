@@ -90,6 +90,25 @@ async function handleSignupLogic(email, password) {
             email,
             password
         });
+
+        // Auto-save email to config if session is created immediately (no email verification or auto-login)
+        if (data && data.session) {
+            try {
+                fetch('/api/config', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${data.session.access_token}`
+                    },
+                    body: JSON.stringify({
+                        vous: { email: email }
+                    })
+                }).catch(err => console.warn("Background config update failed", err));
+            } catch (e) {
+                // Ignore sync errors during signup
+            }
+        }
+
         if (error) throw error;
         return { success: true, data };
     } catch (error) {

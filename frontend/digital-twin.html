@@ -320,14 +320,28 @@
 
     <script type="module" src="js/three-scene.js"></script>
     <script>
-        document.getElementById('fullscreen-btn')?.addEventListener('click', () => {
+        document.getElementById('fullscreen-btn')?.addEventListener('click', async () => {
             const container = document.querySelector('.room-visual');
             if (!document.fullscreenElement) {
-                container.requestFullscreen().catch(err => {
+                try {
+                    await container.requestFullscreen();
+                    // Force Landscape on Mobile
+                    if (screen.orientation && screen.orientation.lock) {
+                        try {
+                            await screen.orientation.lock('landscape');
+                        } catch (e) {
+                            // Orientation lock might fail on some devices/browsers or desktop
+                            console.warn('Orientation lock failed:', e);
+                        }
+                    }
+                } catch (err) {
                     console.error(`Erreur lors du passage en plein écran: ${err.message}`);
-                });
+                }
             } else {
                 document.exitFullscreen();
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock();
+                }
             }
         });
     </script>

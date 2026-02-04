@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 
 # Import des modules core
 from .core import settings, get_influx_client, get_websocket_manager
+from .core.supabase import supabase
 
 # Import des routers API
 from .api import (

@@ -43,6 +43,7 @@ services:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
     depends_on:
       - influxdb
       - mlflow

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscription - IAQverse</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="media.css">
+    
+    <!-- Supabase SDK -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="js/theme.js"></script>
+    
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: var(--bg-secondary);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .login-header {
+            margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+            color: var(--text-primary);
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .login-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 16px;
+        }
+
+        .form-group input:focus {
+            border-color: var(--accent-color);
+            outline: none;
+        }
+
+        .btn-login {
+            background: var(--accent-color);
+            color: #fff;
+            border: none;
+            padding: 12px;
+            width: 100%;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-login:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-back {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            width: 100%;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn-back:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .error-message {
+            color: var(--error-color);
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+            background: rgba(231, 76, 60, 0.1);
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .success-message {
+            color: #2ecc71;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+            background: rgba(46, 204, 113, 0.1);
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .theme-toggle-fixed {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle-fixed" onclick="toggleTheme()">
+        <img src="/assets/icons/theme.png" alt="Thème" width="24" height="24">
+    </button>
+
+    <div class="login-card">
+        <div class="login-header">
+            <h1>Créer un compte</h1>
+            <p>Rejoignez IAQverse en quelques secondes</p>
+        </div>
+
+        <div id="error-msg" class="error-message"></div>
+        <div id="success-msg" class="success-message">Compte créé ! Vérifiez votre email pour la confirmation.</div>
+
+        <form id="signup-form">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" required placeholder="nom@exemple.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Mot de passe</label>
+                <input type="password" id="password" required placeholder="8 caractères minimum" minlength="8">
+            </div>
+
+            <div class="form-group">
+                <label for="password-confirm">Confirmer le mot de passe</label>
+                <input type="password" id="password-confirm" required placeholder="Répétez le mot de passe">
+            </div>
+
+            <button type="submit" class="btn-login" id="signup-submit">S'inscrire</button>
+            <button type="button" class="btn-back" onclick="window.location.href='login.html'">Retour à la connexion</button>
+        </form>
+    </div>
+
+    <!-- Script de logique d'inscription -->
+    <script src="js/auth.js"></script>
+    <script>
+        // Logique spécifique à cette page (qui n'est pas dans auth.js par défaut pour le signup stylisé)
+        document.addEventListener('DOMContentLoaded', () => {
+             const form = document.getElementById('signup-form');
+             if (form) {
+                 form.addEventListener('submit', async (e) => {
+                     e.preventDefault();
+                     const email = document.getElementById('email').value;
+                     const password = document.getElementById('password').value;
+                     const confirm = document.getElementById('password-confirm').value;
+                     const errorMsg = document.getElementById('error-msg');
+                     const successMsg = document.getElementById('success-msg');
+                     
+                     errorMsg.style.display = 'none';
+                     successMsg.style.display = 'none';
+
+                     if (password !== confirm) {
+                         errorMsg.textContent = "Les mots de passe ne correspondent pas.";
+                         errorMsg.style.display = 'block';
+                         return;
+                     }
+
+                     if (typeof handleSignupLogic === 'function') {
+                         const result = await handleSignupLogic(email, password);
+                         if (result.success) {
+                             localStorage.setItem('show_tutorial', 'true');
+                             localStorage.setItem('show_settings_tutorial', 'true');
+                             successMsg.style.display = 'block';
+                             form.reset();
+                             // Optionnel : rediriger après délai
+                             setTimeout(() => window.location.href = 'login.html', 3000);
+                         } else {
+                             errorMsg.textContent = result.error;
+                             errorMsg.style.display = 'block';
+                         }
+                     }
+                 });
+             }
+        });
+    </script>
+</body>
+</html>

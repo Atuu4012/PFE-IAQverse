@@ -44,11 +44,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (supabaseClient) {
         // Vérifier si déjà connecté
         const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session && window.location.pathname.endsWith('login.html')) {
-            // Redirection si déjà connecté
+        
+        // Check URL params for force_login
+        const urlParams = new URLSearchParams(window.location.search);
+        const forceLogin = urlParams.get('force_login');
+
+        if (session && window.location.pathname.endsWith('login.html') && !forceLogin) {
+            // Redirection si déjà connecté et pas de demande explicite de switch
             window.location.href = 'index.html';
             return;
         }
+        
+        // Si force_login est présent, on veut permettre de se connecter à un autre compte
+        // Supabase garde la session active. Si on se connecte avec un autre compte, ça l'écrasera.
+        // C'est le comportement voulu. Mais pour l'UX, on pourrait vouloir afficher un message.
     }
 
     const loginForm = document.getElementById('login-form');
@@ -56,9 +65,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         loginForm.addEventListener('submit', handleLogin);
     }
     
-    // Ajout bouton Sign Up
+    // Ajout bouton Sign Up (Legacy) & Nouvelle Page
     const signupBtn = document.getElementById('signup-btn');
-    if (signupBtn) {
+    if (signupBtn && !signupBtn.hasAttribute('onclick')) {
         signupBtn.addEventListener('click', handleSignup);
     }
 
@@ -72,6 +81,56 @@ document.addEventListener('DOMContentLoaded', async () => {
         forgotPasswordLink.addEventListener('click', handlePasswordReset);
     }
 });
+
+// Exposed logic for custom signup page
+async function handleSignupLogic(email, password) {
+    if (!supabaseClient) await initSupabase();
+    try {
+        const { data, error } = await supabaseClient.auth.signUp({
+            email,
+            password
+        });
+        if (error) throw error;
+        return { success: true, data };
+    } catch (error) {
+        console.error(error);
+        return { success: false, error: error.message || "Erreur inconnue" };
+    }
+}
+window.handleSignupLogic = handleSignupLogic; // Export global
+
+async function updateUserPassword(newPassword) {
+    if (!supabaseClient) await initSupabase();
+    try {
+        const { data, error } = await supabaseClient.auth.updateUser({
+            password: newPassword
+        });
+
+        if (error) throw error;
+        return { success: true, data };
+    } catch (error) {
+        console.error("Erreur changement mot de passe:", error);
+        return { success: false, error: error.message };
+    }
+}
+window.updateUserPassword = updateUserPassword;
+
+async function verifyPassword(password) {
+    if (!supabaseClient) await initSupabase();
+    // Get current user email
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user || !user.email) return { success: false, error: "Utilisateur non connecté" };
+
+    // Try to sign in to verify password
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email: user.email,
+        password: password
+    });
+
+    if (error) return { success: false, error: "Ancien mot de passe incorrect." };
+    return { success: true };
+}
+window.verifyPassword = verifyPassword;
 
 async function handleGoogleLogin() {
     if (!supabaseClient) await initSupabase();
@@ -183,8 +242,72 @@ async function getAuthToken() {
 // Fonction de déconnexion
 async function logout() {
     if (!supabaseClient) await initSupabase();
+    
+    // Si on a une session active, on la retire de notre liste de comptes locaux
     if (supabaseClient) {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session && session.user) {
+            removeAccountFromStorage(session.user.id);
+        }
         await supabaseClient.auth.signOut();
     }
+    
+    // Définir le message de confirmation pour la page de login
+    try {
+        // Fallback simple si utils.js n'est pas chargé ici, on utilise sessionStorage directement
+        // (format compatible avec showNotification dans utils.js)
+        const pending = { message: "Vous avez été déconnecté avec succès.", isError: false, expires: Date.now() + 3000 };
+        sessionStorage.setItem('iaq_pending_notification', JSON.stringify(pending));
+    } catch(e) {}
+
     window.location.href = 'login.html';
 }
+
+// Gestion multi-comptes : Stockage local des sessions
+function saveAccountToStorage(session) {
+    if (!session || !session.user) return;
+    
+    try {
+        const accounts = JSON.parse(localStorage.getItem('iaq_accounts') || '[]');
+        const existingIndex = accounts.findIndex(a => a.user.id === session.user.id);
+        
+        const accountData = {
+            user: session.user,
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+            last_login: Date.now()
+        };
+
+        if (existingIndex >= 0) {
+            accounts[existingIndex] = accountData;
+        } else {
+            accounts.push(accountData);
+        }
+        
+        localStorage.setItem('iaq_accounts', JSON.stringify(accounts));
+    } catch (e) {
+        console.error("Erreur sauvegarde compte", e);
+    }
+}
+
+function removeAccountFromStorage(userId) {
+    try {
+        let accounts = JSON.parse(localStorage.getItem('iaq_accounts') || '[]');
+        accounts = accounts.filter(a => a.user.id !== userId);
+        localStorage.setItem('iaq_accounts', JSON.stringify(accounts));
+    } catch (e) {
+        console.error("Erreur suppression compte", e);
+    }
+}
+
+// Sync session on auth state change
+document.addEventListener('DOMContentLoaded', async () => {
+    await initSupabase();
+    if (supabaseClient) {
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                saveAccountToStorage(session);
+            }
+        });
+    }
+});

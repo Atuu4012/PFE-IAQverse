@@ -1348,44 +1348,78 @@ function toggleAccountModal() {
 // Expose globally
 window.toggleAccountModal = toggleAccountModal;
 
+
+// Logic for account actions moved to utils.js
+
+// --- Password Management ---
+
+function openPasswordModal() {
+    const modal = document.getElementById('passwordModal');
+    if (modal) {
+        modal.style.display = 'block';
+        document.getElementById('passwordForm').reset();
+        document.getElementById('password-error').style.display = 'none';
+    }
+}
+
+function closePasswordModal() {
+    const modal = document.getElementById('passwordModal');
+    if (modal) modal.style.display = 'none';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Bouton Déconnexion
-    const logoutBtn = document.querySelector('.account-action.logout');
-    if (logoutBtn) {
-        logoutBtn.style.cursor = 'pointer';
-        logoutBtn.addEventListener('click', () => {
-             console.log('Déconnexion...');
-             if (typeof logout === 'function') logout();
-             else if (typeof window.logout === 'function') window.logout();
-             else window.location.href = 'login.html';
+    const passwordForm = document.getElementById('passwordForm');
+    if (passwordForm) {
+        passwordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const oldPass = document.getElementById('old-password').value;
+            const newPass = document.getElementById('new-password').value;
+            const confirmPass = document.getElementById('confirm-password').value;
+            const errorDiv = document.getElementById('password-error');
+            
+            errorDiv.style.display = 'none';
+
+            if (newPass !== confirmPass) {
+                errorDiv.textContent = "Les mots de passe ne correspondent pas.";
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (newPass.length < 6) {
+                 errorDiv.textContent = "Le mot de passe doit contenir au moins 6 caractères.";
+                 errorDiv.style.display = 'block';
+                 return;
+            }
+
+            // 1. Verify old password
+            if (typeof verifyPassword === 'function') {
+                const verifyResult = await verifyPassword(oldPass);
+                if (!verifyResult.success) {
+                    errorDiv.textContent = verifyResult.error;
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+            }
+
+            // 2. Update password
+            if (typeof updateUserPassword === 'function') {
+                const result = await updateUserPassword(newPass);
+                if (result.success) {
+                    closePasswordModal();
+                    // Fix: 2nd argument must be false for success (green), not "success" string which is truthy (red)
+                    showNotification("Mot de passe mis à jour avec succès !", false);
+                } else {
+                    errorDiv.textContent = result.error || "Erreur lors de la mise à jour.";
+                    errorDiv.style.display = 'block';
+                }
+            } else {
+                 console.error("updateUserPassword function not found");
+            }
         });
     }
-
-    // 2. Bouton "Autre Compte" (Changera de compte -> Logout)
-    const accountItems = document.querySelectorAll('.account-item');
-    accountItems.forEach(item => {
-        if (item.innerHTML.includes('account.otherAccount') || item.textContent.includes('Autre Compte') || item.textContent.includes('Other Account')) {
-            item.style.cursor = 'pointer';
-            item.addEventListener('click', () => {
-                 console.log('Changement de compte...');
-                 if (typeof logout === 'function') logout();
-                 else if (typeof window.logout === 'function') window.logout();
-                 else window.location.href = 'login.html';
-            });
-        }
-    });
-
-    // Fermeture de la modale si clic à l'extérieur
-    window.addEventListener('click', (e) => {
-        const modal = document.getElementById('accountModal');
-        const trigger = document.querySelector('.header-avatar-link');
-        const triggerImg = document.getElementById('header-avatar');
-        
-        if (modal && (modal.style.display === 'block' || modal.classList.contains('show'))) {
-             if (!modal.contains(e.target) && e.target !== trigger && e.target !== triggerImg && !trigger?.contains(e.target)) {
-                 modal.style.display = 'none';
-                 modal.classList.remove('show');
-             }
-        }
-    });
 });
+
+// Windows global exports
+window.openPasswordModal = openPasswordModal;
+window.closePasswordModal = closePasswordModal;
+

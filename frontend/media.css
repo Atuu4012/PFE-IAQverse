@@ -146,8 +146,8 @@
   .header-nav a.active-page {
     background: transparent;
     box-shadow: none;
-    color: var(--primary-color);
-    border-top: 3px solid var(--primary-color);
+    color: var(--accent-color);
+    border-top: 3px solid var(--accent-color);
   }
 
   .header-nav img {
@@ -541,6 +541,29 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
   }
 
+  /* Fullscreen Button Mobile Position (Below Frame Btn) */
+  .fullscreen-btn {
+    padding: 4px 8px !important;
+    top: 38px !important; /* 8px top + ~25px height of frame-btn + 5px gap */
+    right: 8px !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: #000 !important;
+    border: none !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+    border-radius: 6px !important;
+  }
+  
+  .fullscreen-btn svg {
+    width: 16px; 
+    height: 16px;
+  }
+
+  [data-theme="sombre"] .fullscreen-btn {
+    background: rgba(37, 41, 48, 0.95) !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+  }
+
   .table-wrapper {
     width: 100%;
     overflow-x: auto;
@@ -621,13 +644,93 @@
     color: #fff;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   }
+  
+  .occupants-badge-twin {
+    bottom: 8px !important;
+    left: 8px !important;
+    padding: 6px 10px;
+    z-index: 20; /* Ensure visibility */
+  }
 }
 
-/* Responsive design */
-@media (max-width: 768px) {
-  .actions-table {
-    font-size: 0.8em;
+/* Mobile Landscape (High width, Low height) */
+@media (max-width: 900px) and (orientation: landscape) {
+  .twin-layout {
+    display: flex; /* Force row layout */
+    flex-direction: row;
+    height: 100vh; /* Full viewport height */
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
   }
+  
+  header, footer, nav {
+    display: none !important; /* Hide UI chrome in landscape immersive view */
+  }
+
+  /* Make room panel take full width/height */
+  .room-panel {
+    order: 1;
+    width: 100%;
+    height: 100vh; /* Full height */
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    background: #000; /* Immersive black bg */
+  }
+  
+  .room-panel h2, .room-tabs {
+    display: none; /* Hide standard title/tabs in immersive landscape */
+  }
+  
+  .room-visual {
+    width: 100%;
+    height: 100% !important; /* Force full container height */
+    border-radius: 0;
+    background: transparent;
+  }
+
+  /* Adjust Overlay Elements for Landscape */
+  .iaq-overlay {
+    top: 20px;
+    left: 20px;
+  }
+
+  /* Buttons top-right */
+  #frame-btn {
+    top: 20px !important;
+    right: 20px !important;
+  }
+
+  .fullscreen-btn {
+    top: 60px !important; /* Below frame button with more spacing */
+    right: 20px !important;
+  }
+  
+  /* Bottom elements */
+  .occupants-badge-twin {
+    bottom: 20px !important;
+    left: 20px !important;
+  }
+  .room-label {
+    bottom: 20px !important;
+    right: 20px !important;
+  }
+    
+  /* Hide non-visual panels */
+  .actions-panel, .details-panel, .tabs-container {
+    display: none !important;
+  }
+}
+
+/* Landscape Mode Transition Styles */
+@media (max-width: 768px) {
+  /* Add smooth transitions for layout properties */
+  .room-panel, .room-visual, .iaq-overlay, #frame-btn, .fullscreen-btn, .occupants-badge-twin, .room-label {
+    transition: all 0.5s ease;
+  }
+
 
   .actions-table th {
     font-size: 0.85em; /* Titres plus petits */
@@ -995,5 +1098,22 @@
   /* Make room visual container relative to position controls */
   .room-visual {
     position: relative; 
+  }
+}
+
+/* Fix settings menu visibility on mobile (light mode) */
+@media (max-width: 768px) {
+  .sidebar .menu li {
+    /* Ensure inactive items are visible (dark text on light bg in light mode) */
+    background-color: var(--bg-tertiary) !important; 
+    color: var(--text-primary) !important; 
+    border: 1px solid var(--border-color) !important;
+  }
+
+  /* Keep active state standout */
+  .sidebar .menu li.active {
+    background-color: var(--accent-color) !important;
+    color: #ffffff !important;
+    border-color: var(--accent-color) !important;
   }
 }

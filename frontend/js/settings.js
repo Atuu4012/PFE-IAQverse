@@ -1348,44 +1348,6 @@ function toggleAccountModal() {
 // Expose globally
 window.toggleAccountModal = toggleAccountModal;
 
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. Bouton Déconnexion
-    const logoutBtn = document.querySelector('.account-action.logout');
-    if (logoutBtn) {
-        logoutBtn.style.cursor = 'pointer';
-        logoutBtn.addEventListener('click', () => {
-             console.log('Déconnexion...');
-             if (typeof logout === 'function') logout();
-             else if (typeof window.logout === 'function') window.logout();
-             else window.location.href = 'login.html';
-        });
-    }
 
-    // 2. Bouton "Autre Compte" (Changera de compte -> Logout)
-    const accountItems = document.querySelectorAll('.account-item');
-    accountItems.forEach(item => {
-        if (item.innerHTML.includes('account.otherAccount') || item.textContent.includes('Autre Compte') || item.textContent.includes('Other Account')) {
-            item.style.cursor = 'pointer';
-            item.addEventListener('click', () => {
-                 console.log('Changement de compte...');
-                 if (typeof logout === 'function') logout();
-                 else if (typeof window.logout === 'function') window.logout();
-                 else window.location.href = 'login.html';
-            });
-        }
-    });
+// Logic for account actions moved to utils.js
 
-    // Fermeture de la modale si clic à l'extérieur
-    window.addEventListener('click', (e) => {
-        const modal = document.getElementById('accountModal');
-        const trigger = document.querySelector('.header-avatar-link');
-        const triggerImg = document.getElementById('header-avatar');
-        
-        if (modal && (modal.style.display === 'block' || modal.classList.contains('show'))) {
-             if (!modal.contains(e.target) && e.target !== trigger && e.target !== triggerImg && !trigger?.contains(e.target)) {
-                 modal.style.display = 'none';
-                 modal.classList.remove('show');
-             }
-        }
-    });
-});

@@ -49,6 +49,56 @@ function showNotification(message, isError = false) {
 }
 
 /**
+ * Initialisation des actions de compte globales
+ * (Déconnexion, Changement de compte, etc.)
+ */
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Bouton Déconnexion
+    const logoutBtns = document.querySelectorAll('.account-action.logout');
+    logoutBtns.forEach(btn => {
+        btn.style.cursor = 'pointer';
+        // On vérifie si l'événement n'est pas déjà attaché via un attribut ou autre,
+        // mais pour addEventListener c'est cumulatif.
+        // Pour éviter les doublons avec settings.js, on pourrait vérifier une classe,
+        // mais ici c'est plus simple de le faire partout.
+        btn.onclick = () => { // Utiliser onclick écrase les handlers précédents si on veut éviter les doublons
+             if (typeof logout === 'function') logout();
+             else if (typeof window.logout === 'function') window.logout();
+        };
+    });
+
+    // 2. Bouton "Autre Compte" (Changera de compte -> Logout)
+    const otherAccountSpans = document.querySelectorAll('.account-item span[data-i18n="account.otherAccount"]');
+    otherAccountSpans.forEach(span => {
+        const btn = span.closest('.account-item');
+        if (btn) {
+            btn.style.cursor = 'pointer';
+            btn.onclick = () => {
+                if (typeof logout === 'function') logout();
+                else if (typeof window.logout === 'function') window.logout();
+            };
+        }
+    });
+
+    // 3. Gestion de la fermeture du modal si clic à l'extérieur (Global)
+    window.addEventListener('click', (e) => {
+        const modal = document.getElementById('accountModal');
+        // On vérifie les triggers possibles (avatar header)
+        const trigger = document.querySelector('.header-avatar-link');
+        const triggerImg = document.getElementById('header-avatar');
+        
+        if (modal && (modal.style.display === 'block' || modal.classList.contains('show'))) {
+             // Si le clic n'est pas dans le modal et n'est pas sur le bouton d'ouverture
+             if (!modal.contains(e.target) && e.target !== trigger && e.target !== triggerImg && !trigger?.contains(e.target)) {
+                 modal.style.display = 'none';
+                 modal.classList.remove('show');
+             }
+        }
+    });
+});
+
+
+/**
  * Gestion des modales
  */
 const ModalManager = {
@@ -135,7 +185,7 @@ window.showNotification = showNotification;
 window.ModalManager = ModalManager;
 
 /**
- * Met � jour l'avatar dans le header
+ * Met � jour l'avatar dans le header
  */
 async function updateHeaderAvatar() {
     const avatarImg = document.getElementById('header-avatar');
@@ -150,7 +200,6 @@ async function updateHeaderAvatar() {
             const config = await window.loadConfig();
             if (config && config.vous && config.vous.avatar) {
                 avatarImg.src = config.vous.avatar;
-                return;
             }
         }
     } catch (e) {
@@ -160,6 +209,12 @@ async function updateHeaderAvatar() {
     // Fallback to default if not set or error
     if (!avatarImg.getAttribute('src')) {
         avatarImg.src = defaultAvatar;
+    }
+
+    // Mettre à jour l'avatar dans le menu du compte (Utilisateur Actuel)
+    const modalAvatar = document.querySelector('.account-item.active .account-avatar-small');
+    if (modalAvatar) {
+        modalAvatar.src = avatarImg.src;
     }
 }
 

@@ -197,7 +197,12 @@ def save_user_config(user_id: str, new_config: dict):
 
     # Upsert (Insérer ou Mettre à jour)
     try:
+        # On force explicitement user_id dans les données
+        # Cela permet l'Upsert même si RLS est actif (si la policy autorise le service_role ou si user_id matche)
         data = {"user_id": user_id, "config_data": new_config}
+        
+        # Note: supabase.table.upsert utilise la clé du client (service_role ou anon)
+        # Si c'est service_role, cela passera grâce à la policy 'For Service Role'
         supabase.table("user_configs").upsert(data).execute()
         return True
     except Exception as e:

@@ -8,6 +8,9 @@ from typing import List, Dict, Union, Optional
 import logging
 import shutil
 
+
+import os
+import httpx
 from ..utils import load_config, save_config, load_user_config, save_user_config, extract_sensors_from_config
 from ..core.supabase import supabase
 from ..core import get_websocket_manager, settings
@@ -35,9 +38,33 @@ async def get_current_user_id(
         raise HTTPException(status_code=401, detail="Authentication token required")
 
     try:
-        user_response = supabase.auth.get_user(token)
-        if user_response and user_response.user:
-            return user_response.user.id
+        # IMPORTANT: Ne pas utiliser le client global `supabase.auth.get_user(token)` 
+        # car cela change l'état du client (headers Authorization) et écrase le Service Role admin.
+        # Cela cause des erreurs RLS (42501) sur les écritures suivantes car elles se font en tant qu'utilisateur.
+        # On utilise une requête HTTP brute et isolée pour valider le token.
+        
+        sb_url = os.getenv("SUPABASE_URL")
+        sb_key = os.getenv("SUPABASE_KEY")
+        
+        if sb_url and sb_key:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{sb_url}/auth/v1/user",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "ApiKey": sb_key
+                    },
+                    timeout=10.0
+                )
+
+                if response.status_code == 200:
+                    user_data = response.json()
+                    # Le format retourné peut être directement l'objet user ou { "id": ... }
+                    # L'endpoint /user retourne l'objet User directly
+                    return user_data.get("id")
+                else:
+                    logger.warning(f"Validation token échouée via API: {response.status_code} {response.text}")
+        
     except Exception as e:
         logger.error(f"Token validation failed: {e}")
     
@@ -190,6 +217,7 @@ async def update_config(updates: dict = Body(...), user_id: str = Depends(get_cu
                 base[k] = v
     update_recursive(current_config, updates)
     
+    # --- FIX RLS: On passe explicitement par save_user_config qui ajoute user_id ---
     if save_user_config(user_id, current_config):
         # On broadcast uniquement à cet utilisateur idéalement, 
         # mais pour l'instant un broadcast global fonctionnera pour la démo

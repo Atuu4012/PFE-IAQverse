@@ -49,22 +49,4 @@ document.addEventListener('keydown', function(e) {
     return false;
   }
   
-  // Bloquer F5 et Ctrl+R (rafraîchir) - optionnel, décommentez si nécessaire
-  /*
-  if (key === 'f5' || (isCtrl && key === 'r')) {
-    e.preventDefault();
-    e.stopPropagation();
-    return false;
-  }
-  */
 });
-
-// Bloquer le menu contextuel (clic droit) - optionnel
-/*
-document.addEventListener('contextmenu', function(e) {
-  e.preventDefault();
-  return false;
-});
-*/
-
-console.log('[disable-browser-shortcuts] Raccourcis navigateur désactivés');

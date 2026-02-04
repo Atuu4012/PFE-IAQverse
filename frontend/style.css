@@ -168,10 +168,9 @@ header {
   filter: brightness(0) invert(1);
 }
 
-/* Active page icon colors */
+/* Active page icon colors - Force white for contrast against blue background */
 [data-theme="clair"] .header-nav a.active-page img {
-  filter: brightness(0) saturate(100%) invert(31%) sepia(9%) saturate(1234%)
-    hue-rotate(188deg) brightness(91%) contrast(88%);
+  filter: brightness(0) invert(1);
 }
 
 [data-theme="sombre"] .header-nav a.active-page img {

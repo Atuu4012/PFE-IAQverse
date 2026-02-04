@@ -99,6 +99,32 @@ function showLogoutConfirmation() {
     modal.style.display = 'flex';
 }
 
+function handleAccountModalOutsideClick(event) {
+    const modal = document.getElementById('accountModal');
+    const trigger = document.querySelector('.header-avatar-link');
+    const triggerImg = document.getElementById('header-avatar');
+
+    if (!modal) return;
+
+    const isVisible =
+        modal.classList.contains('visible') ||
+        modal.classList.contains('show') ||
+        modal.style.display === 'block';
+
+    if (!isVisible) return;
+
+    if (
+        !modal.contains(event.target) &&
+        event.target !== trigger &&
+        event.target !== triggerImg &&
+        !trigger?.contains(event.target)
+    ) {
+        modal.classList.remove('visible');
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+    }
+}
+
 /**
  * Initialisation des actions de compte globales
  * (Déconnexion, Changement de compte, etc.)
@@ -108,40 +134,66 @@ document.addEventListener('DOMContentLoaded', () => {
     const logoutBtns = document.querySelectorAll('.account-action.logout');
     logoutBtns.forEach(btn => {
         btn.style.cursor = 'pointer';
-        btn.onclick = () => { 
+        btn.onclick = () => {
              showLogoutConfirmation();
         };
     });
 
-    // 2. Bouton "Autre Compte" (Changera de compte -> Logout)
+    // 2. Bouton "Autre Compte" (Ajout d'un compte)
     const otherAccountSpans = document.querySelectorAll('.account-item span[data-i18n="account.otherAccount"]');
     otherAccountSpans.forEach(span => {
         const btn = span.closest('.account-item');
         if (btn) {
             btn.style.cursor = 'pointer';
             btn.onclick = () => {
-                // Pour "Autre Compte", c'est "Ajouter un compte", pas logout direct.
                 if (typeof addNewAccount === 'function') addNewAccount();
                 else window.location.href = 'login.html?force_login=true';
             };
         }
     });
 
-    // 3. Gestion de la fermeture du modal si clic à l'extérieur (Global)
-    window.addEventListener('click', (e) => {
-        const modal = document.getElementById('accountModal');
-        // On vérifie les triggers possibles (avatar header)
-        const trigger = document.querySelector('.header-avatar-link');
-        const triggerImg = document.getElementById('header-avatar');
-        
-        if (modal && (modal.style.display === 'block' || modal.classList.contains('show'))) {
-             // Si le clic n'est pas dans le modal et n'est pas sur le bouton d'ouverture
-             if (!modal.contains(e.target) && e.target !== trigger && e.target !== triggerImg && !trigger?.contains(e.target)) {
-                 modal.style.display = 'none';
-                 modal.classList.remove('show');
-             }
-        }
+    // 3. Fermeture du modal compte si clic à l'extérieur
+    window.addEventListener('click', handleAccountModalOutsideClick);
+
+    ModalManager.initClickOutside();
+
+    // Ajouter les gestionnaires pour les boutons close
+    document.querySelectorAll('.close').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const modal = this.closest('.modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        });
     });
+
+    // Restauration de notification après reload
+    try {
+        const pendingRaw = sessionStorage.getItem('iaq_pending_notification');
+        if (pendingRaw) {
+            const pending = JSON.parse(pendingRaw);
+            if (pending && pending.expires && pending.expires > Date.now()) {
+                const notification = document.getElementById('notification');
+                if (notification) {
+                    notification.textContent = pending.message;
+                    notification.className = 'notification ' + (pending.isError ? 'error' : 'success');
+                    notification.style.display = 'block';
+                    const remaining = Math.max(0, pending.expires - Date.now());
+                    setTimeout(() => {
+                        notification.style.display = 'none';
+                        try { sessionStorage.removeItem('iaq_pending_notification'); } catch (e) {}
+                    }, remaining || 1500);
+                }
+            } else {
+                try { sessionStorage.removeItem('iaq_pending_notification'); } catch (e) {}
+            }
+        }
+    } catch (e) {
+        // ignore
+    }
+
+    updateHeaderAvatar();
+    renderAccountList();
 });
 
 
@@ -183,48 +235,6 @@ const ModalManager = {
     }
 };
 
-/**
- * Initialisation des gestionnaires de modales au chargement
- */
-document.addEventListener('DOMContentLoaded', () => {
-    ModalManager.initClickOutside();
-
-    // Ajouter les gestionnaires pour les boutons close
-    document.querySelectorAll('.close').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const modal = this.closest('.modal');
-            if (modal) {
-                modal.style.display = 'none';
-            }
-        });
-    });
-
-    // If a notification was stored just before a reload, restore and show it
-    try {
-        const pendingRaw = sessionStorage.getItem('iaq_pending_notification');
-        if (pendingRaw) {
-            const pending = JSON.parse(pendingRaw);
-            if (pending && pending.expires && pending.expires > Date.now()) {
-                const notification = document.getElementById('notification');
-                if (notification) {
-                    notification.textContent = pending.message;
-                    notification.className = 'notification ' + (pending.isError ? 'error' : 'success');
-                    notification.style.display = 'block';
-                    // remove after remaining time
-                    const remaining = Math.max(0, pending.expires - Date.now());
-                    setTimeout(() => {
-                        notification.style.display = 'none';
-                        try { sessionStorage.removeItem('iaq_pending_notification'); } catch (e) {}
-                    }, remaining || 1500);
-                }
-            } else {
-                try { sessionStorage.removeItem('iaq_pending_notification'); } catch (e) {}
-            }
-        }
-    } catch (e) {
-        // ignore
-    }
-});
 
 // Export des fonctions
 window.escapeHtml = escapeHtml;
@@ -265,11 +275,6 @@ async function updateHeaderAvatar() {
     }
 }
 
-// Initialize avatar on load
-document.addEventListener('DOMContentLoaded', () => {
-    updateHeaderAvatar();
-    renderAccountList();
-});
 
 
 /**
@@ -450,18 +455,6 @@ function removeAccountFromStorage(userId) {
 }
 
 
-// Fermer le modal si on clique en dehors
-document.addEventListener('click', function(event) {
-    const modal = document.getElementById('accountModal');
-    const avatarLink = document.querySelector('.header-avatar-link');
-    
-    if (modal && modal.classList.contains('visible')) {
-        // Si le clic n'est ni dans le modal ni sur l'avatar (qui l'ouvre)
-        if (!modal.contains(event.target) && (!avatarLink || !avatarLink.contains(event.target))) {
-            modal.classList.remove('visible');
-        }
-    }
-});
 
 
 

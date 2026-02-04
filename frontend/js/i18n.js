@@ -67,12 +67,6 @@
       const txt = safeGet(translations, key);
       if (txt != null) el.setAttribute("placeholder", txt);
     });
-    // Remove title tooltips handling
-    // root.querySelectorAll("[data-i18n-title]").forEach((el) => {
-    //   const key = el.getAttribute("data-i18n-title");
-    //   const txt = safeGet(translations, key);
-    //   if (txt != null) el.setAttribute("title", txt);
-    // });
   }
 
   function setUISelect(lang) {

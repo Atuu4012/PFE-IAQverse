@@ -9,6 +9,8 @@
     
     <!-- Supabase SDK -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/config-loader.js"></script>
     <script src="js/theme.js"></script>
     
     <style>
@@ -18,16 +20,49 @@
             justify-content: center;
             min-height: 100vh;
             padding: 20px;
+            overflow: hidden;
+            position: relative;
+            background-color: #f0f4f8;
+        }
+
+        .login-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: url('https://images.unsplash.com/photo-1534088568595-a066f410bcda?q=80&w=2000&auto=format&fit=crop') no-repeat center center;
+            background-size: cover;
+            filter: brightness(0.9);
+            animation: breathe 25s ease-in-out infinite alternate;
+        }
+
+        @keyframes breathe {
+            0% {
+                transform: scale(1);
+            }
+            100% {
+                transform: scale(1.1);
+            }
         }
 
         .login-card {
-            background: var(--bg-secondary);
+            background: rgba(255, 255, 255, 0.95);
             padding: 40px;
-            border-radius: 12px;
-            box-shadow: var(--shadow-lg);
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
             width: 100%;
             max-width: 400px;
             text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            animation: fadeIn 0.8s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .login-header {
@@ -232,9 +267,8 @@
     </style>
 </head>
 <body>
-    <button class="theme-toggle-fixed" onclick="toggleTheme()">
-        <img src="/assets/icons/theme.png" alt="Thème" width="24" height="24">
-    </button>
+    <!-- Background dynamique -->
+    <div class="login-bg"></div>
 
     <div class="login-card">
         <div class="login-header">
@@ -282,6 +316,5 @@
     </div>
 
     <!-- Script de logique de connexion -->
-    <script src="js/auth.js"></script>
 </body>
 </html>

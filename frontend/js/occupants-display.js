@@ -174,23 +174,19 @@ function setupOccupantsWebSocket() {
     });
 }
 
-// Initialiser au chargement de la page
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        restoreCachedOccupants();
-        // Attendre que la config et les onglets soient chargés
-        setTimeout(() => {
-            setupOccupantsWebSocket();
-            fetchOccupantsFromAPI();
-        }, 100);
-    });
-} else {
+function initOccupantsDisplay() {
     restoreCachedOccupants();
-    // Si déjà chargé, initialiser immédiatement
     setTimeout(() => {
         setupOccupantsWebSocket();
         fetchOccupantsFromAPI();
     }, 100);
+}
+
+// Initialiser au chargement de la page
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initOccupantsDisplay);
+} else {
+    initOccupantsDisplay();
 }
 
 // Écouter les changements de pièce (via les onglets) - mise à jour immédiate

@@ -322,25 +322,69 @@
             const container = document.querySelector('.room-visual');
             if (!document.fullscreenElement) {
                 try {
-                    await container.requestFullscreen();
-                    // Force Landscape on Mobile
+                    // 1. Request Fullscreen
+                    if (container.requestFullscreen) {
+                        await container.requestFullscreen();
+                    } else if (container.webkitRequestFullscreen) { /* Safari */
+                        await container.webkitRequestFullscreen();
+                    } else if (container.msRequestFullscreen) { /* IE11 */
+                        await container.msRequestFullscreen();
+                    }
+
+                    // 2. Force Landscape (Best Effort)
                     if (screen.orientation && screen.orientation.lock) {
                         try {
                             await screen.orientation.lock('landscape');
                         } catch (e) {
-                            // Orientation lock might fail on some devices/browsers or desktop
-                            console.warn('Orientation lock failed:', e);
+                            console.warn('Orientation lock failed/not supported:', e);
+                            // Fallback: Show a toast/message if lock fails?
+                            // For now, we assume the user will rotate manually if lock fails
                         }
+                    } else if (screen.lockOrientation) {
+                         // Deprecated API
+                         try { screen.lockOrientation('landscape'); } catch (e) {}
                     }
+                    
+                    // 3. Add class for specific styling
+                    container.classList.add('is-fullscreen');
+
                 } catch (err) {
                     console.error(`Erreur lors du passage en plein écran: ${err.message}`);
                 }
             } else {
-                document.exitFullscreen();
-                if (screen.orientation && screen.orientation.unlock) {
-                    screen.orientation.unlock();
+                // Exit Fullscreen
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
                 }
+
+                // Unlock Orientation
+                if (screen.orientation && screen.orientation.unlock) {
+                    try { screen.orientation.unlock(); } catch(e) {}
+                }
+                
+                container.classList.remove('is-fullscreen');
             }
+        });
+        
+        // Listen for fullscreen change events to handle "Escape" key or swipe gesture exit
+        document.addEventListener('fullscreenchange', () => {
+             if (!document.fullscreenElement) {
+                 const container = document.querySelector('.room-visual');
+                 if (container) container.classList.remove('is-fullscreen');
+                 // Also unlock orientation just in case
+                 if (screen.orientation && screen.orientation.unlock) {
+                    try { screen.orientation.unlock(); } catch(e) {}
+                }
+             }
+        });
+        // Safari specific
+        document.addEventListener('webkitfullscreenchange', () => {
+             if (!document.webkitFullscreenElement) {
+                 const container = document.querySelector('.room-visual');
+                 if (container) container.classList.remove('is-fullscreen');
+             }
         });
     </script>
 </body>

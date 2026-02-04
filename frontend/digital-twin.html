@@ -320,15 +320,21 @@
     <script>
         document.getElementById('fullscreen-btn')?.addEventListener('click', async () => {
             const container = document.querySelector('.room-visual');
-            if (!document.fullscreenElement) {
+            
+            // Check if we are in fullscreen (Native OR "Fake" CSS fullscreen)
+            const isNativeFullscreen = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+            const isFakeFullscreen = container.classList.contains('is-fullscreen');
+            
+            if (!isNativeFullscreen && !isFakeFullscreen) {
+                // === ENTER FULLSCREEN ===
                 try {
-                    // 1. Request Fullscreen
+                    // 1. Request Native Fullscreen (Best Effort)
                     if (container.requestFullscreen) {
-                        await container.requestFullscreen();
+                        await container.requestFullscreen().catch(e => console.log("Native FS failed (expected on iOS)", e));
                     } else if (container.webkitRequestFullscreen) { /* Safari */
-                        await container.webkitRequestFullscreen();
+                        await container.webkitRequestFullscreen().catch(e => console.log("Webkit FS failed", e));
                     } else if (container.msRequestFullscreen) { /* IE11 */
-                        await container.msRequestFullscreen();
+                        await container.msRequestFullscreen().catch(e => console.log("MS FS failed", e));
                     }
 
                     // 2. Force Landscape (Best Effort)
@@ -337,26 +343,27 @@
                             await screen.orientation.lock('landscape');
                         } catch (e) {
                             console.warn('Orientation lock failed/not supported:', e);
-                            // Fallback: Show a toast/message if lock fails?
-                            // For now, we assume the user will rotate manually if lock fails
                         }
                     } else if (screen.lockOrientation) {
-                         // Deprecated API
                          try { screen.lockOrientation('landscape'); } catch (e) {}
                     }
-                    
-                    // 3. Add class for specific styling
-                    container.classList.add('is-fullscreen');
-
                 } catch (err) {
-                    console.error(`Erreur lors du passage en plein écran: ${err.message}`);
+                    console.error(`Erreur process plein écran: ${err.message}`);
                 }
+                
+                // 3. ALWAYS Add class for styling (handling "Game Mode" visually)
+                // This ensures it works even if native FS fails (like on iOS)
+                container.classList.add('is-fullscreen');
+
             } else {
-                // Exit Fullscreen
+                // === EXIT FULLSCREEN ===
+                // Exit Native
                 if (document.exitFullscreen) {
-                    document.exitFullscreen();
+                    await document.exitFullscreen().catch(() => {});
                 } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
+                    await document.webkitExitFullscreen().catch(() => {});
+                } else if (document.msExitFullscreen) {
+                    await document.msExitFullscreen().catch(() => {});
                 }
 
                 // Unlock Orientation
@@ -364,28 +371,33 @@
                     try { screen.orientation.unlock(); } catch(e) {}
                 }
                 
+                // Remove class
                 container.classList.remove('is-fullscreen');
             }
         });
         
-        // Listen for fullscreen change events to handle "Escape" key or swipe gesture exit
-        document.addEventListener('fullscreenchange', () => {
-             if (!document.fullscreenElement) {
+        // Listen for native escape/swipe exit to sync state
+        const onFullscreenChange = () => {
+             const isNative = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+             if (!isNative) {
                  const container = document.querySelector('.room-visual');
+                 // Only remove if we really exited (user action)
+                 // Note: checking isFakeFullscreen inside here is tricky because we might want 'fake' to persist? 
+                 // No, usually valid to sync. But careful if we used Fake because Native failed.
+                 
+                 // If we used Fake Fullscreen because Native failed, then 'fullscreenchange' WON'T fire.
+                 // So this event is only for when Native WAS active and is now gone.
+                 // In that case, we should clean up.
                  if (container) container.classList.remove('is-fullscreen');
-                 // Also unlock orientation just in case
+                 
                  if (screen.orientation && screen.orientation.unlock) {
                     try { screen.orientation.unlock(); } catch(e) {}
                 }
              }
-        });
-        // Safari specific
-        document.addEventListener('webkitfullscreenchange', () => {
-             if (!document.webkitFullscreenElement) {
-                 const container = document.querySelector('.room-visual');
-                 if (container) container.classList.remove('is-fullscreen');
-             }
-        });
+        };
+
+        document.addEventListener('fullscreenchange', onFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', onFullscreenChange);
     </script>
 </body>
 </html>

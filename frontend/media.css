@@ -146,8 +146,8 @@
   .header-nav a.active-page {
     background: transparent;
     box-shadow: none;
-    color: var(--primary-color);
-    border-top: 3px solid var(--primary-color);
+    color: var(--accent-color);
+    border-top: 3px solid var(--accent-color);
   }
 
   .header-nav img {
@@ -995,5 +995,22 @@
   /* Make room visual container relative to position controls */
   .room-visual {
     position: relative; 
+  }
+}
+
+/* Fix settings menu visibility on mobile (light mode) */
+@media (max-width: 768px) {
+  .sidebar .menu li {
+    /* Ensure inactive items are visible (dark text on light bg in light mode) */
+    background-color: var(--bg-tertiary) !important; 
+    color: var(--text-primary) !important; 
+    border: 1px solid var(--border-color) !important;
+  }
+
+  /* Keep active state standout */
+  .sidebar .menu li.active {
+    background-color: var(--accent-color) !important;
+    color: #ffffff !important;
+    border-color: var(--accent-color) !important;
   }
 }

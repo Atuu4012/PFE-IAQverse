@@ -134,8 +134,9 @@ header {
 }
 
 .header-nav a.active-page {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
+  /* Use accent color (blue) for active nav to stay consistent */
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
 }
 
 [data-theme="clair"] .header-nav a.active-page {
@@ -4017,3 +4018,102 @@ select.form-control {
     opacity: 0;
   }
 }
+
+/* Driver.js Custom Theme */
+.driver-popover {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-radius: 12px !important;
+  padding: 15px !important;
+  box-shadow: var(--shadow-lg) !important;
+  border: 1px solid var(--border-color) !important;
+  font-family: 'Segoe UI', sans-serif !important;
+}
+
+.driver-popover-title {
+  color: var(--text-primary) !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  margin-bottom: 8px !important;
+}
+
+.driver-popover-description {
+  color: var(--text-secondary) !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+
+.driver-popover-footer {
+  margin-top: 15px !important;
+}
+
+.driver-popover-btn {
+  border-radius: 6px !important;
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+  text-shadow: none !important;
+  border: none !important;
+}
+
+/* Next / Finish Button */
+.driver-popover-next-btn {
+  background-color: var(--accent-color) !important;
+  color: #fff !important;
+  text-shadow: none !important; /* Fix fuzzy text */
+  text-decoration: none !important;
+  font-weight: 500 !important;
+}
+
+.driver-popover-next-btn:hover {
+  background-color: var(--accent-hover) !important;
+  color: #fff !important;
+}
+
+/* Prev Button */
+.driver-popover-prev-btn {
+  background-color: transparent !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.driver-popover-prev-btn:hover {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Progress Text */
+.driver-popover-progress-text {
+  color: var(--text-secondary) !important;
+  font-size: 12px !important;
+}
+
+/* Close Button */
+.driver-popover-close-btn {
+  color: var(--text-secondary) !important;
+}
+
+.driver-popover-close-btn:hover {
+  color: var(--error-color) !important;
+}
+
+/* Skip Button (Custom) */
+.tutorial-skip-btn {
+  margin-top: 12px;
+  padding: 6px 12px;
+  background-color: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: color 0.2s;
+  display: inline-block;
+  text-decoration: underline;
+}
+
+.tutorial-skip-btn:hover {
+  color: var(--text-primary);
+}
+

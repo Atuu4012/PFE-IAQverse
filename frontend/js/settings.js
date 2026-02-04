@@ -515,39 +515,27 @@ async function addPiece(enseigneId) {
         const pieceSuffix = rawPiece.replace(/^piece[_-]?/, '') || String(Date.now());
         const filename = `ens_${ensSuffix}_piece_${pieceSuffix}.glb`;
 
-        // 1. Get Signed URL from Backend
-        const urlParams = { filename: filename };
+        // Upload direct via backend (multipart)
+        const form = new FormData();
+        form.append('file', glbFile, glbFile.name);
+        form.append('filename', filename);
+
         let token = null; 
         try { token = await getAuthToken(); } catch(e){}
-        const headers = { 
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true' 
-        };
+        const headers = { 'ngrok-skip-browser-warning': 'true' };
         if(token) headers['Authorization'] = `Bearer ${token}`;
 
-        const urlResp = await fetch('/api/rooms/upload-url', {
-             method: 'POST',
-             headers: headers,
-             body: JSON.stringify(urlParams)
-        });
-        
-        if (!urlResp.ok) throw new Error('Impossible d\'obtenir l\'URL d\'upload');
-        const { uploadUrl, publicUrl } = await urlResp.json();
-
-        // 2. Upload file directly to Supabase Storage
-        // Supabase Signed URL expects a PUT request with the file body
-        const uploadResp = await fetch(uploadUrl, {
-            method: 'PUT',
-            body: glbFile,
-            headers: {
-                'Content-Type': 'model/gltf-binary'
-            }
+        const uploadResp = await fetch('/api/rooms/files', {
+          method: 'PUT',
+          headers: headers,
+          body: form
         });
 
         if (!uploadResp.ok) throw new Error('Erreur lors de l\'upload vers Storage');
+        const uploadData = await uploadResp.json();
 
-        // 3. Save public URL in config
-        piece.glbModel = publicUrl;
+        // Save public URL in config
+        piece.glbModel = uploadData.path;
       }
     } catch (err) {
       console.error('Upload GLB error', err);

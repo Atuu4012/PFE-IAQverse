@@ -4,35 +4,63 @@
  */
 
 let config = null;
+let configPromise = null;
+const CONFIG_CACHE_KEY = 'iaq_config_cache';
+
+try {
+    const cached = sessionStorage.getItem(CONFIG_CACHE_KEY);
+    if (cached) {
+        config = JSON.parse(cached);
+    }
+} catch (e) {
+    console.warn('Config cache read failed', e);
+}
 
 /**
  * Charge la configuration depuis le backend
  * @returns {Promise<Object>} La configuration chargée
  */
 async function loadConfig() {
-    try {
-        let token = null;
-        try {
-            token = await getAuthToken(); // Nouvelle ligne
-        } catch (e) {
-            console.warn("Auth token not available yet", e);
-        }
-        
-        const headers = { 
-            'ngrok-skip-browser-warning': 'true' 
-        };
-        // Injection du token
-        if (token) headers['Authorization'] = `Bearer ${token}`; 
+    if (config) return config;
+    if (configPromise) return configPromise;
 
-        const response = await fetch('/api/config', { headers });
-        if (response.ok) {
-            config = await response.json();
-            return config;
+    configPromise = (async () => {
+        try {
+            let token = null;
+            try {
+                token = await getAuthToken(); // Nouvelle ligne
+            } catch (e) {
+                console.warn("Auth token not available yet", e);
+            }
+            
+            const headers = { 
+                'ngrok-skip-browser-warning': 'true' 
+            };
+            // Injection du token
+            if (token) headers['Authorization'] = `Bearer ${token}`; 
+
+            const response = await fetch('/api/config', { headers });
+            if (response.ok) {
+                config = await response.json();
+                try {
+                    sessionStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(config));
+                } catch (e) {
+                    console.warn('Config cache write failed', e);
+                }
+                return config;
+            }
+        } catch (error) {
+            console.warn('Backend non disponible', error);
         }
+        throw new Error('Impossible de charger la configuration');
+    })();
+
+    try {
+        return await configPromise;
     } catch (error) {
-        console.warn('Backend non disponible', error);
+        configPromise = null;
+        throw error;
     }
-    throw new Error('Impossible de charger la configuration');
 }
 
 async function saveConfig(updates = null) {
@@ -54,7 +82,14 @@ async function saveConfig(updates = null) {
         if (!response.ok) throw new Error('Erreur lors de la sauvegarde');
 
         const result = await response.json();
-        if (result && result.config) config = result.config;
+        if (result && result.config) {
+            config = result.config;
+            try {
+                sessionStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(config));
+            } catch (e) {
+                console.warn('Config cache write failed', e);
+            }
+        }
 
         return config;
     } catch (error) {
@@ -84,3 +119,9 @@ window.loadConfig = loadConfig;
 window.saveConfig = saveConfig;
 window.getConfig = getConfig;
 window.setConfig = setConfig;
+
+// Démarrage anticipé du chargement
+window.configReady = loadConfig().catch((err) => {
+    console.warn('Config auto-load failed', err);
+    return null;
+});

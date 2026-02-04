@@ -28,7 +28,7 @@ async function loadConfig() {
         try {
             let token = null;
             try {
-                token = await getAuthToken(); // Nouvelle ligne
+                token = await getAuthToken();
             } catch (e) {
                 console.warn("Auth token not available yet", e);
             }
@@ -65,7 +65,7 @@ async function loadConfig() {
 
 async function saveConfig(updates = null) {
     try {
-        const token = await getAuthToken(); // Nouvelle ligne
+        const token = await getAuthToken();
         const headers = { 
             'Content-Type': 'application/json'
         };

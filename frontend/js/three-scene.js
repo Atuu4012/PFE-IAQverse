@@ -24,15 +24,19 @@ if (container) {
 const width = (container && container.clientWidth) || 700;
 const height = (container && container.clientHeight) || 400;
 
+// Détection mobile basique pour ajuster la qualité
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
 // Renderer with fallback configuration
 const renderer = new THREE.WebGLRenderer({ 
   alpha: true, 
-  antialias: true,
-  precision: 'mediump', // Use medium precision to avoid shader compilation issues
-  powerPreference: 'high-performance',
+  antialias: !isMobile, // Désactiver l'antialiasing sur mobile pour éviter les crashs (OOM)
+  precision: isMobile ? 'mediump' : 'highp', 
+  powerPreference: isMobile ? 'default' : 'high-performance',
   failIfMajorPerformanceCaveat: false
 });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); // Limit pixel ratio
+
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2)); // Réduire encore sur mobile (ex: 1.5 max)
 renderer.setSize(width, height);
 if (container) container.appendChild(renderer.domElement);
 
@@ -147,6 +151,10 @@ const updateEnvironment = async (configOverride = null) => {
 
         // Si la sphère existe déjà, on met à jour la texture
         if (environmentSphere) {
+            const oldTexture = environmentSphere.material.map;
+            if (oldTexture) {
+                oldTexture.dispose(); // Libérer la mémoire GPU
+            }
             environmentSphere.material.map = texture;
             environmentSphere.material.needsUpdate = true;
             scene.environment = texture;

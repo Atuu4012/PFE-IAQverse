@@ -34,6 +34,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IAQverse</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="media.css">
   <script src="js/disable-browser-shortcuts.js"></script>
@@ -47,7 +50,7 @@
   <script src="js/global-alerts.js"></script>
   <script src="js/simulate-alert.js"></script>
   <script src="js/occupants-display.js"></script>
-  <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   
   <!-- Tutorial - Driver.js -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css"/>
@@ -55,170 +58,204 @@
   <script src="js/tutorial.js"></script>
 </head>
 
-<body>
-  <header>
-    <nav class="header-nav">
-      <a href="#" onclick="return false;" class="active-page">
-        <img src="/assets/icons/home.png" alt="Home">
-      </a>
-      <a href="digital-twin.html">
-        <img src="/assets/icons/digital-twin.png" alt="Digital Twin">
-      </a>
-      <a href="settings.html">
-        <img src="/assets/icons/settings.png" alt="Settings">
-      </a>
-    </nav>
-    <h1 data-i18n="dashboard.title">Dashboard</h1>
-    <div class="header-buttons">
-      <button class="theme-toggle-btn" onclick="toggleTheme()">
-        <img src="/assets/icons/theme.png" alt="Thème">
-      </button>
-      <button class="info-btn" onclick="openModal()">
-        <img src="/assets/icons/info.png">
-      </button>
-      <a href="#" onclick="toggleAccountModal(); return false;" class="header-avatar-link">
-        <img id="header-avatar" src="/assets/icons/profil.png" alt="Avatar" class="header-avatar-img">
-      </a>
-    </div>
-
-    <!-- Account Modal -->
-    <div id="accountModal" class="account-modal">
-      <div class="account-header">
-        <span data-i18n="account.switch">Changer de compte</span>
-        <span class="close-account" onclick="toggleAccountModal()">&times;</span>
+<body class="clean-tech">
+  <div class="app-layout">
+    <aside class="app-sidebar">
+      <div class="brand">
+        <img src="/assets/icons/home.png" alt="IAQverse">
+        <span class="brand-name">IAQverse</span>
       </div>
-      <ul class="account-list">
-        <li class="account-item active">
-          <img src="/assets/icons/profil.png" class="account-avatar-small">
-          <span data-i18n="account.currentUser">Utilisateur Actuel</span>
-        </li>
-        <li class="account-item">
-          <img src="/assets/icons/profil.png" class="account-avatar-small" style="filter: grayscale(1);">
-          <span data-i18n="account.otherAccount">Autre Compte</span>
-        </li>
-        <li class="account-divider"></li>
-        <li class="account-action" onclick="location.href='settings.html'">
+      <nav class="side-menu" aria-label="Navigation principale">
+        <a href="#" onclick="return false;" class="side-link active">
+          <img src="/assets/icons/home.png" alt="Dashboard">
+          <span data-i18n="dashboard.title">Dashboard</span>
+        </a>
+        <a href="digital-twin.html" class="side-link">
+          <img src="/assets/icons/digital-twin.png" alt="Digital Twin">
+          <span data-i18n="digitalTwin.title">3D</span>
+        </a>
+        <a href="settings.html" class="side-link">
+          <img src="/assets/icons/settings.png" alt="Paramètres">
           <span data-i18n="settings.title">Paramètres</span>
-        </li>
-        <li class="account-action logout">
-          <span data-i18n="account.logout">Déconnexion</span>
-        </li>
-      </ul>
-    </div>
-
-    <div id="infoModal" class="modal">
-      <div class="modal-content">
-        <span class="close" onclick="closeModal()">&times;</span>
-        <h2 data-i18n="dashboard.aboutTitle">À propos de cette page</h2>
-        <p data-i18n="dashboard.aboutParagraph">Cette interface Dashboard vous permet de visualiser l'évolution des
-          composants principaux de la qualité de l'air en temps réel.</p>
-        <ul>
-          <li data-i18n="dashboard.co2">Évolution du CO₂</li>
-          <li data-i18n="dashboard.pm25">Concentration de PM2.5</li>
-          <li data-i18n="dashboard.comfort">Température & Humidité</li>
-          <li data-i18n="dashboard.tvoc">Concentration de TVOC</li>
-          <li data-i18n="dashboard.scoreFeature">Score IAQ en temps réel</li>
-          <li data-i18n="dashboard.predictionFeature">Prédiction du score dans 30 minutes</li>
-        </ul>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Réduire la barre latérale">
+          <span class="toggle-dot"></span>
+          <span class="toggle-dot"></span>
+          <span class="toggle-dot"></span>
+        </button>
+        <button class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Basculer le thème">
+          <img src="/assets/icons/theme.png" alt="Thème">
+        </button>
+        <a href="#" onclick="toggleAccountModal(); return false;" class="header-avatar-link">
+          <img id="header-avatar" src="/assets/icons/profil.png" alt="Avatar" class="header-avatar-img">
+        </a>
       </div>
-    </div>
-  </header>
-  <div class="desktop-spacer" style="margin-top: 70px;"></div>
-  <div class="tabs-container">
-    <div class="location-tabs" id="location-tabs">
-      <!-- Les onglets des enseignes seront générés dynamiquement ici -->
-    </div>
-    <div class="room-tabs" id="room-tabs">
-      <!-- Les onglets des pièces seront générés dynamiquement ici -->
+    </aside>
+
+    <div class="app-main">
+      <header class="app-header">
+        <div class="breadcrumb" aria-label="Fil d'ariane">
+          <span class="crumb">IAQverse</span>
+          <span class="crumb-sep">/</span>
+          <span class="crumb-current" data-i18n="dashboard.title">Dashboard</span>
+        </div>
+        <div class="header-actions">
+          <span class="status-pill status-online">Système en ligne</span>
+          <div class="occupants-badge" id="occupants-badge" style="display: none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span id="occupants-count">0</span>
+            <span class="occupants-label">Occupants</span>
+          </div>
+          <button class="info-btn" onclick="openModal()" aria-label="Infos">
+            <img src="/assets/icons/info.png" alt="Info">
+          </button>
+        </div>
+      </header>
+
+      <div class="tabs-container">
+        <div class="location-tabs" id="location-tabs">
+          <!-- Les onglets des enseignes seront générés dynamiquement ici -->
+        </div>
+        <div class="room-tabs" id="room-tabs">
+          <!-- Les onglets des pièces seront générés dynamiquement ici -->
+        </div>
+      </div>
+
+      <main class="bento-grid">
+        <section id="room-score-panel" class="card hero-card" aria-live="polite">
+          <div class="hero-header">
+            <div>
+              <p class="card-eyebrow">Score IAQ global</p>
+              <h2 class="card-title">Qualité de l'air intérieur</h2>
+            </div>
+            <span id="room-score-trend" class="score-trend-pill">A</span>
+          </div>
+          <div class="hero-body">
+            <div class="hero-score" id="room-score">
+              <div class="score-value">
+                <span id="room-score-value">—</span><span class="score-max">/100</span>
+              </div>
+              <div class="score-note" id="room-score-note">—</div>
+              <div class="predicted-block">
+                <span class="predicted-label" data-i18n="dashboard.score.predicted">Dans 30 min</span>
+                <span class="predicted-value"><span id="predicted-score-value">—</span>/100</span>
+                <span id="predicted-score-trend" class="predicted-trend">Tendance à la baisse</span>
+              </div>
+            </div>
+            <div class="hero-chart">
+              <canvas id="hero-chart" aria-label="Courbe IAQ"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <section class="card metric-card">
+          <div class="metric-header">
+            <h3>CO₂</h3>
+            <span class="metric-unit">ppm</span>
+          </div>
+          <div class="metric-value" id="co2-value">—</div>
+          <div class="metric-sub">Dernières 60 minutes</div>
+          <canvas id="co2-chart" class="metric-chart" aria-label="CO2 sparkline"></canvas>
+        </section>
+
+        <section class="card metric-card">
+          <div class="metric-header">
+            <h3>PM2.5</h3>
+            <span class="metric-unit">µg/m³</span>
+          </div>
+          <div class="metric-value" id="pm25-value">—</div>
+          <div class="metric-sub">Dernières 60 minutes</div>
+          <canvas id="pm25-chart" class="metric-chart" aria-label="PM2.5 sparkline"></canvas>
+        </section>
+
+        <section class="card metric-card">
+          <div class="metric-header">
+            <h3>Température</h3>
+            <span class="metric-unit">°C</span>
+          </div>
+          <div class="metric-value" id="temp-value">—</div>
+          <div class="metric-sub">Dernières 60 minutes</div>
+          <canvas id="temp-chart" class="metric-chart" aria-label="Temp sparkline"></canvas>
+        </section>
+
+        <section class="card metric-card">
+          <div class="metric-header">
+            <h3>Humidité</h3>
+            <span class="metric-unit">%</span>
+          </div>
+          <div class="metric-value" id="hum-value">—</div>
+          <div class="metric-sub">Dernières 60 minutes</div>
+          <canvas id="hum-chart" class="metric-chart" aria-label="Humidity sparkline"></canvas>
+        </section>
+      </main>
     </div>
   </div>
 
-  <main class="grid">
-    <!-- Score panel: affiche le score de la salle active -->
-    <div id="room-score-panel" class="score-panel" aria-live="polite">
-      <!-- Badge nombre d'occupants -->
-      <div class="occupants-badge" id="occupants-badge" style="display: none;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-          <circle cx="9" cy="7" r="4"></circle>
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-        </svg>
-        <span id="occupants-count">0</span>
-      </div>
+  <nav class="mobile-nav" aria-label="Navigation mobile">
+    <a href="#" onclick="return false;" class="mobile-link active">
+      <img src="/assets/icons/home.png" alt="Dashboard">
+      <span data-i18n="dashboard.title">Dash</span>
+    </a>
+    <a href="digital-twin.html" class="mobile-link">
+      <img src="/assets/icons/digital-twin.png" alt="Digital Twin">
+      <span data-i18n="digitalTwin.title">3D</span>
+    </a>
+    <a href="settings.html" class="mobile-link">
+      <img src="/assets/icons/settings.png" alt="Paramètres">
+      <span data-i18n="settings.title">Paramètres</span>
+    </a>
+  </nav>
 
-      <div class="score-legend">
-        <div class="legend-item">
-          <span class="legend-badge badge-a">A</span>
-          <span class="legend-range">81-100</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-badge badge-b">B</span>
-          <span class="legend-range">61-80</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-badge badge-c">C</span>
-          <span class="legend-range">41-60</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-badge badge-d">D</span>
-          <span class="legend-range">21-40</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-badge badge-e">E</span>
-          <span class="legend-range">0-20</span>
-        </div>
-      </div>
-      <div class="score-center">
-        <div class="score-main-display">
-          <div class="score-value">
-            <span id="room-score-value">—</span><span class="score-max">/100</span>
-          </div>
-          <div class="score-label" data-i18n="dashboard.score.roomLabel">Score actuel</div>
-        </div>
-      </div>
-      <div class="score-right" id="room-score-meta">
-        <div class="score-trend" id="room-score-trend">&nbsp;</div>
-        <div class="score-note" id="room-score-note">—</div>
-      </div>
-      <div class="score-predicted">
-        <div class="predicted-value">
-          <span id="predicted-score-value">—</span><span class="score-max">/100</span>
-        </div>
-        <div class="predicted-label">
-          <span data-i18n="dashboard.score.predicted">Dans 30 min</span>
-          <span id="predicted-score-trend" class="predicted-trend"></span>
-        </div>
-      </div>
+  <!-- Account Modal -->
+  <div id="accountModal" class="account-modal">
+    <div class="account-header">
+      <span data-i18n="account.switch">Changer de compte</span>
+      <span class="close-account" onclick="toggleAccountModal()">&times;</span>
     </div>
+    <ul class="account-list">
+      <li class="account-item active">
+        <img src="/assets/icons/profil.png" class="account-avatar-small">
+        <span data-i18n="account.currentUser">Utilisateur Actuel</span>
+      </li>
+      <li class="account-item">
+        <img src="/assets/icons/profil.png" class="account-avatar-small" style="filter: grayscale(1);">
+        <span data-i18n="account.otherAccount">Autre Compte</span>
+      </li>
+      <li class="account-divider"></li>
+      <li class="account-action" onclick="location.href='settings.html'">
+        <span data-i18n="settings.title">Paramètres</span>
+      </li>
+      <li class="account-action logout">
+        <span data-i18n="account.logout">Déconnexion</span>
+      </li>
+    </ul>
+  </div>
 
-    <div class="chart-box" id="co2-chart"></div>
-    <div class="chart-box" id="pm25-chart"></div>
-    <div class="chart-box" id="comfort-chart"></div>
-    <div class="chart-box" id="tvoc-chart"></div>
-  </main>
-
-  <footer class="nav-bar" style="display: none;">
-    <div class="nav-left">
-      <a href="#" onclick="return false;" class="active-page">
-        <img src="/assets/icons/home.png">
-      </a>
-      <a href="digital-twin.html">
-        <img src="/assets/icons/digital-twin.png">
-      </a>
+  <div id="infoModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <h2 data-i18n="dashboard.aboutTitle">À propos de cette page</h2>
+      <p data-i18n="dashboard.aboutParagraph">Cette interface Dashboard vous permet de visualiser l'évolution des
+        composants principaux de la qualité de l'air en temps réel.</p>
+      <ul>
+        <li data-i18n="dashboard.co2">Évolution du CO₂</li>
+        <li data-i18n="dashboard.pm25">Concentration de PM2.5</li>
+        <li data-i18n="dashboard.comfort">Température & Humidité</li>
+        <li data-i18n="dashboard.tvoc">Concentration de TVOC</li>
+        <li data-i18n="dashboard.scoreFeature">Score IAQ en temps réel</li>
+        <li data-i18n="dashboard.predictionFeature">Prédiction du score dans 30 minutes</li>
+      </ul>
     </div>
+  </div>
 
-    <div class="nav-center">
-      <span class="brand" data-i18n="brand">IAQverse</span>
-    </div>
-
-    <div class="nav-right">
-      <a href="settings.html">
-        <img src="/assets/icons/settings.png">
-      </a>
-    </div>
-  </footer>
-
+  <script src="js/ui-shell.js"></script>
   <script src="js/charts.js"></script>
   <script>
     // Small helper to update the room score panel.

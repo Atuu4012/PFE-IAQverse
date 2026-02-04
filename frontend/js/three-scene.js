@@ -74,6 +74,53 @@ roomLight.position.set(0, 3, 0); // Au plafond, au centre
 roomLight.decay = 2;
 scene.add(roomLight);
 
+// Sphère abstraite "respirante" (placeholder en attendant un GLB)
+const pulseSphereGeometry = new THREE.SphereGeometry(1.2, 64, 64);
+const pulseSphereMaterial = new THREE.MeshStandardMaterial({
+  color: 0x22c55e,
+  emissive: 0x0f3d1f,
+  roughness: 0.3,
+  metalness: 0.1,
+});
+const pulseSphere = new THREE.Mesh(pulseSphereGeometry, pulseSphereMaterial);
+pulseSphere.position.set(0, 1.6, 0);
+scene.add(pulseSphere);
+
+let pulsePhase = 0;
+let pulseSpeed = 0.6; // lent par défaut
+let pulseAmplitude = 0.08;
+
+function setPulseState(level) {
+  if (level === "bad") {
+    pulseSpeed = 1.8;
+    pulseAmplitude = 0.14;
+    pulseSphereMaterial.color.set(0xef4444);
+    pulseSphereMaterial.emissive.set(0x7f1d1d);
+  } else if (level === "ok") {
+    pulseSpeed = 1.0;
+    pulseAmplitude = 0.1;
+    pulseSphereMaterial.color.set(0xf5b700);
+    pulseSphereMaterial.emissive.set(0x7c5c00);
+  } else {
+    pulseSpeed = 0.6;
+    pulseAmplitude = 0.08;
+    pulseSphereMaterial.color.set(0x22c55e);
+    pulseSphereMaterial.emissive.set(0x0f3d1f);
+  }
+}
+
+// Expose une API pour d'autres scripts (IAQ) : window.setPulseState('good'|'ok'|'bad')
+window.setPulseState = setPulseState;
+
+// Mettre à jour la sphère si un score IAQ est diffusé
+document.addEventListener("roomScoreUpdated", (event) => {
+  const score = event?.detail?.score ?? event?.detail?.global_score;
+  if (typeof score !== "number") return;
+  if (score >= 70) setPulseState("good");
+  else if (score >= 40) setPulseState("ok");
+  else setPulseState("bad");
+});
+
 // Ajout de la sphère d'environnement (Skybox 360°)
 const textureLoader = new THREE.TextureLoader();
 let environmentSphere = null;
@@ -2632,6 +2679,9 @@ function animate() {
   preventCameraClipping(); // Empêcher la caméra de traverser les murs en reculant/zoomant
   updateAlertPoints();
   updateParticles();
+  pulsePhase += delta * pulseSpeed;
+  const pulseScale = 1 + Math.sin(pulsePhase) * pulseAmplitude;
+  pulseSphere.scale.set(pulseScale, pulseScale, pulseScale);
   renderer.render(scene, camera);
 }
 

@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IAQverse</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="media.css">
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -36,109 +39,133 @@
         }
     }
     </script>
-</head>
-<body>
-    <header>
-    <nav class="header-nav">
-        <a href="index.html">
-            <img src="/assets/icons/home.png" alt="Home">
-        </a>
-        <a href="#" onclick="return false;" class="active-page">
-            <img src="/assets/icons/digital-twin.png" alt="Digital Twin">
-        </a>
-        <a href="settings.html">
-            <img src="/assets/icons/settings.png" alt="Settings">
-        </a>
-    </nav>
-    <h1 data-i18n="digitalTwin.title">IAQverse</h1>
-    <div class="header-buttons">
-        <button class="theme-toggle-btn" onclick="toggleTheme()">
-        <img src="/assets/icons/theme.png" alt="Thème">
-        </button>
-        <button class="info-btn" onclick="openModal()">
-        <img src="/assets/icons/info.png">
-        </button>
-        <a href="#" onclick="toggleAccountModal(); return false;" class="header-avatar-link">
-            <img id="header-avatar" src="/assets/icons/profil.png" alt="Avatar" class="header-avatar-img">
-        </a>
-    </div>
+    </head>
+<body class="clean-tech">
+    <div class="app-layout">
+        <aside class="app-sidebar">
+            <div class="brand">
+                <img src="/assets/icons/home.png" alt="IAQverse">
+                <span class="brand-name">IAQverse</span>
+            </div>
+            <nav class="side-menu" aria-label="Navigation principale">
+                <a href="index.html" class="side-link">
+                    <img src="/assets/icons/home.png" alt="Dashboard">
+                    <span data-i18n="dashboard.title">Dashboard</span>
+                </a>
+                <a href="#" onclick="return false;" class="side-link active">
+                    <img src="/assets/icons/digital-twin.png" alt="Digital Twin">
+                    <span data-i18n="digitalTwin.title">3D</span>
+                </a>
+                <a href="settings.html" class="side-link">
+                    <img src="/assets/icons/settings.png" alt="Paramètres">
+                    <span data-i18n="settings.title">Paramètres</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Réduire la barre latérale">
+                    <span class="toggle-dot"></span>
+                    <span class="toggle-dot"></span>
+                    <span class="toggle-dot"></span>
+                </button>
+                <button class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Basculer le thème">
+                    <img src="/assets/icons/theme.png" alt="Thème">
+                </button>
+                <a href="#" onclick="toggleAccountModal(); return false;" class="header-avatar-link">
+                    <img id="header-avatar" src="/assets/icons/profil.png" alt="Avatar" class="header-avatar-img">
+                </a>
+            </div>
+        </aside>
 
-    <!-- Account Modal -->
-    <div id="accountModal" class="account-modal">
-        <div class="account-header">
-            <span data-i18n="account.switch">Changer de compte</span>
-            <span class="close-account" onclick="toggleAccountModal()">&times;</span>
-        </div>
-        <ul class="account-list">
-            <li class="account-item active">
-                <img src="/assets/icons/profil.png" class="account-avatar-small">
-                <span data-i18n="account.currentUser">Utilisateur Actuel</span>
-            </li>
-            <li class="account-item">
-                <img src="/assets/icons/profil.png" class="account-avatar-small" style="filter: grayscale(1);">
-                <span data-i18n="account.otherAccount">Autre Compte</span>
-            </li>
-            <li class="account-divider"></li>
-                <li class="account-action" onclick="location.href='settings.html'">
-                <span data-i18n="settings.title">Paramètres</span>
-            </li>
-            <li class="account-action logout">
-                <span data-i18n="account.logout">Déconnexion</span>
-            </li>
-        </ul>
-    </div>
+        <div class="app-main">
+            <header class="app-header">
+                <div class="breadcrumb" aria-label="Fil d'ariane">
+                    <span class="crumb">IAQverse</span>
+                    <span class="crumb-sep">/</span>
+                    <span class="crumb-current" data-i18n="digitalTwin.title">Digital Twin</span>
+                </div>
+                <div class="header-actions">
+                    <span class="status-pill status-online">Système en ligne</span>
+                    <button class="info-btn" onclick="openModal()" aria-label="Infos">
+                        <img src="/assets/icons/info.png" alt="Info">
+                    </button>
+                </div>
+            </header>
 
-    <div id="infoModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeModal()">&times;</span>
-    <h2 data-i18n="digitalTwin.aboutTitle">À propos de cette page</h2>
-    <p data-i18n="digitalTwin.aboutParagraph">Cette interface Digital Twin vous permet de visualiser les alertes de qualité de l'air intérieur en temps réel.</p>
-        <ul>
-            <li data-i18n="digitalTwin.tip.table">Le tableau à gauche montre les actions recommandées.</li>
-            <li data-i18n="digitalTwin.tip.visual">La visualisation indique les zones concernées dans la pièce.</li>
-            <li data-i18n="digitalTwin.tip.details">Les détails au centre expliquent les causes des alertes.</li>
-        </ul>
-    </div>
-    </div>
+            <!-- Account Modal -->
+            <div id="accountModal" class="account-modal">
+                <div class="account-header">
+                    <span data-i18n="account.switch">Changer de compte</span>
+                    <span class="close-account" onclick="toggleAccountModal()">&times;</span>
+                </div>
+                <ul class="account-list">
+                    <li class="account-item active">
+                        <img src="/assets/icons/profil.png" class="account-avatar-small">
+                        <span data-i18n="account.currentUser">Utilisateur Actuel</span>
+                    </li>
+                    <li class="account-item">
+                        <img src="/assets/icons/profil.png" class="account-avatar-small" style="filter: grayscale(1);">
+                        <span data-i18n="account.otherAccount">Autre Compte</span>
+                    </li>
+                    <li class="account-divider"></li>
+                    <li class="account-action" onclick="location.href='settings.html'">
+                        <span data-i18n="settings.title">Paramètres</span>
+                    </li>
+                    <li class="account-action logout">
+                        <span data-i18n="account.logout">Déconnexion</span>
+                    </li>
+                </ul>
+            </div>
 
-    <!-- Modal Légende Actions -->
-    <div id="legendModal" class="modal">
-        <div class="modal-content legend-modal-content">
-            <span class="close" onclick="closeLegendModal()">&times;</span>
-            <h2 data-i18n="digitalTwin.legend.title">Légende des Actions</h2>
-            <div class="legend-list">
-                <div class="legend-row">
-                    <div class="legend-color color-red"></div>
-                    <div class="legend-desc">
-                        <strong data-i18n="digitalTwin.legend.urgent">Urgent</strong>
-                        <p data-i18n="digitalTwin.legend.urgentDesc">Action critique requise immédiatement.</p>
-                    </div>
+            <div id="infoModal" class="modal">
+                <div class="modal-content">
+                    <span class="close" onclick="closeModal()">&times;</span>
+                    <h2 data-i18n="digitalTwin.aboutTitle">À propos de cette page</h2>
+                    <p data-i18n="digitalTwin.aboutParagraph">Cette interface Digital Twin vous permet de visualiser les alertes de qualité de l'air intérieur en temps réel.</p>
+                    <ul>
+                        <li data-i18n="digitalTwin.tip.table">Le tableau à gauche montre les actions recommandées.</li>
+                        <li data-i18n="digitalTwin.tip.visual">La visualisation indique les zones concernées dans la pièce.</li>
+                        <li data-i18n="digitalTwin.tip.details">Les détails au centre expliquent les causes des alertes.</li>
+                    </ul>
                 </div>
-                <div class="legend-row">
-                    <div class="legend-color color-yellow"></div>
-                    <div class="legend-desc">
-                        <strong data-i18n="digitalTwin.legend.warning">Avertissement</strong>
-                        <p data-i18n="digitalTwin.legend.warningDesc">Action recommandée pour éviter une dégradation.</p>
-                    </div>
-                </div>
-                <div class="legend-row">
-                    <div class="legend-color color-gray"></div>
-                    <div class="legend-desc">
-                        <strong data-i18n="digitalTwin.legend.info">Neutre</strong>
-                        <p data-i18n="digitalTwin.legend.infoDesc">Action optionnelle ou données non disponibles.</p>
-                    </div>
-                </div>
-                <div class="legend-row">
-                    <div class="legend-color color-green"></div>
-                    <div class="legend-desc">
-                        <strong data-i18n="digitalTwin.legend.success">Satisfaisant</strong>
-                        <p data-i18n="digitalTwin.legend.successDesc">Aucune action requise, paramètres optimaux.</p>
+            </div>
+
+            <!-- Modal Légende Actions -->
+            <div id="legendModal" class="modal">
+                <div class="modal-content legend-modal-content">
+                    <span class="close" onclick="closeLegendModal()">&times;</span>
+                    <h2 data-i18n="digitalTwin.legend.title">Légende des Actions</h2>
+                    <div class="legend-list">
+                        <div class="legend-row">
+                            <div class="legend-color color-red"></div>
+                            <div class="legend-desc">
+                                <strong data-i18n="digitalTwin.legend.urgent">Urgent</strong>
+                                <p data-i18n="digitalTwin.legend.urgentDesc">Action critique requise immédiatement.</p>
+                            </div>
+                        </div>
+                        <div class="legend-row">
+                            <div class="legend-color color-yellow"></div>
+                            <div class="legend-desc">
+                                <strong data-i18n="digitalTwin.legend.warning">Avertissement</strong>
+                                <p data-i18n="digitalTwin.legend.warningDesc">Action recommandée pour éviter une dégradation.</p>
+                            </div>
+                        </div>
+                        <div class="legend-row">
+                            <div class="legend-color color-gray"></div>
+                            <div class="legend-desc">
+                                <strong data-i18n="digitalTwin.legend.info">Neutre</strong>
+                                <p data-i18n="digitalTwin.legend.infoDesc">Action optionnelle ou données non disponibles.</p>
+                            </div>
+                        </div>
+                        <div class="legend-row">
+                            <div class="legend-color color-green"></div>
+                            <div class="legend-desc">
+                                <strong data-i18n="digitalTwin.legend.success">Satisfaisant</strong>
+                                <p data-i18n="digitalTwin.legend.successDesc">Aucune action requise, paramètres optimaux.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-    </header>
 
     <!-- Panneau Actions Préventives Global -->
     <section class="preventive-panel-global">
@@ -166,9 +193,8 @@
         <div class="room-tabs" id="room-tabs">
             <!-- Les onglets des pièces seront générés dynamiquement ici -->
         </div>
-        <div class="room-visual">
-            <div id="blender-viewer">
-            </div>
+        <div class="room-visual" id="three-canvas-container">
+            <div id="blender-viewer"></div>
             <!-- Loader pour le chargement du modèle -->
             <div id="model-loader" class="model-loader">
                 <div class="spinner"></div>
@@ -298,28 +324,25 @@
         </div>
     </section>
     </main>
-
-    <footer class="nav-bar" style="display: none;">
-    <div class="nav-left">
-        <a href="index.html">
-            <img src="/assets/icons/home.png">
-        </a>
-        <a href="#" onclick="return false;" class="active-page">
-            <img src="/assets/icons/digital-twin.png">
-        </a>
+        </div>
     </div>
 
-    <div class="nav-center">
-    <span class="brand" data-i18n="brand">IAQverse</span>
-    </div>
-
-    <div class="nav-right">
-        <a href="settings.html">
-            <img src="/assets/icons/settings.png">
+    <nav class="mobile-nav" aria-label="Navigation mobile">
+        <a href="index.html" class="mobile-link">
+            <img src="/assets/icons/home.png" alt="Dashboard">
+            <span data-i18n="dashboard.title">Dash</span>
         </a>
-    </div>
-    </footer>
+        <a href="#" onclick="return false;" class="mobile-link active">
+            <img src="/assets/icons/digital-twin.png" alt="Digital Twin">
+            <span data-i18n="digitalTwin.title">3D</span>
+        </a>
+        <a href="settings.html" class="mobile-link">
+            <img src="/assets/icons/settings.png" alt="Paramètres">
+            <span data-i18n="settings.title">Paramètres</span>
+        </a>
+    </nav>
 
+    <script src="js/ui-shell.js"></script>
     <script type="module" src="js/three-scene.js"></script>
     <script>
         document.getElementById('fullscreen-btn')?.addEventListener('click', async () => {

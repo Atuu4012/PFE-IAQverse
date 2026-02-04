@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IAQverse</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="media.css" />
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -26,34 +29,56 @@
     <script src="js/tutorial-settings.js"></script>
   </head>
 
-  <body>
-    <header>
-      <nav class="header-nav">
-        <a href="index.html">
-          <img src="/assets/icons/home.png" alt="Home" />
-        </a>
-        <a href="digital-twin.html">
-          <img src="/assets/icons/digital-twin.png" alt="Digital Twin" />
-        </a>
-        <a href="#" onclick="return false;" class="active-page">
-          <img src="/assets/icons/settings.png" alt="Settings" />
-        </a>
-      </nav>
-      <h1 data-i18n="settings.title">Paramètres</h1>
-      <div class="header-buttons">
-        <button
-          class="theme-toggle-btn"
-          onclick="toggleTheme()"
-        >
-          <img src="/assets/icons/theme.png" alt="Thème" />
-        </button>
-        <button class="info-btn" onclick="openModal()">
-          <img src="/assets/icons/info.png" />
-        </button>
-        <a href="#" onclick="toggleAccountModal(); return false;" class="header-avatar-link">
-          <img id="header-avatar" src="/assets/icons/profil.png" alt="Avatar" class="header-avatar-img">
-        </a>
-      </div>
+  <body class="clean-tech">
+    <div class="app-layout">
+      <aside class="app-sidebar">
+        <div class="brand">
+          <img src="/assets/icons/home.png" alt="IAQverse" />
+          <span class="brand-name">IAQverse</span>
+        </div>
+        <nav class="side-menu" aria-label="Navigation principale">
+          <a href="index.html" class="side-link">
+            <img src="/assets/icons/home.png" alt="Dashboard" />
+            <span data-i18n="dashboard.title">Dashboard</span>
+          </a>
+          <a href="digital-twin.html" class="side-link">
+            <img src="/assets/icons/digital-twin.png" alt="Digital Twin" />
+            <span data-i18n="digitalTwin.title">3D</span>
+          </a>
+          <a href="#" onclick="return false;" class="side-link active">
+            <img src="/assets/icons/settings.png" alt="Settings" />
+            <span data-i18n="settings.title">Paramètres</span>
+          </a>
+        </nav>
+        <div class="sidebar-footer">
+          <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Réduire la barre latérale">
+            <span class="toggle-dot"></span>
+            <span class="toggle-dot"></span>
+            <span class="toggle-dot"></span>
+          </button>
+          <button class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Basculer le thème">
+            <img src="/assets/icons/theme.png" alt="Thème" />
+          </button>
+          <a href="#" onclick="toggleAccountModal(); return false;" class="header-avatar-link">
+            <img id="header-avatar" src="/assets/icons/profil.png" alt="Avatar" class="header-avatar-img" />
+          </a>
+        </div>
+      </aside>
+
+      <div class="app-main">
+        <header class="app-header">
+          <div class="breadcrumb" aria-label="Fil d'ariane">
+            <span class="crumb">IAQverse</span>
+            <span class="crumb-sep">/</span>
+            <span class="crumb-current" data-i18n="settings.title">Paramètres</span>
+          </div>
+          <div class="header-actions">
+            <span class="status-pill status-online">Système en ligne</span>
+            <button class="info-btn" onclick="openModal()" aria-label="Infos">
+              <img src="/assets/icons/info.png" alt="Info" />
+            </button>
+          </div>
+        </header>
 
       <!-- Account Modal -->
       <div id="accountModal" class="account-modal">
@@ -671,5 +696,24 @@
 
     <!-- Système de notification -->
     <div id="notification" class="notification"></div>
+      </div>
+    </div>
+
+    <nav class="mobile-nav" aria-label="Navigation mobile">
+      <a href="index.html" class="mobile-link">
+        <img src="/assets/icons/home.png" alt="Dashboard" />
+        <span data-i18n="dashboard.title">Dash</span>
+      </a>
+      <a href="digital-twin.html" class="mobile-link">
+        <img src="/assets/icons/digital-twin.png" alt="Digital Twin" />
+        <span data-i18n="digitalTwin.title">3D</span>
+      </a>
+      <a href="#" onclick="return false;" class="mobile-link active">
+        <img src="/assets/icons/settings.png" alt="Paramètres" />
+        <span data-i18n="settings.title">Paramètres</span>
+      </a>
+    </nav>
+
+    <script src="js/ui-shell.js"></script>
   </body>
 </html>

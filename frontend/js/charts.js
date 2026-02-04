@@ -1,3 +1,4 @@
+if (false) {
 // Génère les bandes de seuil avec une palette plus visible (info=vert, warning=orange, danger=rouge)
 // thresholds: { info, warning, danger, max }
 function getThresholdShapes(type, thresholds) {
@@ -1568,3 +1569,364 @@ if (typeof window !== "undefined") {
     document.addEventListener("roomChanged", () => fetchPredictedScore());
   }
 }
+}
+
+// ==========================================
+// Nouvelle implémentation Chart.js (Clean Tech)
+// ==========================================
+(() => {
+  const API_URL_DATA =
+    window.API_ENDPOINTS && window.API_ENDPOINTS.measurements
+      ? window.API_ENDPOINTS.measurements
+      : "/api/iaq/data";
+
+  const chartRefs = {};
+  const MAX_POINTS = 60;
+
+  const ids = {
+    hero: "hero-chart",
+    co2: "co2-chart",
+    pm25: "pm25-chart",
+    temp: "temp-chart",
+    hum: "hum-chart",
+  };
+
+  const valueEls = {
+    co2: "co2-value",
+    pm25: "pm25-value",
+    temp: "temp-value",
+    hum: "hum-value",
+  };
+
+  const trendLabels = {
+    up: "Tendance à la hausse",
+    down: "Tendance à la baisse",
+    flat: "Stable",
+  };
+
+  function formatNumber(value, digits = 0) {
+    if (typeof value !== "number" || Number.isNaN(value)) return "—";
+    return value.toFixed(digits);
+  }
+
+  function toLabels(data) {
+    return data.map((d) => {
+      const date = d.timestamp ? new Date(d.timestamp) : new Date();
+      return date.toLocaleTimeString("fr-FR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    });
+  }
+
+  function lockCanvasSize(canvas, heightPx) {
+    if (!canvas) return;
+    const parentWidth = canvas.parentElement?.clientWidth;
+    canvas.style.width = "100%";
+    canvas.style.height = `${heightPx}px`;
+    canvas.style.maxHeight = `${heightPx}px`;
+    canvas.style.display = "block";
+    canvas.height = heightPx;
+    if (parentWidth) {
+      canvas.width = parentWidth;
+    }
+  }
+
+  function createSparkline(ctx, color) {
+    return new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: "",
+            data: [],
+            borderColor: color,
+            backgroundColor: "rgba(0,0,0,0)",
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.4,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false },
+        },
+        scales: {
+          x: { display: false },
+          y: { display: false },
+        },
+      },
+    });
+  }
+
+  function createHeroChart(ctx) {
+    return new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: "Score IAQ",
+            data: [],
+            borderColor: "#1f7aec",
+            backgroundColor: "rgba(31,122,236,0.12)",
+            fill: true,
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.35,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { maxTicksLimit: 6 },
+          },
+          y: {
+            grid: { color: "rgba(148,163,184,0.2)" },
+            suggestedMin: 0,
+            suggestedMax: 100,
+          },
+        },
+      },
+    });
+  }
+
+  function initCharts() {
+    if (!window.Chart) return;
+
+    const heroCtx = document.getElementById(ids.hero);
+    if (heroCtx) {
+      const heroHeight = heroCtx.parentElement?.clientHeight || 200;
+      lockCanvasSize(heroCtx, heroHeight);
+      chartRefs.hero = createHeroChart(heroCtx);
+    }
+
+    const co2Ctx = document.getElementById(ids.co2);
+    const pm25Ctx = document.getElementById(ids.pm25);
+    const tempCtx = document.getElementById(ids.temp);
+    const humCtx = document.getElementById(ids.hum);
+
+    if (co2Ctx) {
+      lockCanvasSize(co2Ctx, 80);
+      chartRefs.co2 = createSparkline(co2Ctx, "#1f7aec");
+    }
+    if (pm25Ctx) {
+      lockCanvasSize(pm25Ctx, 80);
+      chartRefs.pm25 = createSparkline(pm25Ctx, "#f5b700");
+    }
+    if (tempCtx) {
+      lockCanvasSize(tempCtx, 80);
+      chartRefs.temp = createSparkline(tempCtx, "#f97316");
+    }
+    if (humCtx) {
+      lockCanvasSize(humCtx, 80);
+      chartRefs.hum = createSparkline(humCtx, "#22c55e");
+    }
+  }
+
+  function updateSpark(chartKey, labels, values) {
+    const chart = chartRefs[chartKey];
+    if (!chart) return;
+    chart.data.labels = labels.slice(-MAX_POINTS);
+    chart.data.datasets[0].data = values.slice(-MAX_POINTS);
+    chart.update("none");
+  }
+
+  function updateHero(labels, values) {
+    if (!chartRefs.hero) return;
+    chartRefs.hero.data.labels = labels.slice(-MAX_POINTS);
+    chartRefs.hero.data.datasets[0].data = values.slice(-MAX_POINTS);
+    chartRefs.hero.update("none");
+  }
+
+  function updateMetricValue(key, value, digits = 0) {
+    const el = document.getElementById(valueEls[key]);
+    if (el) el.textContent = formatNumber(value, digits);
+  }
+
+  function getTrend(values) {
+    if (!Array.isArray(values)) return "flat";
+    const numeric = values.filter((v) => typeof v === "number");
+    if (numeric.length < 3) return "flat";
+    const last = numeric[numeric.length - 1];
+    const prev = numeric[numeric.length - 3];
+    if (last > prev) return "up";
+    if (last < prev) return "down";
+    return "flat";
+  }
+
+  function applyScore(score) {
+    if (typeof window.setRoomScore === "function") {
+      const trendLabel =
+        score >= 81
+          ? "A"
+          : score >= 61
+          ? "B"
+          : score >= 41
+          ? "C"
+          : score >= 21
+          ? "D"
+          : "E";
+      const trend = score >= 61 ? "good" : score >= 41 ? "ok" : "bad";
+      window.setRoomScore(score, { trend, trendLabel, note: "" });
+    }
+  }
+
+  async function getPredictedScore(enseigne, salle) {
+    try {
+      const url = `/api/predict/score?enseigne=${encodeURIComponent(
+        enseigne
+      )}&salle=${encodeURIComponent(salle)}`;
+      const headers = { "ngrok-skip-browser-warning": "true" };
+      if (typeof getAuthToken === "function") {
+        const token = await getAuthToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+      }
+      const response = await fetch(url, { headers });
+      if (!response.ok) return null;
+      const data = await response.json();
+      if (data.error || data.predicted_score === null) return null;
+      return data;
+    } catch (error) {
+      console.error("Error fetching predicted score:", error);
+      return null;
+    }
+  }
+
+  async function updatePredictedScore() {
+    const enseigne = window.currentEnseigne || "";
+    const salle = window.currentSalle || "";
+    const predicted = await getPredictedScore(enseigne, salle);
+    const predictedEl = document.getElementById("predicted-score-value");
+    const predictedTrend = document.getElementById("predicted-score-trend");
+
+    if (!predictedEl || !predictedTrend) return;
+
+    if (!predicted || typeof predicted.predicted_score !== "number") {
+      predictedEl.textContent = "—";
+      predictedTrend.textContent = "";
+      return;
+    }
+
+    predictedEl.textContent = Math.round(predicted.predicted_score);
+    predictedTrend.textContent = predicted.trend
+      ? predicted.trend
+      : "Tendance estimée";
+  }
+
+  async function fetchAndUpdate() {
+    try {
+      const params = new URLSearchParams({
+        enseigne: window.currentEnseigne || "",
+        salle: window.currentSalle || "",
+        hours: "1",
+      });
+      const url = `${API_URL_DATA}?${params.toString()}`;
+      const headers = { "ngrok-skip-browser-warning": "true" };
+      if (typeof getAuthToken === "function") {
+        const token = await getAuthToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+      }
+      const response = await fetch(url, { headers });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      if (!Array.isArray(data) || data.length === 0) return;
+
+      data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      const labels = toLabels(data);
+
+      const co2Values = data.map((d) => (typeof d.co2 === "number" ? d.co2 : null));
+      const pm25Values = data.map((d) => (typeof d.pm25 === "number" ? d.pm25 : null));
+      const tempValues = data.map((d) => (typeof d.temperature === "number" ? d.temperature : null));
+      const humValues = data.map((d) => (typeof d.humidity === "number" ? d.humidity : null));
+      const scoreValues = data.map((d) => (typeof d.global_score === "number" ? d.global_score : null));
+
+      updateSpark("co2", labels, co2Values);
+      updateSpark("pm25", labels, pm25Values);
+      updateSpark("temp", labels, tempValues);
+      updateSpark("hum", labels, humValues);
+
+      updateHero(labels, scoreValues.length ? scoreValues : co2Values);
+
+      const lastNonNull = (arr) => {
+        for (let i = arr.length - 1; i >= 0; i -= 1) {
+          if (typeof arr[i] === "number") return arr[i];
+        }
+        return null;
+      };
+
+      updateMetricValue("co2", lastNonNull(co2Values));
+      updateMetricValue("pm25", lastNonNull(pm25Values));
+      updateMetricValue("temp", lastNonNull(tempValues), 1);
+      updateMetricValue("hum", lastNonNull(humValues));
+
+      const lastScore = lastNonNull(scoreValues);
+      if (typeof lastScore === "number") {
+        applyScore(lastScore);
+        if (!Array.isArray(window.scoreHistory)) {
+          window.scoreHistory = [];
+        }
+        window.scoreHistory.push(lastScore);
+        if (window.scoreHistory.length > MAX_POINTS) {
+          window.scoreHistory = window.scoreHistory.slice(-MAX_POINTS);
+        }
+      }
+
+      const trendKey = getTrend(scoreValues);
+      const predictedTrend = document.getElementById("predicted-score-trend");
+      if (predictedTrend) predictedTrend.textContent = trendLabels[trendKey];
+
+      updatePredictedScore();
+    } catch (err) {
+      console.error("Erreur fetch IAQ:", err);
+    }
+  }
+
+  function resetCharts() {
+    Object.values(chartRefs).forEach((chart) => {
+      chart.data.labels = [];
+      chart.data.datasets.forEach((dataset) => (dataset.data = []));
+      chart.update("none");
+    });
+  }
+
+  function setup() {
+    initCharts();
+    if (window.wsManager && typeof window.wsManager.connect === "function") {
+      window.wsManager.connect();
+    }
+    fetchAndUpdate();
+    setInterval(fetchAndUpdate, 15000);
+    setInterval(updatePredictedScore, 30000);
+  }
+
+  window.addEventListener("resize", () => {
+    lockCanvasSize(document.getElementById(ids.hero), document.getElementById(ids.hero)?.parentElement?.clientHeight || 200);
+    lockCanvasSize(document.getElementById(ids.co2), 80);
+    lockCanvasSize(document.getElementById(ids.pm25), 80);
+    lockCanvasSize(document.getElementById(ids.temp), 80);
+    lockCanvasSize(document.getElementById(ids.hum), 80);
+    Object.values(chartRefs).forEach((chart) => chart.resize());
+  });
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setup);
+  } else {
+    setup();
+  }
+
+  window.fetchAndUpdate = fetchAndUpdate;
+  window.resetCharts = resetCharts;
+})();

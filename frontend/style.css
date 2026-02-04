@@ -4177,30 +4177,92 @@ select.form-control {
 }
 
 /* Prev Button */
-.driver-popover-prev-btn {
-  background-color: transparent !important;
-  color: var(--text-secondary) !important;
+/* Driver.js Customization - Full Theme Integration */
+.driver-popover {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
   border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border-radius: 12px !important;
+  padding: 20px !important;
+  max-width: 400px !important;
+  z-index: 100000 !important; /* Force on top of everything including fixed header */
+}
+
+.driver-popover-title {
+  color: var(--text-primary) !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  margin-bottom: 10px !important;
+  line-height: normal !important;
+}
+
+.driver-popover-description {
+  color: var(--text-secondary) !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  margin-bottom: 20px !important;
+  font-weight: normal !important;
+}
+
+.driver-popover-description p {
+    margin-bottom: 8px;
+}
+
+.driver-popover-footer {
+    margin-top: 15px !important;
+}
+
+/* Navigation Buttons */
+.driver-popover-prev-btn {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  font-weight: 600 !important;
+  padding: 8px 16px !important;
+  border-radius: 6px !important;
+  text-shadow: none !important;
 }
 
 .driver-popover-prev-btn:hover {
-  background-color: var(--bg-tertiary) !important;
+  background-color: var(--border-color) !important;
   color: var(--text-primary) !important;
 }
 
-/* Progress Text */
-.driver-popover-progress-text {
-  color: var(--text-secondary) !important;
-  font-size: 12px !important;
+.driver-popover-next-btn {
+  background-color: var(--accent-color) !important; /* Blue */
+  color: #ffffff !important;
+  border: 1px solid var(--accent-color) !important;
+  font-weight: 600 !important;
+  padding: 8px 16px !important;
+  border-radius: 6px !important;
+  text-shadow: none !important;
 }
 
-/* Close Button */
+.driver-popover-next-btn:hover {
+  background-color: var(--accent-hover) !important;
+}
+
 .driver-popover-close-btn {
-  color: var(--text-secondary) !important;
+    top: 15px !important;
+    right: 15px !important;
+    color: var(--text-muted) !important;
 }
 
 .driver-popover-close-btn:hover {
-  color: var(--error-color) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Arrows - Theme Aware */
+.driver-popover-arrow-side-left.driver-popover-arrow { border-left-color: var(--bg-secondary) !important; }
+.driver-popover-arrow-side-right.driver-popover-arrow { border-right-color: var(--bg-secondary) !important; }
+.driver-popover-arrow-side-top.driver-popover-arrow { border-top-color: var(--bg-secondary) !important; }
+.driver-popover-arrow-side-bottom.driver-popover-arrow { border-bottom-color: var(--bg-secondary) !important; }
+
+/* Progress Text */
+.driver-popover-progress-text {
+  color: var(--text-muted) !important;
+  font-size: 13px !important;
 }
 
 /* Skip Button (Custom) */

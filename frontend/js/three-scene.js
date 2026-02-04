@@ -157,6 +157,20 @@ const updateEnvironment = async (configOverride = null) => {
     if (path === currentEnvironmentPath && environmentSphere) return;
     currentEnvironmentPath = path;
 
+    // OPTIMISATION MOBILE : Pas de texture 360° (OOM Saver)
+    if (isMobile) {
+        if (environmentSphere) {
+            scene.remove(environmentSphere);
+            disposeObject(environmentSphere);
+            environmentSphere = null;
+        }
+        // Fond uni simple pour remplacer la skybox
+        scene.background = new THREE.Color(isNightMode ? 0x050510 : 0x87CEEB);
+        scene.environment = null; // Pas de reflets complexes
+        console.log('[Mobile] Skybox disabled for performance');
+        return;
+    }
+
     textureLoader.load(
       path, 
       (texture) => {
@@ -1158,10 +1172,23 @@ window.addEventListener('keyup', (e) => {
 function disposeObject(root) {
   if (!root) return;
   root.traverse(obj => {
+    // 1. Dispose Geometry
     if (obj.geometry) obj.geometry.dispose();
+    
+    // 2. Dispose Material & Textures
     if (obj.material) {
-      if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
-      else obj.material.dispose();
+      const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+      
+      materials.forEach(mat => {
+        // Dispose all textures located in material properties
+        for (const key in mat) {
+          if (mat[key] && mat[key].isTexture) {
+            mat[key].dispose();
+          }
+        }
+        // Dispose the material itself
+        mat.dispose();
+      });
     }
   });
 }
@@ -2614,23 +2641,32 @@ let modelLoadTime = 0;
 
 // Resize
 window.addEventListener('resize', () => {
-  const w = (container && container.clientWidth) || 800;
-  const h = (container && container.clientHeight) || 600;
+  // Use container dimensions, but fallback to reasonable defaults if 0
+  const w = (container && container.clientWidth) || 100;
+  const h = (container && container.clientHeight) || 100;
+  
+  // Don't update if size is zero (hidden/minimized)
+  if (w === 0 || h === 0) return;
+
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
 });
 
-// Observer pour détecter les changements de taille du conteneur
+// Observer pour détecter les changements de taille du conteneur (plus fiable pour les layout flex)
 if (container) {
   const resizeObserver = new ResizeObserver(entries => {
     for (let entry of entries) {
+      if (!entry.contentRect) continue;
       const w = entry.contentRect.width;
       const h = entry.contentRect.height;
       if (w > 0 && h > 0) {
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-        renderer.setSize(w, h);
+        // Debounce small changes if needed, but direct update is usually fine
+        requestAnimationFrame(() => {
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        });
       }
     }
   });

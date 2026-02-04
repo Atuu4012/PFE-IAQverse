@@ -4,12 +4,32 @@
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="js/auth.js"></script>
   <script src="js/config-loader.js"></script>
+  <style id="auth-guard">body { display: none !important; }</style>
   <script>
-    // Redirection immédiate si pas connecté
-    document.addEventListener('DOMContentLoaded', async () => {
-      const token = await getAuthToken();
-      if (!token) window.location.href = 'login.html';
-    });
+    // Redirection immédiate si pas connecté - Auth Guard
+    (async function() {
+      try {
+        const token = await getAuthToken(); // Defined in auth.js
+        if (!token) {
+           // Si pas de token, on redirige vers le login (qui est maintenant l'index)
+           // On utilise replace pour ne pas pouvoir revenir en arrière
+           window.location.replace('login.html');
+        } else {
+           // Si connecté, on affiche le body
+           document.addEventListener('DOMContentLoaded', () => {
+             const guard = document.getElementById('auth-guard');
+             if (guard) guard.remove();
+           });
+           // Cas où DOMContentLoaded a déjà fire
+           if (document.readyState === 'interactive' || document.readyState === 'complete') {
+             const guard = document.getElementById('auth-guard');
+             if (guard) guard.remove();
+           }
+        }
+      } catch (e) {
+        window.location.replace('login.html');
+      }
+    })();
   </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">

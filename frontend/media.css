@@ -161,6 +161,22 @@
     transform: scale(1.1);
   }
 
+  /* Fix for invisible active icons on mobile light mode (White icon on White bg) */
+  /* We force them to be blue (accent color) since the background is transparent on mobile */
+  [data-theme="clair"] .header-nav a.active-page img {
+    filter: brightness(0) saturate(100%) invert(31%) sepia(9%) saturate(1234%) hue-rotate(188deg) brightness(91%) contrast(88%);
+  }
+  
+  /* Also ensure inactive icons are visible blueish */
+  [data-theme="clair"] .header-nav a:not(.active-page) img {
+     filter: brightness(0) saturate(100%) invert(31%) sepia(9%) saturate(1234%) hue-rotate(188deg) brightness(91%) contrast(88%);
+  }
+
+  /* Fix for dark mode icons on mobile */
+  [data-theme="sombre"] .header-nav img {
+      filter: brightness(0) invert(1); /* Always white in dark mode */
+  }
+
   /* Fixer le modal de compte en haut */
   .account-modal {
     position: fixed;

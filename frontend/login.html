@@ -48,6 +48,12 @@
         }
 
         .login-card {
+            /* Force Light Mode colors inside the card because background is white */
+            --text-primary: #2c3e50;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --bg-primary: #ffffff;
+            
             background: rgba(255, 255, 255, 0.95);
             padding: 40px;
             border-radius: 16px;
@@ -58,6 +64,7 @@
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.5);
             animation: fadeIn 0.8s ease-out;
+            color: var(--text-primary); /* Ensure inheritance */
         }
         
         @keyframes fadeIn {

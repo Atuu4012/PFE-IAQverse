@@ -1,4 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialisation globale des tutoriels lors de la première visite
+    if (!localStorage.getItem('tutorials_initialized')) {
+        localStorage.setItem('show_tutorial', 'true');
+        localStorage.setItem('show_settings_tutorial', 'true');
+        localStorage.setItem('show_digital_twin_tutorial', 'true');
+        localStorage.setItem('tutorials_initialized', 'v1');
+    }
+
     // Vérifier si le tutoriel doit être affiché (via localStorage ou paramètre URL pour test)
     const urlParams = new URLSearchParams(window.location.search);
     const showTutorial = localStorage.getItem('show_tutorial') === 'true' || urlParams.get('tutorial') === 'true';
@@ -12,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
             driverObj.destroy();
             localStorage.removeItem('show_tutorial');
             localStorage.removeItem('show_settings_tutorial');
+            localStorage.removeItem('show_digital_twin_tutorial');
         };
 
         const driverObj = driver({
@@ -40,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     element: '.header-nav a[href="settings.html"]',
                     popover: {
                         title: 'Configuration (Important)',
-                        description: 'Commencez ici ! Dans les Paramètres, vous pourrez configurer vos bâtiments, salles, seuils d\'alerte et notifications.',
+                        description: 'Commencez ici ! Nous avons prévu un tutoriel dédié dans cet onglet pour vous aider à configurer vos bâtiments.',
                         side: "bottom"
                     }
                 },

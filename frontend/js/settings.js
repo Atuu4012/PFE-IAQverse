@@ -1423,3 +1423,91 @@ document.addEventListener('DOMContentLoaded', () => {
 window.openPasswordModal = openPasswordModal;
 window.closePasswordModal = closePasswordModal;
 
+// Gestion de la Suppression de Compte
+function openDeleteAccountModal() {
+    ModalManager.open('deleteAccountModal');
+    // Clear previous errors/inputs
+    const err = document.getElementById('delete-error-msg');
+    if (err) err.style.display = 'none';
+    const pwd = document.getElementById('delete-password-input');
+    if (pwd) pwd.value = '';
+}
+
+function closeDeleteAccountModal() {
+    ModalManager.close('deleteAccountModal');
+}
+
+async function confirmDeleteAccount() {
+    const pwdInput = document.getElementById('delete-password-input');
+    const errMsg = document.getElementById('delete-error-msg');
+    const pwd = pwdInput ? pwdInput.value : '';
+
+    if (!pwd) {
+        if (errMsg) {
+            errMsg.textContent = (window.i18n && window.i18n.t) ? window.i18n.t('settings.delete_modal.error_empty') || "Mot de passe requis" : "Mot de passe requis";
+            errMsg.style.display = 'block';
+        }
+        return;
+    }
+
+    if (errMsg) {
+        errMsg.style.display = 'none';
+    }
+
+    // 1. Verify Password via Auth (from js/auth.js)
+    if (typeof window.verifyPassword === 'function') {
+        const verification = await window.verifyPassword(pwd);
+        if (!verification.success) {
+            if (errMsg) {
+                errMsg.textContent = verification.error || "Mot de passe incorrect";
+                errMsg.style.display = 'block';
+            }
+            return;
+        }
+    } else {
+        console.error("verifyPassword function missing");
+        if (errMsg) {
+            errMsg.textContent = "Erreur technique: Script auth manquant";
+            errMsg.style.display = 'block';
+        }
+        return;
+    }
+
+    // 2. Call Delete API
+    try {
+        const token = await getAuthToken();
+        const response = await fetch('/api/auth/account', {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            // 3. Logout & Redirect
+            alert("Votre compte a été supprimé définitivement.");
+            if (typeof logout === 'function') {
+                logout();
+            } else {
+                window.location.href = 'login.html';
+            }
+        } else {
+            const errData = await response.json();
+             if (errMsg) {
+                errMsg.textContent = errData.detail || "Erreur lors de la suppression du compte.";
+                errMsg.style.display = 'block';
+            }
+        }
+    } catch (e) {
+        console.error("Delete account error:", e);
+         if (errMsg) {
+            errMsg.textContent = "Erreur de connexion au serveur.";
+            errMsg.style.display = 'block';
+        }
+    }
+}
+window.openDeleteAccountModal = openDeleteAccountModal;
+window.closeDeleteAccountModal = closeDeleteAccountModal;
+window.confirmDeleteAccount = confirmDeleteAccount;
+

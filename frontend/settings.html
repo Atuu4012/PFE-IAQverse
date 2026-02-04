@@ -108,6 +108,35 @@
           </ul>
         </div>
       </div>
+
+      <!-- Modal de Suppression de Compte -->
+      <div id="deleteAccountModal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+          <span class="close" onclick="closeDeleteAccountModal()">&times;</span>
+          <h2 style="color: var(--error-color);" data-i18n="settings.delete_modal.title">Supprimer le compte</h2>
+          
+          <div style="text-align: center; margin: 20px 0;">
+            <p style="font-size: 16px; margin-bottom: 15px;" data-i18n="settings.delete_modal.confirmation">
+              Êtes-vous sûr de vouloir supprimer définitivement votre compte et toutes ses données ?
+            </p>
+            <p style="font-weight: bold; color: var(--error-color); margin-bottom: 25px;" data-i18n="settings.delete_modal.warning">
+              Cette action est irréversible.
+            </p>
+
+            <div class="modal-input-group">
+                <label for="delete-password-input" data-i18n="settings.delete_modal.password_label">Confirmez votre mot de passe :</label>
+                <input type="password" id="delete-password-input" placeholder="Votre mot de passe actuel">
+            </div>
+            
+            <div id="delete-error-msg" style="color: var(--error-color); display: none; margin-bottom: 15px; font-size: 14px;"></div>
+
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button class="btn-secondary" onclick="closeDeleteAccountModal()" data-i18n="actions.cancel">Annuler</button>
+                <button class="btn-danger" onclick="confirmDeleteAccount()" data-i18n="actions.confirm_delete">Confirmer la suppression</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </header>
     <div class="settings-layout">
       <!-- Barre latérale -->
@@ -276,6 +305,13 @@
                 <button class="btn-primary" onclick="saveCard('syndicat')" data-i18n="actions.save">Save changes</button>
               </div>
             </div>
+          </div>
+
+          <!-- Zone Danger: Suppression du compte -->
+          <div class="danger-zone">
+            <h4><span data-i18n="settings.danger_zone.title">Zone de Danger</span></h4>
+            <p data-i18n="settings.danger_zone.description">La suppression de votre compte est irréversible. Toutes vos données seront effacées.</p>
+            <button class="btn-danger" onclick="openDeleteAccountModal()" data-i18n="settings.danger_zone.button">Supprimer mon compte</button>
           </div>
         </div>
 

@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 {
                     popover: {
                         title: 'Prêt à configurer ?',
-                        description: 'Commencez par vérifier vos lieux dans l\'onglet "Lieux".',
+                        description: 'Une fois vos lieux configurés, rendez-vous dans l\'onglet "Jumeau Numérique" (au centre) pour voir le résultat en 3D !',
                         side: "center"
                     }
                 }
@@ -77,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.cancelSettingsTutorial = function() {
             driverObj.destroy();
             localStorage.removeItem('show_settings_tutorial');
+            localStorage.removeItem('show_digital_twin_tutorial');
         };
 
         // Petit délai pour laisser le temps à l'interface de se charger complètement

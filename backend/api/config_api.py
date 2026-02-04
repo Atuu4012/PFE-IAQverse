@@ -20,13 +20,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["config"])
 security = HTTPBearer(auto_error=False) # Permet de ne pas crasher si pas de header, on gère manuellement
 
-async def get_current_user_id(
+async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     authorization: Optional[str] = Header(None)
-) -> str:
-    """ Extrait l'ID utilisateur du token JWT Supabase """
+) -> dict:
+    """ Extrait l'objet utilisateur (avec ID et email) du token JWT Supabase """
     if not supabase:
-        return "local_user" # Mode dégradé si Supabase non configuré
+        # En mode local/fallback, on renvoie une structure compatible
+        return {"id": "local_user", "email": "local@iaqverse.com"}
 
     token = None
     if credentials:
@@ -38,11 +39,6 @@ async def get_current_user_id(
         raise HTTPException(status_code=401, detail="Authentication token required")
 
     try:
-        # IMPORTANT: Ne pas utiliser le client global `supabase.auth.get_user(token)` 
-        # car cela change l'état du client (headers Authorization) et écrase le Service Role admin.
-        # Cela cause des erreurs RLS (42501) sur les écritures suivantes car elles se font en tant qu'utilisateur.
-        # On utilise une requête HTTP brute et isolée pour valider le token.
-        
         sb_url = os.getenv("SUPABASE_URL")
         sb_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
         
@@ -59,9 +55,7 @@ async def get_current_user_id(
 
                 if response.status_code == 200:
                     user_data = response.json()
-                    # Le format retourné peut être directement l'objet user ou { "id": ... }
-                    # L'endpoint /user retourne l'objet User directly
-                    return user_data.get("id")
+                    return user_data
                 else:
                     logger.warning(f"Validation token échouée via API: {response.status_code} {response.text}")
         
@@ -166,26 +160,78 @@ async def upload_avatar(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Erreur upload avatar: {str(e)}")
 
 
+@router.delete("/api/auth/account")
+async def delete_account(user: dict = Depends(get_current_user)):
+    """
+    Supprime le compte de l'utilisateur courant.
+    Nécessite que le backend soit configuré avec la clé SERVICE_ROLE pour avoir les droits admin.
+    """
+    user_id = user["id"]
+    if not supabase:
+         raise HTTPException(status_code=503, detail="Supabase client not initialized")
+
+    try:
+        # Utilisation de l'API admin pour supprimer l'utilisateur
+        # Note: supabase.auth.admin est disponible si la clé est un service_role
+        logger.warning(f"Request to delete account for user {user_id}")
+        
+        # Admin delete
+        response = supabase.auth.admin.delete_user(user_id)
+        
+        # On pourrait aussi nettoyer la config utilisateur ici
+        # delete_user_config(user_id)
+        
+        logger.info(f"Account deleted successfully: {user_id}")
+        return {"message": "Compte supprimé avec succès"}
+        
+    except Exception as e:
+        logger.error(f"Error deleting account {user_id}: {e}")
+        # Si la méthode admin n'est pas dispo (clé anon), on ne peut pas supprimer
+        raise HTTPException(
+            status_code=500, 
+            detail="Impossible de supprimer le compte. Vérifiez la configuration serveur (Service Role requis) ou contactez le support."
+        )
+
 @router.get("/api/config")
-async def get_config(user_id: str = Depends(get_current_user_id)):
+async def get_config(user: dict = Depends(get_current_user)):
     """Retourne la configuration spécifique à l'utilisateur"""
+    user_id = user["id"]
     cfg = load_user_config(user_id)
+    
+    # Auto-injection de l'email si manquant
+    user_email = user.get("email")
+    needs_save = False
+
     if cfg is None:
         # Retourner une config vierge par défaut au lieu de config.json
         cfg = {
-            "vous": {},
+            "vous": {"email": user_email} if user_email else {},
             "lieux": {"enseignes": []},
             "assurance": {},
             "syndicat": {},
             "notifications": {},
             "affichage": {"mode": "auto"}
         }
+        needs_save = True
+    else:
+        # Si la config existe mais n'a pas l'email (ou s'il a changé?)
+        vous = cfg.get("vous", {})
+        if user_email and vous.get("email") != user_email:
+            if "vous" not in cfg:
+                cfg["vous"] = {}
+            cfg["vous"]["email"] = user_email
+            needs_save = True
+            
+    if needs_save:
+        save_user_config(user_id, cfg)
+        
     return cfg
 
 
 @router.put("/api/config")
-async def update_config(updates: dict = Body(...), user_id: str = Depends(get_current_user_id)):
+async def update_config(updates: dict = Body(...), user: dict = Depends(get_current_user)):
     """Met à jour la configuration de l'utilisateur"""
+    user_id = user["id"]
     logger.info(f"Received config updates for user {user_id}")
     
     # Vérification explicite de la disponibilité du stockage
@@ -237,11 +283,12 @@ def get_auth_config():
 
 
 @router.get("/api/config/sensors")
-def get_sensors_config(user_id: str = Depends(get_current_user_id)):
+def get_sensors_config(user: dict = Depends(get_current_user)):
     """
     Retourne la liste des capteurs configurés.
     Extrait depuis la configuration utilisateur.
     """
+    user_id = user["id"]
     try:
         config = load_user_config(user_id)
         if config is None:
@@ -264,13 +311,14 @@ def get_sensors_config(user_id: str = Depends(get_current_user_id)):
 async def upload_glb(
     file: UploadFile = File(...), 
     filename: str = Form(...),
-    user_id: str = Depends(get_current_user_id)
+    user: dict = Depends(get_current_user)
 ):
     """
     Upload d'un fichier .glb vers Supabase Storage.
     Bucket: 'assets'
     Path: '{user_id}/rooms/{filename}'
     """
+    user_id = user["id"]
     try:
         if not filename or not filename.lower().endswith('.glb'):
             raise HTTPException(status_code=400, detail="Le nom de fichier doit se terminer par .glb")
@@ -320,11 +368,12 @@ async def upload_glb(
 @router.delete("/api/rooms/files")
 async def delete_room_files(
     payload: Union[List[str], Dict[str, List[str]]] = Body(...),
-    user_id: str = Depends(get_current_user_id)
+    user: dict = Depends(get_current_user)
 ):
     """
     Supprime des fichiers de pièces (Supabase Storage ou Local).
     """
+    user_id = user["id"]
     deleted = []
     not_found = []
     errors = {}
@@ -383,10 +432,11 @@ async def delete_room_files(
 
 
 @router.post("/api/config/module_state")
-async def update_module_state(update_data: Dict, user_id: str = Depends(get_current_user_id)):
+async def update_module_state(update_data: Dict, user: dict = Depends(get_current_user)):
     """
     Mise à jour de l'état d'un module spécifique dans la configuration.
     """
+    user_id = user["id"]
     try:
         # Utilisez load_user_config au lieu de load_config
         config = load_user_config(user_id) 

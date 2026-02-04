@@ -2278,6 +2278,51 @@ a:hover img {
   margin-top: 4px;
 }
 
+/* Fix for Huge Room on Desktop Resize */
+@media (min-width: 769px) {
+    .room-visual {
+        /* Reset any lingering mobile styles or fullscreen styles */
+        width: 100% !important; 
+        height: auto !important;
+        flex: 1;
+        /* Ensure it doesn't grow infinitely based on canvas size */
+        overflow: hidden; 
+    }
+}
+
+/* Styles pour le mode Plein Écran (y compris mobile) */
+.room-visual.is-fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 5000 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  background: black;
+}
+
+/* Force Landscape for mobile fullscreen if device is portrait */
+@media screen and (orientation: portrait) {
+    .room-visual.is-fullscreen {
+        /* Rotate the container 90 degrees */
+        transform: rotate(90deg);
+        transform-origin: center center;
+        
+        /* Swap width and height for the rotated container */
+        width: 100vh !important;
+        height: 100vw !important;
+        
+        /* Adjust positioning to center and cover screen */
+        top: 50% !important;
+        left: 50% !important;
+        /* Calculate offsets due to rotation */
+        margin-left: -50vh !important; /* - (height/2) */
+        margin-top: -50vw !important; /* - (width/2) */
+    }
+}
+
 #blender-viewer {
   width: 100%; /* Prend toute la largeur du parent */
   height: 100%; /* Prend toute la hauteur du parent */
@@ -2285,6 +2330,7 @@ a:hover img {
   min-width: 0; /* Permet de rétrécir en largeur si nécessaire */
   flex: 1; /* Prend tout l'espace disponible verticalement */
   position: relative; /* Pour contenir les éléments absolus */
+  overflow: hidden; /* Important: Contain canvas */
 }
 
 #alert-points-container {
@@ -2299,6 +2345,9 @@ a:hover img {
 
 /* Assurer que le canvas Three.js reste derrière les alert-points */
 #blender-viewer canvas {
+  position: absolute; /* ESSENTIEL: Sortir du flow pour ne pas forcer la taille du parent */
+  top: 0;
+  left: 0;
   z-index: 1 !important;
   width: 100% !important;
   height: 100% !important;
@@ -4070,31 +4119,150 @@ select.form-control {
   color: #fff !important;
 }
 
+/* Danger Zone Styles */
+.danger-zone {
+  margin-top: 40px;
+  padding: 25px;
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  border-radius: 12px;
+  background: rgba(231, 76, 60, 0.05);
+}
+
+.danger-zone h4 {
+  color: var(--error-color);
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.danger-zone p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.btn-danger {
+  background-color: var(--error-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-danger:hover {
+  background-color: #c0392b;
+}
+
+/* Modal specific inputs */
+.modal-input-group {
+    margin: 15px 0;
+}
+.modal-input-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+.modal-input-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
 /* Prev Button */
-.driver-popover-prev-btn {
-  background-color: transparent !important;
-  color: var(--text-secondary) !important;
+/* Driver.js Customization - Full Theme Integration */
+.driver-popover {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
   border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border-radius: 12px !important;
+  padding: 20px !important;
+  max-width: 400px !important;
+  z-index: 100000 !important; /* Force on top of everything including fixed header */
+}
+
+.driver-popover-title {
+  color: var(--text-primary) !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  margin-bottom: 10px !important;
+  line-height: normal !important;
+}
+
+.driver-popover-description {
+  color: var(--text-secondary) !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  margin-bottom: 20px !important;
+  font-weight: normal !important;
+}
+
+.driver-popover-description p {
+    margin-bottom: 8px;
+}
+
+.driver-popover-footer {
+    margin-top: 15px !important;
+}
+
+/* Navigation Buttons */
+.driver-popover-prev-btn {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  font-weight: 600 !important;
+  padding: 8px 16px !important;
+  border-radius: 6px !important;
+  text-shadow: none !important;
 }
 
 .driver-popover-prev-btn:hover {
-  background-color: var(--bg-tertiary) !important;
+  background-color: var(--border-color) !important;
   color: var(--text-primary) !important;
 }
 
-/* Progress Text */
-.driver-popover-progress-text {
-  color: var(--text-secondary) !important;
-  font-size: 12px !important;
+.driver-popover-next-btn {
+  background-color: var(--accent-color) !important; /* Blue */
+  color: #ffffff !important;
+  border: 1px solid var(--accent-color) !important;
+  font-weight: 600 !important;
+  padding: 8px 16px !important;
+  border-radius: 6px !important;
+  text-shadow: none !important;
 }
 
-/* Close Button */
+.driver-popover-next-btn:hover {
+  background-color: var(--accent-hover) !important;
+}
+
 .driver-popover-close-btn {
-  color: var(--text-secondary) !important;
+    top: 15px !important;
+    right: 15px !important;
+    color: var(--text-muted) !important;
 }
 
 .driver-popover-close-btn:hover {
-  color: var(--error-color) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Arrows - Theme Aware */
+.driver-popover-arrow-side-left.driver-popover-arrow { border-left-color: var(--bg-secondary) !important; }
+.driver-popover-arrow-side-right.driver-popover-arrow { border-right-color: var(--bg-secondary) !important; }
+.driver-popover-arrow-side-top.driver-popover-arrow { border-top-color: var(--bg-secondary) !important; }
+.driver-popover-arrow-side-bottom.driver-popover-arrow { border-bottom-color: var(--bg-secondary) !important; }
+
+/* Progress Text */
+.driver-popover-progress-text {
+  color: var(--text-muted) !important;
+  font-size: 13px !important;
 }
 
 /* Skip Button (Custom) */

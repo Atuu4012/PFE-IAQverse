@@ -44,7 +44,7 @@ async def get_current_user_id(
         # On utilise une requête HTTP brute et isolée pour valider le token.
         
         sb_url = os.getenv("SUPABASE_URL")
-        sb_key = os.getenv("SUPABASE_KEY")
+        sb_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
         
         if sb_url and sb_key:
             async with httpx.AsyncClient() as client:

@@ -2641,23 +2641,32 @@ let modelLoadTime = 0;
 
 // Resize
 window.addEventListener('resize', () => {
-  const w = (container && container.clientWidth) || 800;
-  const h = (container && container.clientHeight) || 600;
+  // Use container dimensions, but fallback to reasonable defaults if 0
+  const w = (container && container.clientWidth) || 100;
+  const h = (container && container.clientHeight) || 100;
+  
+  // Don't update if size is zero (hidden/minimized)
+  if (w === 0 || h === 0) return;
+
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
 });
 
-// Observer pour détecter les changements de taille du conteneur
+// Observer pour détecter les changements de taille du conteneur (plus fiable pour les layout flex)
 if (container) {
   const resizeObserver = new ResizeObserver(entries => {
     for (let entry of entries) {
+      if (!entry.contentRect) continue;
       const w = entry.contentRect.width;
       const h = entry.contentRect.height;
       if (w > 0 && h > 0) {
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-        renderer.setSize(w, h);
+        // Debounce small changes if needed, but direct update is usually fine
+        requestAnimationFrame(() => {
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        });
       }
     }
   });

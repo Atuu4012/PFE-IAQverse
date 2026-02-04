@@ -2278,6 +2278,51 @@ a:hover img {
   margin-top: 4px;
 }
 
+/* Fix for Huge Room on Desktop Resize */
+@media (min-width: 769px) {
+    .room-visual {
+        /* Reset any lingering mobile styles or fullscreen styles */
+        width: 100% !important; 
+        height: auto !important;
+        flex: 1;
+        /* Ensure it doesn't grow infinitely based on canvas size */
+        overflow: hidden; 
+    }
+}
+
+/* Styles pour le mode Plein Écran (y compris mobile) */
+.room-visual.is-fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 5000 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  background: black;
+}
+
+/* Force Landscape for mobile fullscreen if device is portrait */
+@media screen and (orientation: portrait) {
+    .room-visual.is-fullscreen {
+        /* Rotate the container 90 degrees */
+        transform: rotate(90deg);
+        transform-origin: center center;
+        
+        /* Swap width and height for the rotated container */
+        width: 100vh !important;
+        height: 100vw !important;
+        
+        /* Adjust positioning to center and cover screen */
+        top: 50% !important;
+        left: 50% !important;
+        /* Calculate offsets due to rotation */
+        margin-left: -50vh !important; /* - (height/2) */
+        margin-top: -50vw !important; /* - (width/2) */
+    }
+}
+
 #blender-viewer {
   width: 100%; /* Prend toute la largeur du parent */
   height: 100%; /* Prend toute la hauteur du parent */
@@ -2285,6 +2330,7 @@ a:hover img {
   min-width: 0; /* Permet de rétrécir en largeur si nécessaire */
   flex: 1; /* Prend tout l'espace disponible verticalement */
   position: relative; /* Pour contenir les éléments absolus */
+  overflow: hidden; /* Important: Contain canvas */
 }
 
 #alert-points-container {
@@ -2299,6 +2345,9 @@ a:hover img {
 
 /* Assurer que le canvas Three.js reste derrière les alert-points */
 #blender-viewer canvas {
+  position: absolute; /* ESSENTIEL: Sortir du flow pour ne pas forcer la taille du parent */
+  top: 0;
+  left: 0;
   z-index: 1 !important;
   width: 100% !important;
   height: 100% !important;

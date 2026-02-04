@@ -4119,6 +4119,63 @@ select.form-control {
   color: #fff !important;
 }
 
+/* Danger Zone Styles */
+.danger-zone {
+  margin-top: 40px;
+  padding: 25px;
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  border-radius: 12px;
+  background: rgba(231, 76, 60, 0.05);
+}
+
+.danger-zone h4 {
+  color: var(--error-color);
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.danger-zone p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.btn-danger {
+  background-color: var(--error-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-danger:hover {
+  background-color: #c0392b;
+}
+
+/* Modal specific inputs */
+.modal-input-group {
+    margin: 15px 0;
+}
+.modal-input-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+.modal-input-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
 /* Prev Button */
 .driver-popover-prev-btn {
   background-color: transparent !important;

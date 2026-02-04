@@ -166,6 +166,37 @@ async def upload_avatar(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Erreur upload avatar: {str(e)}")
 
 
+@router.delete("/api/auth/account")
+async def delete_account(user_id: str = Depends(get_current_user_id)):
+    """
+    Supprime le compte de l'utilisateur courant.
+    Nécessite que le backend soit configuré avec la clé SERVICE_ROLE pour avoir les droits admin.
+    """
+    if not supabase:
+         raise HTTPException(status_code=503, detail="Supabase client not initialized")
+
+    try:
+        # Utilisation de l'API admin pour supprimer l'utilisateur
+        # Note: supabase.auth.admin est disponible si la clé est un service_role
+        logger.warning(f"Request to delete account for user {user_id}")
+        
+        # Admin delete
+        response = supabase.auth.admin.delete_user(user_id)
+        
+        # On pourrait aussi nettoyer la config utilisateur ici
+        # delete_user_config(user_id)
+        
+        logger.info(f"Account deleted successfully: {user_id}")
+        return {"message": "Compte supprimé avec succès"}
+        
+    except Exception as e:
+        logger.error(f"Error deleting account {user_id}: {e}")
+        # Si la méthode admin n'est pas dispo (clé anon), on ne peut pas supprimer
+        raise HTTPException(
+            status_code=500, 
+            detail="Impossible de supprimer le compte. Vérifiez la configuration serveur (Service Role requis) ou contactez le support."
+        )
+
 @router.get("/api/config")
 async def get_config(user_id: str = Depends(get_current_user_id)):
     """Retourne la configuration spécifique à l'utilisateur"""

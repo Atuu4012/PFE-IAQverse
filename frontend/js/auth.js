@@ -49,10 +49,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const urlParams = new URLSearchParams(window.location.search);
         const forceLogin = urlParams.get('force_login');
 
-        if (session && window.location.pathname.endsWith('login.html') && !forceLogin) {
-            // Redirection si déjà connecté et pas de demande explicite de switch
-            window.location.href = 'index.html';
-            return;
+        if (session && !forceLogin) {
+            const isLoginPage = window.location.pathname.endsWith('login.html') || (window.location.pathname === '/' && document.getElementById('login-form'));
+            
+            if (isLoginPage) {
+                // Redirection si déjà connecté et pas de demande explicite de switch
+                window.location.href = 'index.html';
+                return;
+            }
         }
         
         // Si force_login est présent, on veut permettre de se connecter à un autre compte

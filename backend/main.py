@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 # Import des modules core
 from .core import settings, get_influx_client, get_websocket_manager
-from .core.supabase import supabase
+from .core.supabase import supabase, log_supabase_status
 
 # Import des routers API
 from .api import (
@@ -29,6 +29,7 @@ from .utils import load_dataset_df
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("uvicorn.error")
+log_supabase_status()
 
 # Création de l'application FastAPI
 app = FastAPI(

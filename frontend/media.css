@@ -621,6 +621,12 @@
     color: #fff;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   }
+  
+  .occupants-badge-twin {
+    bottom: 8px !important;
+    left: 8px !important;
+    padding: 6px 10px;
+  }
 }
 
 /* Responsive design */

@@ -254,7 +254,7 @@ header h1 {
 .fullscreen-btn {
   position: absolute;
   top: 15px;
-  right: 100px; /* À côté du bouton frame */
+  right: 115px; /* À côté du bouton frame */
   z-index: 10;
   padding: 6px 16px;
   background-color: var(--bg-secondary);
@@ -911,8 +911,8 @@ a:hover img {
 /* Badge pour digital-twin.html (dans le viewer 3D) */
 .occupants-badge-twin {
   position: absolute;
-  bottom: 16px;
-  left: 16px;
+  bottom: 15px;
+  left: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2353,8 +2353,8 @@ a:hover img {
 
 .room-label {
   position: absolute;
-  bottom: 10px;
-  right: 10px;
+  bottom: 15px;
+  right: 15px;
   font-weight: bold;
   font-size: 0.9em;
   color: var(--text-primary);
@@ -3315,8 +3315,8 @@ select.form-control::after {
 /* IAQ Overlay */
 .iaq-overlay {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: 15px;
+  left: 15px;
   background: rgba(255, 255, 255, 0.9);
   padding: 10px;
   border-radius: 6px;

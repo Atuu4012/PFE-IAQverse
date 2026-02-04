@@ -99,6 +99,39 @@ async function handleSignupLogic(email, password) {
 }
 window.handleSignupLogic = handleSignupLogic; // Export global
 
+async function updateUserPassword(newPassword) {
+    if (!supabaseClient) await initSupabase();
+    try {
+        const { data, error } = await supabaseClient.auth.updateUser({
+            password: newPassword
+        });
+
+        if (error) throw error;
+        return { success: true, data };
+    } catch (error) {
+        console.error("Erreur changement mot de passe:", error);
+        return { success: false, error: error.message };
+    }
+}
+window.updateUserPassword = updateUserPassword;
+
+async function verifyPassword(password) {
+    if (!supabaseClient) await initSupabase();
+    // Get current user email
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user || !user.email) return { success: false, error: "Utilisateur non connecté" };
+
+    // Try to sign in to verify password
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email: user.email,
+        password: password
+    });
+
+    if (error) return { success: false, error: "Ancien mot de passe incorrect." };
+    return { success: true };
+}
+window.verifyPassword = verifyPassword;
+
 async function handleGoogleLogin() {
     if (!supabaseClient) await initSupabase();
     try {

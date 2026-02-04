@@ -1351,3 +1351,75 @@ window.toggleAccountModal = toggleAccountModal;
 
 // Logic for account actions moved to utils.js
 
+// --- Password Management ---
+
+function openPasswordModal() {
+    const modal = document.getElementById('passwordModal');
+    if (modal) {
+        modal.style.display = 'block';
+        document.getElementById('passwordForm').reset();
+        document.getElementById('password-error').style.display = 'none';
+    }
+}
+
+function closePasswordModal() {
+    const modal = document.getElementById('passwordModal');
+    if (modal) modal.style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const passwordForm = document.getElementById('passwordForm');
+    if (passwordForm) {
+        passwordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const oldPass = document.getElementById('old-password').value;
+            const newPass = document.getElementById('new-password').value;
+            const confirmPass = document.getElementById('confirm-password').value;
+            const errorDiv = document.getElementById('password-error');
+            
+            errorDiv.style.display = 'none';
+
+            if (newPass !== confirmPass) {
+                errorDiv.textContent = "Les mots de passe ne correspondent pas.";
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (newPass.length < 6) {
+                 errorDiv.textContent = "Le mot de passe doit contenir au moins 6 caractères.";
+                 errorDiv.style.display = 'block';
+                 return;
+            }
+
+            // 1. Verify old password
+            if (typeof verifyPassword === 'function') {
+                const verifyResult = await verifyPassword(oldPass);
+                if (!verifyResult.success) {
+                    errorDiv.textContent = verifyResult.error;
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+            }
+
+            // 2. Update password
+            if (typeof updateUserPassword === 'function') {
+                const result = await updateUserPassword(newPass);
+                if (result.success) {
+                    closePasswordModal();
+                    // Fix: 2nd argument must be false for success (green), not "success" string which is truthy (red)
+                    showNotification("Mot de passe mis à jour avec succès !", false);
+                } else {
+                    errorDiv.textContent = result.error || "Erreur lors de la mise à jour.";
+                    errorDiv.style.display = 'block';
+                }
+            } else {
+                 console.error("updateUserPassword function not found");
+            }
+        });
+    }
+});
+
+// Windows global exports
+window.openPasswordModal = openPasswordModal;
+window.closePasswordModal = closePasswordModal;
+

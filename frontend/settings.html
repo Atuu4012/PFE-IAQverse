@@ -210,6 +210,7 @@
               </div>
               <div class="card-actions">
                 <button class="btn-primary" onclick="saveCard('vous')" data-i18n="actions.save">Save changes</button>
+                <button class="btn-secondary" onclick="openPasswordModal()" style="margin-left: 10px;" data-i18n="actions.changePassword">Changer mot de passe</button>
               </div>
             </div>
           </div>
@@ -549,15 +550,15 @@
             <div class="card-body">
               <div class="form-group">
                 <label data-i18n="settings.fields.email">Email</label>
-                <input type="text" class="form-control" data-path="contact.email" readonly>
+                <input type="text" class="form-control" value="support@iaqverse.com" readonly style="background-color: var(--bg-tertiary); cursor: default;">
               </div>
               <div class="form-group">
                 <label data-i18n="settings.fields.telephone">Téléphone</label>
-                <input type="text" class="form-control" data-path="contact.telephone" readonly>
+                <input type="text" class="form-control" value="+33 1 23 45 67 89" readonly style="background-color: var(--bg-tertiary); cursor: default;">
               </div>
               <div class="form-group">
                 <label data-i18n="settings.fields.adresse">Adresse postale</label>
-                <input type="text" class="form-control" data-path="contact.adresse_postale" readonly>
+                <input type="text" class="form-control" value="38 Rue Molière, 94200 Ivry-sur-Seine" readonly style="background-color: var(--bg-tertiary); cursor: default;">
               </div>
             </div>
           </div>
@@ -589,6 +590,32 @@
             Enregistrer
           </button>
         </div>
+      </div>
+    </div>
+
+    <div id="passwordModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closePasswordModal()">&times;</span>
+        <h2 data-i18n="modals.password_title">Changer le mot de passe</h2>
+        <form id="passwordForm">
+          <div class="form-group">
+            <label data-i18n="settings.fields.old_password">Ancien mot de passe</label>
+            <input type="password" id="old-password" required class="form-control">
+          </div>
+          <div class="form-group">
+            <label data-i18n="settings.fields.new_password">Nouveau mot de passe</label>
+            <input type="password" id="new-password" required minlength="6" class="form-control">
+          </div>
+          <div class="form-group">
+            <label data-i18n="settings.fields.confirm_password">Confirmer le mot de passe</label>
+            <input type="password" id="confirm-password" required minlength="6" class="form-control">
+          </div>
+          <div id="password-error" class="error-message" style="display:none; color: var(--error-color); margin-bottom: 15px;"></div>
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" onclick="closePasswordModal()" data-i18n="actions.cancel">Annuler</button>
+            <button type="submit" class="btn-primary" data-i18n="actions.save">Enregistrer</button>
+          </div>
+        </form>
       </div>
     </div>
 

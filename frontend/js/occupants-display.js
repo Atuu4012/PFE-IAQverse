@@ -14,6 +14,14 @@ function updateOccupantsDisplay(occupantsCount) {
     if (count === lastOccupantsCount) return;
     lastOccupantsCount = count;
     
+    // Sauvegarder dans le cache pour réduire la latence au prochain chargement
+    try {
+        const activePiece = sessionStorage.getItem('activePieceId') || localStorage.getItem('activeRoom');
+        if (activePiece && count !== null) {
+            localStorage.setItem('cached_occupants_' + activePiece, count);
+        }
+    } catch (e) {}
+    
     // Pour la page index.html
     const occupantsBadge = document.getElementById('occupants-badge');
     const occupantsCountEl = document.getElementById('occupants-count');
@@ -63,6 +71,19 @@ function updateOccupantsDisplay(occupantsCount) {
             occupantsBadgeTwin.style.display = 'none';
         }
     }
+}
+
+// Fonction pour restaurer immédiatement la valeur en cache (anti-latence)
+function restoreCachedOccupants() {
+    try {
+        const activePiece = sessionStorage.getItem('activePieceId') || localStorage.getItem('activeRoom');
+        if (activePiece) {
+            const cached = localStorage.getItem('cached_occupants_' + activePiece);
+            if (cached !== null) {
+                updateOccupantsDisplay(parseInt(cached, 10));
+            }
+        }
+    } catch(e) {}
 }
 
 // Fonction pour récupérer le nombre d'occupants depuis l'API
@@ -156,6 +177,7 @@ function setupOccupantsWebSocket() {
 // Initialiser au chargement de la page
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
+        restoreCachedOccupants();
         // Attendre que la config et les onglets soient chargés
         setTimeout(() => {
             setupOccupantsWebSocket();
@@ -163,6 +185,7 @@ if (document.readyState === 'loading') {
         }, 100);
     });
 } else {
+    restoreCachedOccupants();
     // Si déjà chargé, initialiser immédiatement
     setTimeout(() => {
         setupOccupantsWebSocket();
@@ -172,6 +195,7 @@ if (document.readyState === 'loading') {
 
 // Écouter les changements de pièce (via les onglets) - mise à jour immédiate
 window.addEventListener('roomChanged', () => {
+    restoreCachedOccupants();
     fetchOccupantsFromAPI();
 });
 

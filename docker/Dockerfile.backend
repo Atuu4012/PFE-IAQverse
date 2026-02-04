@@ -9,7 +9,7 @@ COPY backend/requirements-docker.txt .
 RUN pip install --no-cache-dir -r requirements-docker.txt
 
 # Installer supabase séparément et en dernier pour éviter les conflits httpx/proxy
-RUN pip install --no-cache-dir supabase==2.3.0
+RUN pip install --no-cache-dir supabase
 
 # Copier le code
 COPY backend ./backend

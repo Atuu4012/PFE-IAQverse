@@ -161,9 +161,6 @@ function renderRoomTabs(enseigneId) {
  * @param {boolean} save - Si true, sauvegarde la config sur le backend
  */
 function switchEnseigne(enseigneId, keepActiveRoom = false, save = true) {
-    // Vérifier si on change vraiment d'enseigne
-    const previousEnseigne = activeEnseigne;
-    
     activeEnseigne = enseigneId;
     if (!keepActiveRoom) {
         activeRoom = null; // Réinitialiser la pièce active
@@ -200,9 +197,6 @@ function switchEnseigne(enseigneId, keepActiveRoom = false, save = true) {
  * @param {boolean} save - Si true, sauvegarde la config sur le backend
  */
 function switchRoom(roomId, save = true) {
-    // Vérifier si on change vraiment de pièce
-    const previousRoom = activeRoom;
-    
     activeRoom = roomId;
     
     if (save && typeof window.saveConfig === 'function') {

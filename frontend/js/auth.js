@@ -53,9 +53,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isLoginPage = window.location.pathname.endsWith('login.html') || (window.location.pathname === '/' && document.getElementById('login-form'));
             
             if (isLoginPage) {
-                // Redirection si déjà connecté et pas de demande explicite de switch
-                window.location.href = 'index.html';
-                return;
+                // MODIFICATION: On ne redirige plus automatiquement vers index.html
+                // On laisse l'utilisateur sur la page de login même s'il est connecté.
+                // Il devra se reconnecter ou cliquer sur un bouton "Continuer" si on en implémente un.
+                console.log("Utilisateur déjà connecté, mais maintien sur la page de login (demande utilisateur).");
+                // window.location.href = 'index.html'; 
+                // return;
             }
         }
         

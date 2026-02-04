@@ -36,7 +36,17 @@ const renderer = new THREE.WebGLRenderer({
   failIfMajorPerformanceCaveat: false
 });
 
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2)); // Réduire encore sur mobile (ex: 1.5 max)
+// OPTIMISATION MOBILE CRITIQUE : Pixel Ratio à 1.0 (et non 1.5)
+// 1.5x pixel ratio = 2.25x plus de pixels à rendre et stocker en mémoire.
+// Sur des appareils à haute résolution, cela fait exploser la mémoire vidéo.
+renderer.setPixelRatio(isMobile ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+
+// Désactiver les ombres sur mobile (très coûteux en mémoire et GPU)
+renderer.shadowMap.enabled = !isMobile;
+if (!isMobile) {
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+}
+
 renderer.setSize(width, height);
 if (container) container.appendChild(renderer.domElement);
 
@@ -50,7 +60,12 @@ scene.add(ambientLight);
 
 const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
 dirLight.position.set(5, 10, 7.5);
-dirLight.castShadow = true; // Activer les ombres pour le soleil/lune
+// Désactiver shadows sur mobile
+dirLight.castShadow = !isMobile; 
+if (dirLight.castShadow) {
+    dirLight.shadow.mapSize.width = 1024; // Défaut 512, plus net
+    dirLight.shadow.mapSize.height = 1024;
+}
 scene.add(dirLight);
 
 // Lumière intérieure (Plafonnier) - Chaude, initialement éteinte ou faible
@@ -713,6 +728,10 @@ function getSmokeTexture() {
 }
 
 function createParticles(obj, config) {
+  // CRITICAL MOBILE OPTIMIZATION
+  // Désactiver les particules sur mobile pour économiser CPU/GPU et mémoire
+  if (isMobile) return;
+
   if (activeParticles[obj.uuid]) {
     // Si le système existe déjà, juste remettre emitting à true
     activeParticles[obj.uuid].emitting = true;
@@ -1160,6 +1179,9 @@ function setupMirrors(root) {
   });
   mirrors = [];
 
+  // CRITICAL: Disable mirrors on mobile (CubeMaps are very memory intensive)
+  if (isMobile) return;
+
   root.traverse((child) => {
     if (child.isMesh) {
       const name = child.name;
@@ -1373,8 +1395,8 @@ function loadPieceModel(roomId) {
       loaderElement.style.display = 'flex';
     }
 
-    // Vérifier si le modèle est déjà en cache
-    if (modelCache.has(glbPath)) {
+    // Vérifier si le modèle est déjà en cache (Désactivé sur mobile pour économiser RAM)
+    if (!isMobile && modelCache.has(glbPath)) {
       console.log('[loadPieceModel] Chargement depuis le cache:', glbPath);
       
       isLoading = false;
@@ -1681,8 +1703,11 @@ function loadPieceModel(roomId) {
         });
         
         // Stocker le modèle dans le cache avant de l'ajouter à la scène
-        console.log('[loadPieceModel] Ajout au cache:', glbPath);
-        modelCache.set(glbPath, modelRoot.clone());
+        // Désactivé sur mobile pour éviter que la mémoire ne sature (OOM Crash)
+        if (!isMobile) {
+            console.log('[loadPieceModel] Ajout au cache:', glbPath);
+            modelCache.set(glbPath, modelRoot.clone());
+        }
         
         scene.add(modelRoot);
         

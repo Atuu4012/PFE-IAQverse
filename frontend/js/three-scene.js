@@ -157,6 +157,20 @@ const updateEnvironment = async (configOverride = null) => {
     if (path === currentEnvironmentPath && environmentSphere) return;
     currentEnvironmentPath = path;
 
+    // OPTIMISATION MOBILE : Pas de texture 360° (OOM Saver)
+    if (isMobile) {
+        if (environmentSphere) {
+            scene.remove(environmentSphere);
+            disposeObject(environmentSphere);
+            environmentSphere = null;
+        }
+        // Fond uni simple pour remplacer la skybox
+        scene.background = new THREE.Color(isNightMode ? 0x050510 : 0x87CEEB);
+        scene.environment = null; // Pas de reflets complexes
+        console.log('[Mobile] Skybox disabled for performance');
+        return;
+    }
+
     textureLoader.load(
       path, 
       (texture) => {
@@ -1158,10 +1172,23 @@ window.addEventListener('keyup', (e) => {
 function disposeObject(root) {
   if (!root) return;
   root.traverse(obj => {
+    // 1. Dispose Geometry
     if (obj.geometry) obj.geometry.dispose();
+    
+    // 2. Dispose Material & Textures
     if (obj.material) {
-      if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
-      else obj.material.dispose();
+      const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+      
+      materials.forEach(mat => {
+        // Dispose all textures located in material properties
+        for (const key in mat) {
+          if (mat[key] && mat[key].isTexture) {
+            mat[key].dispose();
+          }
+        }
+        // Dispose the material itself
+        mat.dispose();
+      });
     }
   });
 }

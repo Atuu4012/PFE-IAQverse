@@ -1,430 +1,345 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IAQverse</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="media.css">
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/config-loader.js"></script>
-    <script src="js/disable-browser-shortcuts.js"></script>
-    <script src="js/theme.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/i18n.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/websocket-manager.js"></script>
-    <script src="js/api-retry.js"></script>
-    <script src="js/tabs-manager.js"></script>
-    <script src="js/preventive-global.js"></script>
-    <script src="js/digital-twin.js"></script>
-    <script src="js/alerts-engine.js"></script>
-    <script src="js/global-alerts.js"></script>
-    <script src="js/simulate-alert.js"></script>
-    <script src="js/occupants-display.js"></script>
-    <!-- Tutorial - Driver.js -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css"/>
-    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
-    <script src="js/tutorial-digital-twin.js"></script>
-    <script async src="https://unpkg.com/es-module-shims/dist/es-module-shims.js"></script>
-    <script type="importmap">
-    {
-        "imports": {
-            "three": "https://unpkg.com/three@0.155.0/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.155.0/examples/jsm/"
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IAQverse - Digital Twin</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Driver.js -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="media.css">
+  <link rel="icon" href="/assets/icons/digital-twin.png">
+
+  <!-- Supabase -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+  <!-- Scripts -->
+  <script src="js/auth.js"></script>
+  <script src="js/config-loader.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/websocket-manager.js"></script>
+  <script src="js/tabs-manager.js"></script>
+  <script src="js/digital-twin.js"></script>
+  <script src="js/alerts-engine.js"></script>
+  <script src="js/global-alerts.js"></script>
+  <script src="js/occupants-display.js"></script>
+  <script src="js/tutorial-digital-twin.js"></script>
+
+  <!-- Three.js -->
+  <script async src="https://unpkg.com/es-module-shims/dist/es-module-shims.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.155.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.155.0/examples/jsm/"
     }
-    </script>
-    </head>
-<body class="clean-tech">
-    <div class="app-layout">
-        <aside class="app-sidebar">
-            <div class="brand">
-                <img src="/assets/icons/home.png" alt="IAQverse">
-                <span class="brand-name">IAQverse</span>
-            </div>
-            <nav class="side-menu" aria-label="Navigation principale">
-                <a href="index.html" class="side-link">
-                    <img src="/assets/icons/home.png" alt="Dashboard">
-                    <span data-i18n="dashboard.title">Dashboard</span>
-                </a>
-                <a href="#" onclick="return false;" class="side-link active">
-                    <img src="/assets/icons/digital-twin.png" alt="Digital Twin">
-                    <span data-i18n="digitalTwin.title">3D</span>
-                </a>
-                <a href="settings.html" class="side-link">
-                    <img src="/assets/icons/settings.png" alt="Paramètres">
-                    <span data-i18n="settings.title">Paramètres</span>
-                </a>
-            </nav>
-            <div class="sidebar-footer">
-                <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Réduire la barre latérale">
-                    <span class="toggle-dot"></span>
-                    <span class="toggle-dot"></span>
-                    <span class="toggle-dot"></span>
-                </button>
-                <button class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Basculer le thème">
-                    <img src="/assets/icons/theme.png" alt="Thème">
-                </button>
-                <a href="#" onclick="toggleAccountModal(); return false;" class="header-avatar-link">
-                    <img id="header-avatar" src="/assets/icons/profil.png" alt="Avatar" class="header-avatar-img">
-                </a>
-            </div>
-        </aside>
+  }
+  </script>
+<base target="_blank">
+</head>
 
-        <div class="app-main">
-            <header class="app-header">
-                <div class="breadcrumb" aria-label="Fil d'ariane">
-                    <span class="crumb">IAQverse</span>
-                    <span class="crumb-sep">/</span>
-                    <span class="crumb-current" data-i18n="digitalTwin.title">Digital Twin</span>
-                </div>
-                <div class="header-actions">
-                    <span class="status-pill status-online">Système en ligne</span>
-                    <button class="info-btn" onclick="openModal()" aria-label="Infos">
-                        <img src="/assets/icons/info.png" alt="Info">
-                    </button>
-                </div>
-            </header>
-
-            <!-- Account Modal -->
-            <div id="accountModal" class="account-modal">
-                <div class="account-header">
-                    <span data-i18n="account.switch">Changer de compte</span>
-                    <span class="close-account" onclick="toggleAccountModal()">&times;</span>
-                </div>
-                <ul class="account-list">
-                    <li class="account-item active">
-                        <img src="/assets/icons/profil.png" class="account-avatar-small">
-                        <span data-i18n="account.currentUser">Utilisateur Actuel</span>
-                    </li>
-                    <li class="account-item">
-                        <img src="/assets/icons/profil.png" class="account-avatar-small" style="filter: grayscale(1);">
-                        <span data-i18n="account.otherAccount">Autre Compte</span>
-                    </li>
-                    <li class="account-divider"></li>
-                    <li class="account-action" onclick="location.href='settings.html'">
-                        <span data-i18n="settings.title">Paramètres</span>
-                    </li>
-                    <li class="account-action logout">
-                        <span data-i18n="account.logout">Déconnexion</span>
-                    </li>
-                </ul>
-            </div>
-
-            <div id="infoModal" class="modal">
-                <div class="modal-content">
-                    <span class="close" onclick="closeModal()">&times;</span>
-                    <h2 data-i18n="digitalTwin.aboutTitle">À propos de cette page</h2>
-                    <p data-i18n="digitalTwin.aboutParagraph">Cette interface Digital Twin vous permet de visualiser les alertes de qualité de l'air intérieur en temps réel.</p>
-                    <ul>
-                        <li data-i18n="digitalTwin.tip.table">Le tableau à gauche montre les actions recommandées.</li>
-                        <li data-i18n="digitalTwin.tip.visual">La visualisation indique les zones concernées dans la pièce.</li>
-                        <li data-i18n="digitalTwin.tip.details">Les détails au centre expliquent les causes des alertes.</li>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- Modal Légende Actions -->
-            <div id="legendModal" class="modal">
-                <div class="modal-content legend-modal-content">
-                    <span class="close" onclick="closeLegendModal()">&times;</span>
-                    <h2 data-i18n="digitalTwin.legend.title">Légende des Actions</h2>
-                    <div class="legend-list">
-                        <div class="legend-row">
-                            <div class="legend-color color-red"></div>
-                            <div class="legend-desc">
-                                <strong data-i18n="digitalTwin.legend.urgent">Urgent</strong>
-                                <p data-i18n="digitalTwin.legend.urgentDesc">Action critique requise immédiatement.</p>
-                            </div>
-                        </div>
-                        <div class="legend-row">
-                            <div class="legend-color color-yellow"></div>
-                            <div class="legend-desc">
-                                <strong data-i18n="digitalTwin.legend.warning">Avertissement</strong>
-                                <p data-i18n="digitalTwin.legend.warningDesc">Action recommandée pour éviter une dégradation.</p>
-                            </div>
-                        </div>
-                        <div class="legend-row">
-                            <div class="legend-color color-gray"></div>
-                            <div class="legend-desc">
-                                <strong data-i18n="digitalTwin.legend.info">Neutre</strong>
-                                <p data-i18n="digitalTwin.legend.infoDesc">Action optionnelle ou données non disponibles.</p>
-                            </div>
-                        </div>
-                        <div class="legend-row">
-                            <div class="legend-color color-green"></div>
-                            <div class="legend-desc">
-                                <strong data-i18n="digitalTwin.legend.success">Satisfaisant</strong>
-                                <p data-i18n="digitalTwin.legend.successDesc">Aucune action requise, paramètres optimaux.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-    <!-- Panneau Actions Préventives Global -->
-    <section class="preventive-panel-global">
-        <div class="preventive-global-header">
-            <h2><span data-i18n="digitalTwin.preventive.title">Actions Préventives</span></h2>
-            <span class="preventive-global-subtitle" data-i18n="digitalTwin.preventive.subtitle">Basées sur les prédictions (30 min)</span>
-        </div>
-        <div id="preventive-global-container" class="preventive-global-content">
-            <div class="preventive-loading">
-                <span data-i18n="digitalTwin.preventive.loading">Analyse des prédictions en cours...</span>
-            </div>
-        </div>
-    </section>
-
-    <div class="tabs-container">
-    <div class="location-tabs" id="location-tabs">
-        <!-- Les onglets des enseignes seront générés dynamiquement ici -->
-        </div>
-    </div>
-
-    <main class="twin-layout">
-    <!-- Visualisation pièce en premier (haut sur mobile) -->
-    <section class="room-panel">
-    <h2 data-i18n="digitalTwin.visualisation">Visualisation</h2>
-        <div class="room-tabs" id="room-tabs">
-            <!-- Les onglets des pièces seront générés dynamiquement ici -->
-        </div>
-        <div class="room-visual" id="three-canvas-container">
-            <div id="blender-viewer"></div>
-            <!-- Loader pour le chargement du modèle -->
-            <div id="model-loader" class="model-loader">
-                <div class="spinner"></div>
-                <div class="loading-text" data-i18n="digitalTwin.loading">Chargement du modèle...</div>
-            </div>
-
-            <!-- Bouton pour recentrer / cadrer le modèle -->
-            <button id="frame-btn" title="F" data-i18n="buttons.frame" class="frame-btn">Centrer</button>
-            <button id="fullscreen-btn" class="fullscreen-btn" title="Plein écran">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-            </button>
-
-            <!-- Les alert-points sont maintenant au-dessus du canvas -->
-            <div id="alert-points-container"></div>
-            
-            <!-- Badge nombre d'occupants (en haut à gauche) -->
-            <div class="occupants-badge-twin" id="occupants-badge-twin" style="display: none;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
-                <span id="occupants-count-twin">0</span>
-            </div>
-            
-            <!-- Overlay des données en temps réel -->
-            <div id="iaq-overlay" class="iaq-overlay">
-                <div class="iaq-item">
-                    <span class="iaq-label">CO₂</span>
-                    <span class="iaq-value" id="overlay-co2">--</span>
-                    <span class="iaq-unit">ppm</span>
-                </div>
-                <div class="iaq-item">
-                    <span class="iaq-label">PM2.5</span>
-                    <span class="iaq-value" id="overlay-pm25">--</span>
-                    <span class="iaq-unit">µg/m³</span>
-                </div>
-                <div class="iaq-item">
-                    <span class="iaq-label">TVOC</span>
-                    <span class="iaq-value" id="overlay-tvoc">--</span>
-                    <span class="iaq-unit">mg/m³</span>
-                </div>
-                <div class="iaq-item">
-                    <span class="iaq-label">Temp</span>
-                    <span class="iaq-value" id="overlay-temp">--</span>
-                    <span class="iaq-unit">°C</span>
-                </div>
-                <div class="iaq-item">
-                    <span class="iaq-label">Hum</span>
-                    <span class="iaq-value" id="overlay-hum">--</span>
-                    <span class="iaq-unit">%</span>
-                </div>
-            </div>
-
-            <div class="room-label"></div>
-
-            <!-- Virtual Joystick for Mobile (D-Pad + Actions) -->
-            
-            <!-- Toggle Button -->
-            <button id="toggle-controls-btn" class="controls-toggle-btn" aria-label="Afficher/Masquer contrôles">
-                <img src="/assets/icons/play.png" alt="Contrôles" class="controls-icon">
-            </button>
-
-            <div id="mobile-joystick-zone" class="mobile-controls-zone">
-                <div class="controls-wrapper">
-                    <!-- Action Buttons (Left of D-Pad or Right? Usually Jump/Crouch are primary actions) -->
-                    <!-- Placing them to the left of D-pad here since D-pad is on right edge -->
-                    <div class="action-buttons">
-                        <button id="ctrl-jump" class="action-btn" aria-label="Sauter">
-                            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M12 4l-6 6h4v8h4v-8h4L12 4z"/></svg>
-                        </button>
-                        <button id="ctrl-crouch" class="action-btn" aria-label="S'accroupir">
-                            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M12 20l6-6h-4V6h-4v8H6l6 6z"/></svg>
-                        </button>
-                    </div>
-
-                    <!-- D-Pad -->
-                    <div class="dpad-container">
-                        <button id="ctrl-fwd" class="dpad-btn dpad-up" aria-label="Avancer">
-                            <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
-                        </button>
-                        <div class="dpad-middle-row">
-                            <button id="ctrl-left" class="dpad-btn dpad-left" aria-label="Gauche">
-                                <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-                            </button>
-                            <div class="dpad-center"></div>
-                            <button id="ctrl-right" class="dpad-btn dpad-right" aria-label="Droite">
-                                <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
-                            </button>
-                        </div>
-                        <button id="ctrl-back" class="dpad-btn dpad-down" aria-label="Reculer">
-                            <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Tableau d'actions en second (bas sur mobile) -->
-    <section class="actions-panel">
-        <div class="panel-header">
-            <h2 data-i18n="digitalTwin.actions">Actions</h2>
-            <button class="panel-info-btn" onclick="openLegendModal()">
-                <img src="/assets/icons/info.png">
-            </button>
-        </div>
-        <div class="table-wrapper">
-            <table class="actions-table">
-                <thead>
-                    <tr>
-                        <th data-i18n="digitalTwin.table.state">État</th>
-                        <th data-i18n="digitalTwin.table.subject">Sujet</th>
-                        <th data-i18n="digitalTwin.table.action">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Détails dynamiques -->
-        <div id="details-panel" class="details-panel hidden">
-            <h3 id="details-title"><span data-i18n="digitalTwin.details.title">Détails</span> <span id="details-subject"></span></h3>
-            <ul id="details-list"></ul>
-        </div>
-    </section>
-    </main>
-        </div>
-    </div>
-
-    <nav class="mobile-nav" aria-label="Navigation mobile">
-        <a href="index.html" class="mobile-link">
-            <img src="/assets/icons/home.png" alt="Dashboard">
-            <span data-i18n="dashboard.title">Dash</span>
-        </a>
-        <a href="#" onclick="return false;" class="mobile-link active">
-            <img src="/assets/icons/digital-twin.png" alt="Digital Twin">
-            <span data-i18n="digitalTwin.title">3D</span>
-        </a>
-        <a href="settings.html" class="mobile-link">
-            <img src="/assets/icons/settings.png" alt="Paramètres">
-            <span data-i18n="settings.title">Paramètres</span>
-        </a>
+<body>
+  <!-- Header -->
+  <header>
+    <nav class="header-nav">
+      <a href="index.html" aria-label="Dashboard">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+      </a>
+      <a href="#" class="active-page" aria-label="Digital Twin">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+        </svg>
+      </a>
+      <a href="settings.html" aria-label="Settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </a>
     </nav>
 
-    <script src="js/ui-shell.js"></script>
-    <script type="module" src="js/three-scene.js"></script>
-    <script>
-        document.getElementById('fullscreen-btn')?.addEventListener('click', async () => {
-            const container = document.querySelector('.room-visual');
-            
-            // Check if we are in fullscreen (Native OR "Fake" CSS fullscreen)
-            const isNativeFullscreen = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
-            const isFakeFullscreen = container.classList.contains('is-fullscreen');
-            
-            if (!isNativeFullscreen && !isFakeFullscreen) {
-                // === ENTER FULLSCREEN ===
-                try {
-                    // 1. Request Native Fullscreen (Best Effort)
-                    if (container.requestFullscreen) {
-                        await container.requestFullscreen().catch(e => console.log("Native FS failed (expected on iOS)", e));
-                    } else if (container.webkitRequestFullscreen) { /* Safari */
-                        await container.webkitRequestFullscreen().catch(e => console.log("Webkit FS failed", e));
-                    } else if (container.msRequestFullscreen) { /* IE11 */
-                        await container.msRequestFullscreen().catch(e => console.log("MS FS failed", e));
-                    }
+    <h1 data-i18n="digitalTwin.title">Digital Twin</h1>
 
-                    // 2. Force Landscape (Best Effort)
-                    if (screen.orientation && screen.orientation.lock) {
-                        try {
-                            await screen.orientation.lock('landscape');
-                        } catch (e) {
-                            console.warn('Orientation lock failed/not supported:', e);
-                        }
-                    } else if (screen.lockOrientation) {
-                         try { screen.lockOrientation('landscape'); } catch (e) {}
-                    }
-                } catch (err) {
-                    console.error(`Erreur process plein écran: ${err.message}`);
-                }
-                
-                // 3. ALWAYS Add class for styling (handling "Game Mode" visually)
-                // This ensures it works even if native FS fails (like on iOS)
-                container.classList.add('is-fullscreen');
+    <div class="header-buttons">
+      <button class="icon-btn" onclick="toggleTheme()" aria-label="Toggle theme">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+      </button>
 
-            } else {
-                // === EXIT FULLSCREEN ===
-                // Exit Native
-                if (document.exitFullscreen) {
-                    await document.exitFullscreen().catch(() => {});
-                } else if (document.webkitExitFullscreen) {
-                    await document.webkitExitFullscreen().catch(() => {});
-                } else if (document.msExitFullscreen) {
-                    await document.msExitFullscreen().catch(() => {});
-                }
+      <button class="icon-btn" onclick="openModal()" aria-label="Information">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+      </button>
 
-                // Unlock Orientation
-                if (screen.orientation && screen.orientation.unlock) {
-                    try { screen.orientation.unlock(); } catch(e) {}
-                }
-                
-                // Remove class
-                container.classList.remove('is-fullscreen');
-            }
-        });
-        
-        // Listen for native escape/swipe exit to sync state
-        const onFullscreenChange = () => {
-             const isNative = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
-             if (!isNative) {
-                 const container = document.querySelector('.room-visual');
-                 // Only remove if we really exited (user action)
-                 // Note: checking isFakeFullscreen inside here is tricky because we might want 'fake' to persist? 
-                 // No, usually valid to sync. But careful if we used Fake because Native failed.
-                 
-                 // If we used Fake Fullscreen because Native failed, then 'fullscreenchange' WON'T fire.
-                 // So this event is only for when Native WAS active and is now gone.
-                 // In that case, we should clean up.
-                 if (container) container.classList.remove('is-fullscreen');
-                 
-                 if (screen.orientation && screen.orientation.unlock) {
-                    try { screen.orientation.unlock(); } catch(e) {}
-                }
-             }
-        };
+      <a href="#" onclick="toggleAccountModal(); return false;" class="header-avatar-link">
+        <img id="header-avatar" src="/assets/icons/profil.png" alt="Avatar" class="header-avatar-img">
+      </a>
+    </div>
 
-        document.addEventListener('fullscreenchange', onFullscreenChange);
-        document.addEventListener('webkitfullscreenchange', onFullscreenChange);
-    </script>
+    <!-- Account Modal -->
+    <div id="accountModal" class="account-modal">
+      <div class="account-header">
+        <span data-i18n="account.switch">Changer de compte</span>
+        <span class="close-account" onclick="toggleAccountModal()">&times;</span>
+      </div>
+      <ul class="account-list">
+        <li class="account-item active">
+          <img src="/assets/icons/profil.png" class="account-avatar-small">
+          <span data-i18n="account.currentUser">Utilisateur Actuel</span>
+        </li>
+        <li class="account-item">
+          <img src="/assets/icons/profil.png" class="account-avatar-small" style="filter: grayscale(1);">
+          <span data-i18n="account.otherAccount">Autre Compte</span>
+        </li>
+        <li class="account-divider"></li>
+        <li class="account-action" onclick="location.href='settings.html'">
+          <span data-i18n="settings.title">Paramètres</span>
+        </li>
+        <li class="account-action logout" onclick="logout()">
+          <span data-i18n="account.logout">Déconnexion</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Info Modal -->
+    <div id="infoModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h2 data-i18n="digitalTwin.aboutTitle">À propos</h2>
+        <p data-i18n="digitalTwin.aboutParagraph">Visualisation 3D des alertes qualité d'air.</p>
+        <ul>
+          <li data-i18n="digitalTwin.tip.table">Actions recommandées</li>
+          <li data-i18n="digitalTwin.tip.visual">Zones concernées</li>
+          <li data-i18n="digitalTwin.tip.details">Causes des alertes</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Legend Modal -->
+    <div id="legendModal" class="modal">
+      <div class="modal-content legend-modal-content">
+        <span class="close" onclick="closeLegendModal()">&times;</span>
+        <h2 data-i18n="digitalTwin.legend.title">Légende</h2>
+        <div class="legend-list">
+          <div class="legend-row">
+            <div class="legend-color color-red"></div>
+            <div class="legend-desc">
+              <strong data-i18n="digitalTwin.legend.urgent">Urgent</strong>
+              <p data-i18n="digitalTwin.legend.urgentDesc">Action critique immédiate</p>
+            </div>
+          </div>
+          <div class="legend-row">
+            <div class="legend-color color-yellow"></div>
+            <div class="legend-desc">
+              <strong data-i18n="digitalTwin.legend.warning">Avertissement</strong>
+              <p data-i18n="digitalTwin.legend.warningDesc">Action recommandée</p>
+            </div>
+          </div>
+          <div class="legend-row">
+            <div class="legend-color color-green"></div>
+            <div class="legend-desc">
+              <strong data-i18n="digitalTwin.legend.success">Satisfaisant</strong>
+              <p data-i18n="digitalTwin.legend.successDesc">Paramètres optimaux</p>
+            </div>
+          </div>
+          <div class="legend-row">
+            <div class="legend-color color-gray"></div>
+            <div class="legend-desc">
+              <strong data-i18n="digitalTwin.legend.info">Neutre</strong>
+              <p data-i18n="digitalTwin.legend.infoDesc">Données non disponibles</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Preventive Panel -->
+  <section class="preventive-panel-global">
+    <div class="preventive-global-header">
+      <h2 data-i18n="digitalTwin.preventive.title">Actions Préventives</h2>
+      <span class="preventive-global-subtitle" data-i18n="digitalTwin.preventive.subtitle">Basées sur les prédictions (30 min)</span>
+    </div>
+    <div id="preventive-global-container" class="preventive-global-content">
+      <div class="preventive-loading">
+        <span data-i18n="digitalTwin.preventive.loading">Analyse en cours...</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tabs -->
+  <div class="tabs-container">
+    <div class="location-tabs" id="location-tabs"></div>
+    <div class="room-tabs" id="room-tabs"></div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="twin-layout">
+    <!-- 3D Visualization -->
+    <section class="room-panel">
+      <h2 data-i18n="digitalTwin.visualisation">Visualisation</h2>
+      <div class="room-tabs" id="room-tabs-3d"></div>
+
+      <div class="room-visual" id="room-visual">
+        <div id="blender-viewer"></div>
+
+        <!-- Loader -->
+        <div id="model-loader" class="model-loader">
+          <div class="spinner"></div>
+          <div class="loading-text" data-i18n="digitalTwin.loading">Chargement...</div>
+        </div>
+
+        <!-- Controls -->
+        <button id="frame-btn" class="frame-btn" data-i18n="buttons.frame">Centrer</button>
+        <button id="fullscreen-btn" class="fullscreen-btn" aria-label="Plein écran">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+        </button>
+
+        <!-- Alert Points -->
+        <div id="alert-points-container"></div>
+
+        <!-- Occupants Badge -->
+        <div class="occupants-badge-twin" id="occupants-badge-twin" style="display: none;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span id="occupants-count-twin">0</span>
+        </div>
+
+        <!-- IAQ Overlay -->
+        <div id="iaq-overlay" class="iaq-overlay">
+          <div class="iaq-item">
+            <span class="iaq-label">CO₂</span>
+            <span class="iaq-value" id="overlay-co2">--</span>
+            <span class="iaq-unit">ppm</span>
+          </div>
+          <div class="iaq-item">
+            <span class="iaq-label">PM2.5</span>
+            <span class="iaq-value" id="overlay-pm25">--</span>
+            <span class="iaq-unit">µg/m³</span>
+          </div>
+          <div class="iaq-item">
+            <span class="iaq-label">TVOC</span>
+            <span class="iaq-value" id="overlay-tvoc">--</span>
+            <span class="iaq-unit">mg/m³</span>
+          </div>
+          <div class="iaq-item">
+            <span class="iaq-label">Temp</span>
+            <span class="iaq-value" id="overlay-temp">--</span>
+            <span class="iaq-unit">°C</span>
+          </div>
+          <div class="iaq-item">
+            <span class="iaq-label">Hum</span>
+            <span class="iaq-value" id="overlay-hum">--</span>
+            <span class="iaq-unit">%</span>
+          </div>
+        </div>
+
+        <div class="room-label" id="room-label"></div>
+      </div>
+    </section>
+
+    <!-- Actions Panel -->
+    <section class="actions-panel">
+      <div class="panel-header">
+        <h2 data-i18n="digitalTwin.actions">Actions</h2>
+        <button class="panel-info-btn" onclick="openLegendModal()" aria-label="Légende">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="actions-table">
+          <thead>
+            <tr>
+              <th data-i18n="digitalTwin.table.state">État</th>
+              <th data-i18n="digitalTwin.table.subject">Sujet</th>
+              <th data-i18n="digitalTwin.table.action">Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Details Panel -->
+    <div id="details-panel" class="details-panel hidden">
+      <h3 id="details-title">
+        <span data-i18n="digitalTwin.details.title">Détails</span>
+        <span id="details-subject"></span>
+      </h3>
+      <ul id="details-list"></ul>
+    </div>
+  </main>
+
+  <script type="module" src="js/three-scene.js"></script>
+  <script>
+    // Fullscreen handler
+    document.getElementById('fullscreen-btn')?.addEventListener('click', async () => {
+      const container = document.querySelector('.room-visual');
+      const isFullscreen = document.fullscreenElement || container.classList.contains('is-fullscreen');
+
+      if (!isFullscreen) {
+        try {
+          if (container.requestFullscreen) {
+            await container.requestFullscreen();
+          }
+          container.classList.add('is-fullscreen');
+        } catch (err) {
+          console.error('Fullscreen error:', err);
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+        container.classList.remove('is-fullscreen');
+      }
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+      const container = document.querySelector('.room-visual');
+      if (!document.fullscreenElement) {
+        container.classList.remove('is-fullscreen');
+      }
+    });
+  </script>
 </body>
 </html>

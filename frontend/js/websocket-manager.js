@@ -234,4 +234,6 @@ window.wsManager = new WebSocketManager();
 // Export
 window.WebSocketManager = WebSocketManager;
 
+
 console.log('WebSocket Manager chargé');
+window.wsManager.connect();

@@ -96,6 +96,7 @@ function getRecentSlice(data, minutes) {
   return filtered.length > 0 ? filtered : data.slice(-12);
 }
 
+
 function buildMetricCard(metric) {
   const container = document.getElementById(metric.containerId);
   if (!container) return null;
@@ -107,24 +108,9 @@ function buildMetricCard(metric) {
       </div>
     `
     : `<div class="metric-value" id="${metric.id}-value">—</div>`;
-  const sparkline = metric.secondary
-    ? `
-      <div class="metric-sparkline metric-sparkline-grid">
-        <div class="metric-mini">
-          <span class="metric-mini-label" id="${metric.id}-primary-label">
-            <span class="metric-mini-dot"></span>${metric.label}
-          </span>
-          <canvas id="${metric.id}-canvas"></canvas>
-        </div>
-        <div class="metric-mini">
-          <span class="metric-mini-label" id="${metric.id}-secondary-label">
-            <span class="metric-mini-dot"></span>${metric.secondary.label}
-          </span>
-          <canvas id="${metric.id}-secondary-canvas"></canvas>
-        </div>
-      </div>
-    `
-    : `
+  
+  // Always use a single canvas for the chart, even if secondary exists (dual axis)
+  const sparkline = `
       <div class="metric-sparkline">
         <canvas id="${metric.id}-canvas"></canvas>
       </div>
@@ -141,22 +127,88 @@ function buildMetricCard(metric) {
   `;
   return {
     primary: container.querySelector(`#${metric.id}-canvas`),
-    secondary: container.querySelector(`#${metric.id}-secondary-canvas`)
+    secondary: null // No separate canvas for secondary
   };
 }
 
-function createSparklineChart(canvas, datasetCount) {
+function createSparklineChart(canvas, metric) {
   if (!canvas) return null;
   const ctx = canvas.getContext("2d");
-  const datasets = Array.from({ length: datasetCount }, () => ({
+  const secondaryConfig = metric.secondary || null;
+  
+  const datasets = [];
+  
+  // Dataset 0 (Primary)
+  datasets.push({
     data: [],
     borderColor: STATUS_COLORS.ok.line,
-    backgroundColor: STATUS_COLORS.ok.fill,
+    backgroundColor: 'transparent',
     tension: 0.35,
     pointRadius: 0,
     borderWidth: 2,
-    fill: true
-  }));
+    fill: false,
+    yAxisID: 'y'
+  });
+
+  // Dataset 1 (Secondary if exists)
+  if (secondaryConfig) {
+    datasets.push({
+      data: [],
+      borderColor: "#9ca3af", // Permanent gray for secondary
+      backgroundColor: "rgba(0,0,0,0)",
+      tension: 0.35,
+      pointRadius: 0,
+      borderWidth: 2,
+      fill: false,
+      yAxisID: 'y1'
+    });
+  }
+
+  const scales = {
+    x: {
+      display: true,
+      grid: {
+        color: (context) => document.documentElement.getAttribute('data-theme') === 'sombre' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+        drawBorder: false,
+        tickLength: 4
+      },
+      ticks: {
+        font: { size: 10 },
+        color: '#9ca3af',
+        maxTicksLimit: 6,
+        maxRotation: 0
+      },
+      border: { display: false }
+    },
+    y: {
+      display: true,
+      grid: {
+        color: (context) => document.documentElement.getAttribute('data-theme') === 'sombre' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+        drawBorder: false
+      },
+      ticks: {
+        font: { size: 10 },
+        color: '#9ca3af',
+        maxTicksLimit: 4
+      },
+      border: { display: false }
+    }
+  };
+
+  if (secondaryConfig) {
+    scales.y1 = {
+      display: true,
+      position: 'right',
+      grid: { display: false }, // Only show grid for primary axis
+      ticks: {
+        font: { size: 10 },
+        color: '#9ca3af',
+        maxTicksLimit: 4,
+        callback: function(value) { return value + (secondaryConfig.unit === '%' ? '%' : ''); }
+      },
+      border: { display: false }
+    };
+  }
 
   return new Chart(ctx, {
     type: "line",
@@ -165,8 +217,45 @@ function createSparklineChart(canvas, datasetCount) {
       responsive: true,
       maintainAspectRatio: false,
       animation: { duration: 300 },
-      plugins: { legend: { display: false }, tooltip: { enabled: false } },
-      scales: { x: { display: false }, y: { display: false } }
+      plugins: { legend: { display: false }, tooltip: { enabled: false, mode: 'index', intersect: false } },
+      scales: scales,
+      interaction: {
+        mode: 'nearest',
+        axis: 'x',
+        intersect: false
+      },
+      onHover: (e, elements, chart) => {
+        if (elements && elements.length > 0) {
+           const index = elements[0].index;
+           const val = chart.data.datasets[0].data[index];
+           const valueEl = document.getElementById(`${metric.id}-value`);
+           if (valueEl) valueEl.textContent = formatValue(val, metric.decimals);
+           
+           if (secondaryConfig && chart.data.datasets.length > 1) {
+              const val2 = chart.data.datasets[1].data[index];
+              const secondaryBigEl = document.getElementById(`${metric.id}-secondary-big`);
+              if (secondaryBigEl) {
+                 secondaryBigEl.textContent = `${formatValue(val2, secondaryConfig.decimals)} ${secondaryConfig.unit}`;
+              }
+           }
+        } else {
+           // Reset to last value on hover out (or when no point is selected)
+           const lastIndex = chart.data.datasets[0].data.length - 1;
+           if (lastIndex >= 0) {
+               const val = chart.data.datasets[0].data[lastIndex];
+               const valueEl = document.getElementById(`${metric.id}-value`);
+               if (valueEl) valueEl.textContent = formatValue(val, metric.decimals);
+               
+               if (secondaryConfig && chart.data.datasets.length > 1) {
+                  const val2 = chart.data.datasets[1].data[lastIndex];
+                  const secondaryBigEl = document.getElementById(`${metric.id}-secondary-big`);
+                  if (secondaryBigEl) {
+                     secondaryBigEl.textContent = `${formatValue(val2, secondaryConfig.decimals)} ${secondaryConfig.unit}`;
+                  }
+               }
+           }
+        }
+      }
     }
   });
 }
@@ -182,11 +271,11 @@ function createScoreHistoryChart() {
       datasets: [{
         data: [],
         borderColor: "#3b82f6",
-        backgroundColor: "rgba(59,130,246,0.15)",
+        backgroundColor: "transparent",
         tension: 0.35,
         pointRadius: 0,
         borderWidth: 2,
-        fill: true
+        fill: false
       }]
     },
     options: {
@@ -194,7 +283,23 @@ function createScoreHistoryChart() {
       maintainAspectRatio: false,
       animation: { duration: 300 },
       plugins: { legend: { display: false }, tooltip: { enabled: false } },
-      scales: { x: { display: false }, y: { display: false, min: 0, max: 100 } }
+      scales: {
+        x: { display: false },
+        y: { 
+          display: true, // Enable Y axis
+          min: 0, max: 100,
+          grid: {
+            color: (context) => document.documentElement.getAttribute('data-theme') === 'sombre' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+            drawBorder: false
+          },
+          ticks: {
+            font: { size: 9 },
+            color: '#9ca3af',
+            stepSize: 25
+          },
+          border: { display: false }
+        }
+      }
     }
   });
 }
@@ -209,17 +314,11 @@ function initCharts() {
 
   METRICS.forEach(metric => {
     const canvases = buildMetricCard(metric);
-    const primaryChart = createSparklineChart(canvases?.primary, 1);
-    const secondaryChart = metric.secondary
-      ? createSparklineChart(canvases?.secondary, 1)
-      : null;
-    if (primaryChart) {
-      if (secondaryChart) {
-        secondaryChart.data.datasets[0].fill = false;
-        secondaryChart.data.datasets[0].backgroundColor = "rgba(0,0,0,0)";
-        secondaryChart.data.datasets[0].borderWidth = 2;
-      }
-      charts.metrics[metric.id] = { primary: primaryChart, secondary: secondaryChart };
+    // Create single chart, pass secondary config if it exists
+    const chart = createSparklineChart(canvases?.primary, metric);
+    
+    if (chart) {
+      charts.metrics[metric.id] = { primary: chart, secondary: null };
     }
   });
 
@@ -230,7 +329,7 @@ function destroyCharts() {
   Object.keys(charts.metrics).forEach(key => {
     const chartEntry = charts.metrics[key];
     if (chartEntry?.primary) chartEntry.primary.destroy();
-    if (chartEntry?.secondary) chartEntry.secondary.destroy();
+    // Secondary is now part of primary chart, so no need to destroy separately
   });
   charts.metrics = {};
 
@@ -238,6 +337,11 @@ function destroyCharts() {
     charts.scoreHistory.destroy();
     charts.scoreHistory = null;
   }
+}
+
+function resetCharts() {
+  destroyCharts();
+  initCharts();
 }
 
 function resolveStatus(value, threshold) {
@@ -286,33 +390,28 @@ function updateChartsWithData(data) {
 
     const status = applyMetricState(metric, value, secondaryValue);
     const chartEntry = charts.metrics[metric.id];
+    
+    // Update Primary Dataset (Index 0)
     if (chartEntry?.primary) {
       chartEntry.primary.data.labels = labels;
-      chartEntry.primary.data.datasets[0].data = series;
-      chartEntry.primary.data.datasets[0].borderColor = STATUS_COLORS[status.primary].line;
-      chartEntry.primary.data.datasets[0].backgroundColor = STATUS_COLORS[status.primary].fill;
+      
+      const ds0 = chartEntry.primary.data.datasets[0];
+      ds0.data = series;
+      ds0.borderColor = STATUS_COLORS[status.primary].line;
+      ds0.backgroundColor = STATUS_COLORS[status.primary].fill;
+
+      // Update Secondary Dataset (Index 1) if chart has secondary
+      if (metric.secondary && chartEntry.primary.data.datasets.length > 1) {
+        const ds1 = chartEntry.primary.data.datasets[1];
+        ds1.data = secondarySeries;
+        // Use a distinct color for humidity/secondary (e.g., blue or purple) or status color
+        // Using status color for consistency with alert logic, but ensuring it's distinct if ok
+        ds1.borderColor = '#9ca3af';
+
+        ds1.backgroundColor = 'rgba(0,0,0,0)';
+      }
+
       chartEntry.primary.update("none");
-    }
-
-    if (metric.secondary && chartEntry?.secondary) {
-      chartEntry.secondary.data.labels = labels;
-      chartEntry.secondary.data.datasets[0].data = secondarySeries;
-      chartEntry.secondary.data.datasets[0].borderColor = STATUS_COLORS[status.secondary].line;
-      chartEntry.secondary.data.datasets[0].backgroundColor = "rgba(0,0,0,0)";
-      chartEntry.secondary.update("none");
-    }
-
-    if (metric.secondary) {
-      const primaryLabel = document.getElementById(`${metric.id}-primary-label`);
-      const secondaryLabel = document.getElementById(`${metric.id}-secondary-label`);
-      if (primaryLabel) {
-        primaryLabel.classList.remove("metric-ok", "metric-alert");
-        primaryLabel.classList.add(status.primary === "alert" ? "metric-alert" : "metric-ok");
-      }
-      if (secondaryLabel) {
-        secondaryLabel.classList.remove("metric-ok", "metric-alert");
-        secondaryLabel.classList.add(status.secondary === "alert" ? "metric-alert" : "metric-ok");
-      }
     }
   });
 
@@ -387,22 +486,169 @@ async function fetchAndUpdate() {
   }
 }
 
-function resetCharts() {
-  destroyCharts();
-  initCharts();
+
+function setupWebSocket() {
+  if (window.wsManager) {
+    if (!window.wsManager.isConnectionActive() && window.wsManager.connect) {
+      // Ensure connection is active if not already
+      window.wsManager.connect();
+    }
+    
+    // Subscribe to measurements
+    window.wsManager.subscribe(['measurements']);
+    
+    // Listen for new measurements
+    window.wsManager.on('measurements', (data) => {
+      handleRealtimeMeasurement(data);
+    });
+    
+    console.log('[charts] WebSocket listener setup');
+  } else {
+    // Retry if wsManager is not yet available
+    setTimeout(setupWebSocket, 1000);
+  }
 }
 
-function startPolling() {
-  if (httpPollingInterval) clearInterval(httpPollingInterval);
-  httpPollingInterval = setInterval(fetchAndUpdate, REFRESH_MS);
+function handleRealtimeMeasurement(data) {
+  if (!data) return;
+  const { enseigne, salle } = getActiveContext();
+  
+  // Verify context match (if data contains enseigne/salle info)
+  // Assuming data structure: { enseigne: "...", salle: "...", ...measurements... }
+  // or data structure: { tags: { enseigne: "...", salle: "..." }, fields: { ... } }
+  // Adjust based on actual API payload structure. 
+  // For now, assuming direct match or loose match if context is missing in data.
+  
+  // Checking data structure from previous logs/knowledge. 
+  // Usually data comes as: { time: ..., ...values... } 
+  // If it's a broadcast, it should have tags.
+  // Let's be permissive for now or check if properties exist.
+  
+  let dataEnseigne = data.enseigne || (data.tags && data.tags.enseigne);
+  let dataSalle = data.salle || (data.tags && data.tags.salle) || (data.tags && data.tags.piece);
+
+  // If context is set, strict check. If not, maybe update anyway? 
+  // Better strict check to avoid cross-room pollution.
+  if (enseigne && dataEnseigne && dataEnseigne !== enseigne) return;
+  if (salle && dataSalle && dataSalle !== salle) return;
+
+  const timestamp = new Date(data._time || data.time || data.timestamp || Date.now()).getTime();
+  const label = formatLabel(timestamp);
+
+  // Update Metrics
+  METRICS.forEach(metric => {
+    const chartEntry = charts.metrics[metric.id];
+    if (!chartEntry || !chartEntry.primary) return;
+
+    // Value update
+    let val = data[metric.key];
+    if (val === undefined && data.fields) val = data.fields[metric.key];
+    
+    if (typeof val === 'number') {
+      // Update DOM value
+      const valueEl = document.getElementById(`${metric.id}-value`);
+      if (valueEl) valueEl.textContent = formatValue(val, metric.decimals);
+      
+      // Update Chart
+      const chart = chartEntry.primary;
+      
+      // Add new data
+      if (chart.data.labels.length > 0 && chart.data.labels[chart.data.labels.length - 1] === label) {
+          // Update last point if same timestamp (rare but possible)
+          chart.data.datasets[0].data[chart.data.labels.length - 1] = val;
+      } else {
+          chart.data.labels.push(label);
+          chart.data.datasets[0].data.push(val);
+          
+          // Remove oldest if too many
+          // SPARKLINE_MINUTES points approx? 
+          // Let's base it on length assuming 1 point per 5-10s?
+          // Or just keep last 12-20 points as per getRecentSlice logic fallback.
+          // getRecentSlice keeps SPARKLINE_MINUTES via timestamps.
+          // Simple approach: max 60 points (1 hour at 1/min)
+          if (chart.data.labels.length > 60) {
+              chart.data.labels.shift();
+              chart.data.datasets[0].data.shift();
+          }
+      }
+      
+      // Update color/status
+      // Need secondary value for status?
+      let secVal = null;
+      if (metric.secondary) {
+         secVal = data[metric.secondary.key];
+         if (secVal === undefined && data.fields) secVal = data.fields[metric.secondary.key];
+      }
+      
+      const status = applyMetricState(metric, val, secVal);
+      chart.data.datasets[0].borderColor = STATUS_COLORS[status.primary].line;
+      chart.data.datasets[0].backgroundColor = STATUS_COLORS[status.primary].fill;
+      
+      // Secondary Dataset
+      if (metric.secondary && chart.data.datasets.length > 1) {
+          const ds1 = chart.data.datasets[1];
+          if (typeof secVal === 'number') {
+             if (chart.data.labels.length > ds1.data.length) {
+                 // Sync length if primary pushed
+                 ds1.data.push(secVal);
+                 if (ds1.data.length > 60) ds1.data.shift();
+             } else {
+                 ds1.data[ds1.data.length - 1] = secVal;
+             }
+             
+             // Update secondary DOM
+             const secondaryBigEl = document.getElementById(`${metric.id}-secondary-big`);
+             if (secondaryBigEl) {
+                secondaryBigEl.textContent = `${formatValue(secVal, metric.secondary.decimals)} ${metric.secondary.unit}`;
+             }
+             
+             ds1.borderColor = '#9ca3af';
+          }
+      }
+      
+      chart.update('none');
+    }
+  });
+
+  // Update Score
+  let score = data.global_score || data.score;
+  if (score === undefined && data.fields) score = data.fields.global_score || data.fields.score;
+  
+  if (typeof score === 'number' && charts.scoreHistory) {
+      const chart = charts.scoreHistory;
+      if (chart.data.labels.length > 0 && chart.data.labels[chart.data.labels.length - 1] === label) {
+          chart.data.datasets[0].data[chart.data.labels.length - 1] = score;
+      } else {
+          chart.data.labels.push(label);
+          chart.data.datasets[0].data.push(score);
+          if (chart.data.labels.length > 60) {
+              chart.data.labels.shift();
+              chart.data.datasets[0].data.shift();
+          }
+      }
+      chart.update('none');
+      
+      if (typeof window.setRoomScore === "function") {
+          window.setRoomScore(score, { note: "" });
+      }
+  }
 }
 
+
+// Export functions to window
+window.resetCharts = resetCharts;
+window.fetchAndUpdate = fetchAndUpdate;
+// window.startPolling = startPolling; // Deprecated
+window.setupWebSocket = setupWebSocket;
+
+// Initialize on DOMContentLoaded
 document.addEventListener('DOMContentLoaded', () => {
   initCharts();
-  fetchAndUpdate();
-  startPolling();
+  fetchAndUpdate(); // Load initial history via HTTP
+  setupWebSocket(); // Start real-time updates
 });
 
+// Re-initialize on window load (just in case)
 window.addEventListener('load', () => {
   resetCharts();
   fetchAndUpdate();
@@ -410,8 +656,8 @@ window.addEventListener('load', () => {
 
 // Refresh charts on room changes (tabs manager)
 document.addEventListener('roomChanged', () => {
+  // Clear charts and fetch new context data
+  resetCharts();
   fetchAndUpdate();
 });
 
-window.resetCharts = resetCharts;
-window.fetchAndUpdate = fetchAndUpdate;

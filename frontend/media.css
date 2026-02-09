@@ -444,3 +444,9 @@
     height: 350px;
   }
 }
+
+@media (max-width: 1100px) {
+  .grid {
+    width: 100%;
+  }
+}

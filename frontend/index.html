@@ -23,44 +23,38 @@
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
   <!-- Scripts -->
-  <script src="js/auth.js"></script>
-  <script src="js/api-retry.js"></script>
-  <script src="js/config-loader.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/theme.js"></script>
-  <script src="js/i18n.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/websocket-manager.js"></script>
-  <script src="js/tabs-manager.js"></script>
-  <script src="js/dashboard.js"></script>
-  <script src="js/global-alerts.js"></script>
-  <script src="js/occupants-display.js"></script>
-  <script src="js/tutorial.js"></script>
+  <script src="js/auth.js" defer></script>
+  <script src="js/api-retry.js" defer></script>
+  <script src="js/config-loader.js" defer></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/theme.js" defer></script>
+  <script src="js/i18n.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/websocket-manager.js" defer></script>
+  <script src="js/tabs-manager.js" defer></script>
+  <script src="js/dashboard.js" defer></script>
+  <script src="js/global-alerts.js" defer></script>
+  <script src="js/occupants-display.js" defer></script>
+  <script src="js/tutorial.js" defer></script>
 
   <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 
   <style id="auth-guard">body { display: none !important; }</style>
   <script>
-    (async function() {
+    document.addEventListener('DOMContentLoaded', async function() {
       try {
         const token = await getAuthToken();
         if (!token) {
           window.location.replace('login.html');
         } else {
-          document.addEventListener('DOMContentLoaded', () => {
-            const guard = document.getElementById('auth-guard');
-            if (guard) guard.remove();
-          });
-          if (document.readyState === 'interactive' || document.readyState === 'complete') {
-            const guard = document.getElementById('auth-guard');
-            if (guard) guard.remove();
-          }
+          const guard = document.getElementById('auth-guard');
+          if (guard) guard.remove();
         }
       } catch (e) {
         window.location.replace('login.html');
       }
-    })();
+    });
   </script>
 
 </head>

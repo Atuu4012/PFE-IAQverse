@@ -617,24 +617,7 @@ header h1 {
     cursor: pointer;
 }
 
-.room-occupant-bage title {
-    border: 1px solid var(--bg-primary);
-    padding: 2px;
-    border-radius: 50%;
-    background: var(--bg-primary);
-    color: white;
-    font-size: 0.75rem; 
-    font-weight: 600;
-    line-height: 18px;
-    text-align: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: auto; /* Allow hover */
-    box-sizing: content-box; /* To ensure border doesn't shrink content */
-}
+
 
 /* Badge update animation */
 @keyframes badge-pop {
@@ -673,7 +656,7 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 40px;
+  gap: 8%;
   position: relative;
   min-height: 140px;
 }
@@ -876,11 +859,7 @@ main {
   overflow: hidden;
 }
 
-@media (max-width: 900px) {
-  .grid {
-    grid-template-columns: repeat(2, minmax(280px, 1fr));
-  }
-}
+
 
 .chart-box:hover {
   box-shadow: var(--shadow-md);
@@ -2316,175 +2295,17 @@ select.form-control {
    MOBILE CONTROLS
    ======================================== */
 
-.mobile-controls-zone {
-  display: none;
-  position: absolute;
-  bottom: 80px;
-  right: 20px;
-  z-index: 300;
-}
 
-.controls-toggle-btn {
-  display: none;
-}
 
-@media (max-width: 1024px) {
-  .mobile-controls-zone {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
 
-  .controls-toggle-btn {
-    display: flex;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: var(--shadow-md);
-  }
-}
 
 /* ========================================
    RESPONSIVE
    ======================================== */
 
-@media (max-width: 1024px) {
-  .twin-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .actions-panel {
-    order: 2;
-  }
-
-  .room-panel {
-    order: 1;
-    min-height: 400px;
-  }
-
-  .details-panel {
-    order: 3;
-  }
-
-  .settings-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    border-right: none;
-    border-bottom: 1px solid var(--border-color);
-    padding: 16px;
-  }
-
-  .menu {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .menu li {
-    white-space: nowrap;
-  }
-
-  .settings-content {
-    padding: 20px;
-  }
-
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-
-  .avatar-col {
-    order: -1;
-    align-items: flex-start;
-  }
-}
-
-@media (max-width: 768px) {
-  header {
-    padding: 0 16px;
-    height: 56px;
-  }
-
-  header h1 {
-    font-size: 1rem;
-  }
-
-  .tabs-container {
-    margin: 72px 16px 12px;
-  }
-
-  main {
-    padding: 0 16px 16px;
-  }
-
-  .grid {
-    grid-template-columns: 1fr;
-  }
-
-  .score-panel {
-    flex-direction: column;
-    gap: 20px;
-    padding: 20px;
-  }
-
-  .occupants-badge {
-    position: static;
-    transform: none;
-    order: -1;
-  }
-
-  .score-legend {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .score-right,
-  .score-predicted {
-    position: static;
-    transform: none;
-  }
-
-  .score-history {
-    width: 100%;
-    max-width: none;
-  }
-
-  .score-history-chart {
-    height: 100px;
-  }
-
-  .chart-box {
-    height: 280px;
-  }
-
-  .metric-card {
-    height: 210px;
-  }
-
-  .preventive-panel-global {
-    margin: 72px 16px 12px;
-  }
-
-  .twin-layout {
-    padding: 0 16px 16px;
-  }
-
-  .room-visual {
-    min-height: 300px;
-  }
 
 
-  .iaq-label {
-    width: 40px;
-  }
-}
+
 
 /* ========================================
    UTILITIES

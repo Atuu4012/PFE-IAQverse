@@ -56,8 +56,8 @@ async function toggleTheme() {
 async function updateThemeInConfig(theme) {
     if (typeof window.saveConfig === 'function') {
         try {
-            // Use standardized saveConfig
-            await window.saveConfig({ affichage: { mode: theme === 'sombre' ? 'Sombre' : 'Clair' } });
+            // Use standardized saveConfig — always lowercase
+            await window.saveConfig({ affichage: { mode: theme } });
             console.log('Thème sauvegardé via /api/config');
             return;
         } catch(e) {

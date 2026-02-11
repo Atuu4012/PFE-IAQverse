@@ -532,8 +532,7 @@
                 step: "5min",
             });
             const url = `${API_URL_DATA}?${params.toString()}`;
-            const res = await fetch(url, { cache: "no-store", headers: { 'ngrok-skip-browser-warning': 'true' } });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const res = await fetchWithRetry(url, { cache: "no-store" }, 1);
             const data = await res.json();
             if (!Array.isArray(data) || data.length === 0) {
                 applyAlertPointsActivation({}, {});

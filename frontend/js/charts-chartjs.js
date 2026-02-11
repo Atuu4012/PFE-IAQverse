@@ -124,7 +124,7 @@ async function ensureConfigLoaded() {
 function formatLabel(ts) {
   const d = new Date(ts);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 function formatValue(value, decimals) {
@@ -612,111 +612,98 @@ function handleRealtimeMeasurement(data) {
   ).getTime();
   const label = formatLabel(timestamp);
 
-  // Update Metrics
+  // Update Metrics — always push for ALL charts so they scroll together
   METRICS.forEach((metric) => {
     const chartEntry = charts.metrics[metric.id];
     if (!chartEntry || !chartEntry.primary) return;
 
-    // Value update
+    const chart = chartEntry.primary;
+
+    // Read value from WebSocket data (or fallback to last known)
     let val = data[metric.key];
     if (val === undefined && data.fields) val = data.fields[metric.key];
 
+    // Use last known value if this metric is missing from current message
+    if (typeof val !== "number") {
+      const lastData = chart.data.datasets[0].data;
+      val = lastData.length > 0 ? lastData[lastData.length - 1] : null;
+    }
+
+    // Update DOM value
     if (typeof val === "number") {
-      // Update DOM value
       const valueEl = document.getElementById(`${metric.id}-value`);
       if (valueEl) valueEl.textContent = formatValue(val, metric.decimals);
-
-      // Update Chart
-      const chart = chartEntry.primary;
-
-      // Add new data
-      if (
-        chart.data.labels.length > 0 &&
-        chart.data.labels[chart.data.labels.length - 1] === label
-      ) {
-        // Update last point if same timestamp (rare but possible)
-        chart.data.datasets[0].data[chart.data.labels.length - 1] = val;
-      } else {
-        chart.data.labels.push(label);
-        chart.data.datasets[0].data.push(val);
-
-        // Remove oldest if too many
-        // SPARKLINE_MINUTES points approx?
-        // Let's base it on length assuming 1 point per 5-10s?
-        // Or just keep last 12-20 points as per getRecentSlice logic fallback.
-        // getRecentSlice keeps SPARKLINE_MINUTES via timestamps.
-        // Simple approach: max 60 points (1 hour at 1/min)
-        if (chart.data.labels.length > 60) {
-          chart.data.labels.shift();
-          chart.data.datasets[0].data.shift();
-        }
-      }
-
-      // Update color/status
-      // Need secondary value for status?
-      let secVal = null;
-      if (metric.secondary) {
-        secVal = data[metric.secondary.key];
-        if (secVal === undefined && data.fields)
-          secVal = data.fields[metric.secondary.key];
-      }
-
-      const status = applyMetricState(metric, val, secVal);
-      chart.data.datasets[0].borderColor = STATUS_COLORS[status.primary].line;
-      chart.data.datasets[0].backgroundColor =
-        STATUS_COLORS[status.primary].fill;
-
-      // Secondary Dataset
-      if (metric.secondary && chart.data.datasets.length > 1) {
-        const ds1 = chart.data.datasets[1];
-        if (typeof secVal === "number") {
-          if (chart.data.labels.length > ds1.data.length) {
-            // Sync length if primary pushed
-            ds1.data.push(secVal);
-            if (ds1.data.length > 60) ds1.data.shift();
-          } else {
-            ds1.data[ds1.data.length - 1] = secVal;
-          }
-
-          // Update secondary DOM
-          const secondaryBigEl = document.getElementById(
-            `${metric.id}-secondary-big`,
-          );
-          if (secondaryBigEl) {
-            secondaryBigEl.textContent = `${formatValue(secVal, metric.secondary.decimals)} ${metric.secondary.unit}`;
-          }
-
-          ds1.borderColor = "#9ca3af";
-        }
-      }
-
-      chart.update("none");
     }
+
+    // Always push a new point for each WebSocket message
+    chart.data.labels.push(label);
+    chart.data.datasets[0].data.push(val);
+    if (chart.data.labels.length > 60) {
+      chart.data.labels.shift();
+      chart.data.datasets[0].data.shift();
+    }
+
+    // Secondary value (e.g. humidity)
+    let secVal = null;
+    if (metric.secondary) {
+      secVal = data[metric.secondary.key];
+      if (secVal === undefined && data.fields)
+        secVal = data.fields[metric.secondary.key];
+      // Fallback to last known
+      if (typeof secVal !== "number" && chart.data.datasets.length > 1) {
+        const ds1 = chart.data.datasets[1];
+        secVal = ds1.data.length > 0 ? ds1.data[ds1.data.length - 1] : null;
+      }
+    }
+
+    // Update color/status
+    const status = applyMetricState(metric, val, secVal);
+    chart.data.datasets[0].borderColor = STATUS_COLORS[status.primary].line;
+    chart.data.datasets[0].backgroundColor =
+      STATUS_COLORS[status.primary].fill;
+
+    // Secondary Dataset
+    if (metric.secondary && chart.data.datasets.length > 1) {
+      const ds1 = chart.data.datasets[1];
+      ds1.data.push(secVal);
+      if (ds1.data.length > 60) ds1.data.shift();
+
+      if (typeof secVal === "number") {
+        const secondaryBigEl = document.getElementById(
+          `${metric.id}-secondary-big`,
+        );
+        if (secondaryBigEl) {
+          secondaryBigEl.textContent = `${formatValue(secVal, metric.secondary.decimals)} ${metric.secondary.unit}`;
+        }
+      }
+      ds1.borderColor = "#9ca3af";
+    }
+
+    chart.update("none");
   });
 
-  // Update Score
+  // Update Score — also always push
   let score = data.global_score || data.score;
   if (score === undefined && data.fields)
     score = data.fields.global_score || data.fields.score;
 
-  if (typeof score === "number" && charts.scoreHistory) {
+  if (charts.scoreHistory) {
     const chart = charts.scoreHistory;
-    if (
-      chart.data.labels.length > 0 &&
-      chart.data.labels[chart.data.labels.length - 1] === label
-    ) {
-      chart.data.datasets[0].data[chart.data.labels.length - 1] = score;
-    } else {
-      chart.data.labels.push(label);
-      chart.data.datasets[0].data.push(score);
-      if (chart.data.labels.length > 60) {
-        chart.data.labels.shift();
-        chart.data.datasets[0].data.shift();
-      }
+    // Fallback to last known score
+    if (typeof score !== "number") {
+      const lastData = chart.data.datasets[0].data;
+      score = lastData.length > 0 ? lastData[lastData.length - 1] : null;
+    }
+
+    chart.data.labels.push(label);
+    chart.data.datasets[0].data.push(score);
+    if (chart.data.labels.length > 60) {
+      chart.data.labels.shift();
+      chart.data.datasets[0].data.shift();
     }
     chart.update("none");
 
-    if (typeof window.setRoomScore === "function") {
+    if (typeof score === "number" && typeof window.setRoomScore === "function") {
       window.setRoomScore(score, { note: "" });
     }
   }
@@ -735,11 +722,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupWebSocket(); // Start real-time updates
 });
 
-// Re-initialize on window load (just in case)
-window.addEventListener("load", () => {
-  resetCharts();
-  fetchAndUpdate();
-});
+// Note: no duplicate 'load' handler — DOMContentLoaded already initializes charts
 
 // Refresh charts on room changes (tabs manager)
 document.addEventListener("roomChanged", () => {

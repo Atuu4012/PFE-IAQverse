@@ -444,17 +444,5 @@ window.addNewAccount = async () => {
     window.location.href = 'login.html?force_login=true';
 };
 
-// Fonctions utilitaires pour le stockage (dupliquées de auth.js pour dispo globale si besoin, mais auth.js gère l'écriture)
-// On a besoin de removeAccountFromStorage localement si on veut nettoyer
-function removeAccountFromStorage(userId) {
-    try {
-        let accounts = JSON.parse(localStorage.getItem('iaq_accounts') || '[]');
-        accounts = accounts.filter(a => a.user.id !== userId);
-        localStorage.setItem('iaq_accounts', JSON.stringify(accounts));
-    } catch (e) {}
-}
-
-
-
 
 

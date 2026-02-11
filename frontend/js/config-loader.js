@@ -1,20 +1,10 @@
 /**
  * Gestionnaire de configuration pour IAQverse
- * Charge et gère la configuration depuis le backend ou le fichier statique
+ * Charge et gère la configuration depuis le backend
  */
 
 let config = null;
 let configPromise = null;
-const CONFIG_CACHE_KEY = 'iaq_config_cache';
-
-try {
-    const cached = sessionStorage.getItem(CONFIG_CACHE_KEY);
-    if (cached) {
-        config = JSON.parse(cached);
-    }
-} catch (e) {
-    console.warn('Config cache read failed', e);
-}
 
 /**
  * Charge la configuration depuis le backend
@@ -42,11 +32,6 @@ async function loadConfig() {
             const response = await fetch('/api/config', { headers });
             if (response.ok) {
                 config = await response.json();
-                try {
-                    sessionStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(config));
-                } catch (e) {
-                    console.warn('Config cache write failed', e);
-                }
                 return config;
             }
         } catch (error) {
@@ -84,11 +69,6 @@ async function saveConfig(updates = null) {
         const result = await response.json();
         if (result && result.config) {
             config = result.config;
-            try {
-                sessionStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(config));
-            } catch (e) {
-                console.warn('Config cache write failed', e);
-            }
         }
 
         return config;

@@ -213,20 +213,14 @@ async function fetchAndDisplayPreventiveScore(params) {
     if (!scoreElement || !trendElement || !containerElement) return;
     
     try {
-         const headers = { 'ngrok-skip-browser-warning': 'true' };
-         try { if(typeof getAuthToken === 'function') { const t=await getAuthToken(); if(t) headers['Authorization'] = `Bearer ${t}`; } } catch(e){}
-
-        const response = await fetch(`${API_ENDPOINTS.preventiveActions}?${params}`, { headers });
+        const response = await fetchWithRetry(`${API_ENDPOINTS.preventiveActions}?${params}`, {}, 1);
         const data = await response.json();
-        
-        // Le score prédit est inclus dans les actions préventives
         const predictedScore = data.predicted_score;
         
         if (predictedScore !== undefined) {
             const roundedScore = Math.round(predictedScore);
             scoreElement.textContent = roundedScore;
             
-            // Appliquer la classe de couleur selon le score
             containerElement.classList.remove('predicted-excellent', 'predicted-warning', 'predicted-danger');
             if (roundedScore >= 70) {
                 containerElement.classList.add('predicted-excellent');
@@ -236,44 +230,20 @@ async function fetchAndDisplayPreventiveScore(params) {
                 containerElement.classList.add('predicted-danger');
             }
             
-            // Calculer et afficher la tendance
             if (window.scoreHistory && window.scoreHistory.length > 0) {
                 const lastScore = window.scoreHistory[window.scoreHistory.length - 1];
                 const diff = roundedScore - lastScore;
-                
-                if (diff > 2) {
-                    trendElement.textContent = '↗';
-                    trendElement.className = 'predicted-trend up';
-                } else if (diff < -2) {
-                    trendElement.textContent = '↘';
-                    trendElement.className = 'predicted-trend down';
-                } else {
-                    trendElement.textContent = '→';
-                    trendElement.className = 'predicted-trend stable';
-                }
+                if (diff > 2) { trendElement.textContent = '↗'; trendElement.className = 'predicted-trend up'; }
+                else if (diff < -2) { trendElement.textContent = '↘'; trendElement.className = 'predicted-trend down'; }
+                else { trendElement.textContent = '→'; trendElement.className = 'predicted-trend stable'; }
             } else {
                 trendElement.textContent = '';
                 trendElement.className = 'predicted-trend';
             }
-            
-            // Sauvegarder dans sessionStorage
-            sessionStorage.setItem('preventiveScore', JSON.stringify({ 
-                predicted_score: roundedScore,
-                timestamp: Date.now()
-            }));
         }
     } catch (error) {
         console.error('[preventive] Error fetching score:', error);
-        // Essayer de restaurer depuis le cache
-        const cached = sessionStorage.getItem('preventiveScore');
-        if (cached) {
-            try {
-                const cachedData = JSON.parse(cached);
-                scoreElement.textContent = cachedData.predicted_score;
-            } catch (e) {
-                scoreElement.textContent = '—';
-            }
-        }
+        scoreElement.textContent = '—';
     }
 }
 
@@ -293,111 +263,30 @@ async function fetchAndDisplayPreventiveActions() {
         const tab = document.querySelector('#room-tabs .room-tab.active');
         let activeRoomId = tab ? tab.getAttribute('data-room-id') : null;
         
-        if (!activeEnseigneId || !activeRoomId) {
-            // Restaurer depuis sessionStorage si disponible
-            const cached = sessionStorage.getItem('preventiveActions');
-            if (cached) {
-                try {
-                    const cachedData = JSON.parse(cached);
-                    displayPreventiveActions(cachedData);
-                    return;
-                } catch (e) {
-                    console.error('[preventive] Error parsing cached data:', e);
-                }
-            }
-            return;
-        }
+        if (!activeEnseigneId || !activeRoomId) return;
         
         const ens = cfg?.lieux?.enseignes?.find(e => e.id === activeEnseigneId);
         const salle = ens?.pieces?.find(p => p.id === activeRoomId);
-        
-        if (!ens || !salle) {
-            console.log('[preventive] Config:', { ens, salle, activeEnseigneId, activeRoomId });
-            return;
-        }
-        
-        // Les capteurs sont un array de strings dans la config
-        const capteur_id = salle.capteurs?.[0] || salle.nom || 'Salon1';
+        if (!ens || !salle) return;
         
         const params = new URLSearchParams({
             enseigne: ens.nom || 'Maison',
             salle: salle.nom || ''
         });
         
-        console.log('[preventive] Fetching with params:', params.toString());
-        
         const url = `${API_ENDPOINTS.preventiveActions}?${params}`;
+        const response = await fetchWithRetry(url, {}, 2);
+        const data = await response.json();
         
-        // Vérifier si apiCallWithCache existe, sinon utiliser fetch standard
-        if (typeof window.apiCallWithCache === 'function') {
-            await window.apiCallWithCache(
-                url,
-                'preventiveActions',
-                (data, fromCache) => {
-                    // Le score est inclus dans la réponse
-                    fetchAndDisplayPreventiveScore(params).catch(e => console.warn('[preventive] Score fetch failed:', e));
-                    displayPreventiveActions(data);
-                    
-                    // Ajouter un badge si depuis le cache
-                    if (fromCache) {
-                        const badge = document.createElement('div');
-                        badge.className = 'cache-badge';
-                        badge.textContent = '📦 Données en cache';
-                        badge.style.cssText = 'font-size: 12px; color: #666; margin-top: 10px; text-align: center;';
-                        container.appendChild(badge);
-                    }
-                },
-                (error) => {
-                    console.error('[preventive] All retries failed (apiCallWithCache):', error);
-                    container.innerHTML = `<div class="preventive-error">
-                        ⚠️ [API] Service de prédiction temporairement indisponible.<br>
-                        <small>Les données seront rechargées automatiquement.</small>
-                    </div>`;
-                },
-                { maxRetries: 2, retryDelay: 1000, useCacheOnError: true }
-            );
-        } else {
-            // Fallback : fetch standard sans retry
-            console.warn('[preventive] apiCallWithCache not available, using standard fetch');
-            const headers = { 'ngrok-skip-browser-warning': 'true' };
-            try { if(typeof getAuthToken === 'function') { const t=await getAuthToken(); if(t) headers['Authorization'] = `Bearer ${t}`; } } catch(e){}
-
-            const response = await fetch(url, { headers });
-            const data = await response.json();
-            
-            sessionStorage.setItem('preventiveActions', JSON.stringify(data));
-            await fetchAndDisplayPreventiveScore(params).catch(e => console.warn('[preventive] Score fetch failed:', e));
-            displayPreventiveActions(data);
-        }
+        fetchAndDisplayPreventiveScore(params).catch(e => console.warn('[preventive] Score fetch failed:', e));
+        displayPreventiveActions(data);
         
     } catch (error) {
         console.error('[preventive] Error fetching actions:', error);
-        // Essayer de restaurer depuis le cache en cas d'erreur
-        const cached = sessionStorage.getItem('preventiveActions');
-        if (cached) {
-            try {
-                const cachedData = JSON.parse(cached);
-                displayPreventiveActions(cachedData);
-                // Ajouter un badge "données en cache"
-                const badge = document.createElement('div');
-                badge.className = 'cache-badge';
-                badge.textContent = '📦 Données en cache';
-                badge.style.cssText = 'font-size: 12px; color: #666; margin-top: 10px; text-align: center;';
-                container.appendChild(badge);
-            } catch (e) {
-                console.error('[preventive] Error parsing cache:', e);
-                container.innerHTML = `<div class="preventive-error">
-                    ⚠️ [CACHE] Service de prédiction temporairement indisponible.<br>
-                    <small>Les données seront rechargées automatiquement.</small>
-                </div>`;
-            }
-        } else {
-            console.error('[preventive] No cache available after error');
-            container.innerHTML = `<div class="preventive-error">
-                ⚠️ [NO CACHE] Service de prédiction temporairement indisponible.<br>
-                <small>Les données seront rechargées automatiquement.</small>
-            </div>`;
-        }
+        container.innerHTML = `<div class="preventive-error">
+            ⚠️ Service de prédiction temporairement indisponible.<br>
+            <small>Les données seront rechargées automatiquement.</small>
+        </div>`;
     }
 }
 
@@ -858,21 +747,7 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('language-changed', () => { 
     try { 
         syncAlertPointsToTable();
-        // Rafraîchir l'affichage des actions préventives avec les nouvelles traductions
-        const cached = sessionStorage.getItem('preventiveActions');
-        if (cached) {
-            const cachedData = JSON.parse(cached);
-            displayPreventiveActions(cachedData);
-        }
-        // Rafraîchir aussi le score prédit
-        const cachedScore = sessionStorage.getItem('preventiveScore');
-        if (cachedScore) {
-            const scoreData = JSON.parse(cachedScore);
-            const scoreElement = document.getElementById('preventive-score-value');
-            if (scoreElement) {
-                scoreElement.textContent = scoreData.predicted_score;
-            }
-        }
+        fetchAndDisplayPreventiveActions();
     } catch(e){} 
 });
 
@@ -935,32 +810,17 @@ function closeLegendModal() {
 }
 
 // Listener pour les mises à jour de configuration (ex: changement de paysage)
+// Listen for config updates via the global WebSocket manager
 document.addEventListener('DOMContentLoaded', () => {
-    if (typeof WebSocketManager !== 'undefined') {
-        const ws = new WebSocketManager();
-        ws.connect();
-        
-        const handleConfigUpdate = (data) => {
+    const setupConfigWs = () => {
+        if (!window.wsManager) { setTimeout(setupConfigWs, 1000); return; }
+        window.wsManager.on('config_updated', (data) => {
             if (data && data.config) {
-                console.log('🔄 Config updated via WS', data.config);
-                // Mettre à jour le cache global
                 if (window.setConfig) window.setConfig(data.config);
-                
-                // Mettre à jour l'environnement 3D si la fonction est disponible
-                if (window.updateThreeEnvironment) {
-                    window.updateThreeEnvironment(data.config);
-                }
+                if (window.updateThreeEnvironment) window.updateThreeEnvironment(data.config);
             }
-        };
-
-        ws.listeners.set('config_updated', handleConfigUpdate);
-        
-        // Ecouter aussi sur le topic 'all' si nécessaire
-        ws.listeners.set('all', (data) => {
-             if (data.type === 'config_updated') {
-                 handleConfigUpdate(data);
-             }
         });
-    }
+    };
+    setupConfigWs();
 });
 

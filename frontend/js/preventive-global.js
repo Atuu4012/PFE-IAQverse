@@ -81,15 +81,7 @@ async function fetchAndDisplayGlobalPreventiveActions() {
                         salle: salle.nom || 'Unknown'
                     });
                     
-                    const headers = { 'ngrok-skip-browser-warning': 'true' };
-                    try {
-                        if (typeof getAuthToken === 'function') {
-                            const token = await getAuthToken();
-                            if (token) headers['Authorization'] = `Bearer ${token}`;
-                        }
-                    } catch(e){}
-
-                    const actionsResponse = await fetch(`${API_ENDPOINTS.preventiveActions}?${actionsParams}`, { headers });
+                    const actionsResponse = await fetchWithRetry(`${API_ENDPOINTS.preventiveActions}?${actionsParams}`, {}, 1);
                     // Defensive: some responses may be HTML error pages (502/Bad Gateway from proxy)
                     // Read as text first and try to parse JSON to avoid Uncaught SyntaxError
                     let actionsData = null;
@@ -122,35 +114,15 @@ async function fetchAndDisplayGlobalPreventiveActions() {
             }
         }
         
-        // Sauvegarder dans sessionStorage
-        sessionStorage.setItem('globalPreventiveActions', JSON.stringify(allRoomActions));
-        
         displayGlobalPreventiveActions(allRoomActions);
         
     } catch (error) {
         console.error('[preventive-global] Error fetching global actions:', error);
-        // Essayer de restaurer depuis le cache
-        const cached = sessionStorage.getItem('globalPreventiveActions');
-        if (cached) {
-            try {
-                const cachedData = JSON.parse(cached);
-                displayGlobalPreventiveActions(cachedData);
-                
-                console.info('[preventive-global] Using cached data after error');
-            } catch (e) {
-                console.error('[preventive-global] Failed to parse cache:', e);
-                container.innerHTML = `<div class="preventive-info" style="color: #666;">
-                    ℹ️ ${t('digitalTwin.preventive.loading') || 'Chargement des prédictions...'}<br>
-                    <small>Veuillez patienter</small>
-                </div>`;
-            }
-        } else {
-            console.warn('[preventive-global] No cache available, showing info message');
-            container.innerHTML = `<div class="preventive-info" style="color: #666;">
-                ℹ️ ${t('digitalTwin.preventive.loading') || 'Chargement des prédictions...'}<br>
-                <small>Les données seront disponibles dans quelques instants</small>
-            </div>`;
-        }
+        const t = (window.i18n && typeof window.i18n.t === 'function') ? window.i18n.t : (()=>undefined);
+        container.innerHTML = `<div class="preventive-info" style="color: #666;">
+            ℹ️ ${t('digitalTwin.preventive.loading') || 'Chargement des prédictions...'}<br>
+            <small>Les données seront disponibles dans quelques instants</small>
+        </div>`;
     }
 }
 
@@ -337,13 +309,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Rafraîchir lors du changement de langue
 window.addEventListener('language-changed', () => {
-    try {
-        const cached = sessionStorage.getItem('globalPreventiveActions');
-        if (cached) {
-            const cachedData = JSON.parse(cached);
-            displayGlobalPreventiveActions(cachedData);
-        }
-    } catch (e) {
-        console.error('[preventive-global] Error on language-changed:', e);
-    }
+    try { fetchAndDisplayGlobalPreventiveActions(); } catch (e) {}
 });

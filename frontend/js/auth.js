@@ -3,12 +3,39 @@ let supabaseClient = null;
 let initPromise = null;
 
 async function fetchAuthConfig() {
+    const CACHE_KEY = 'iaq_auth_config';
+    const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+    // 1. Try to load from cache
+    try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+            const { config, timestamp } = JSON.parse(cached);
+            if (Date.now() - timestamp < CACHE_DURATION) {
+                return config;
+            }
+        }
+    } catch (e) {
+        console.warn("Error reading auth config cache", e);
+    }
+
+    // 2. Fetch from network
      try {
         const response = await fetch('/api/auth/config', {
             headers: { 'ngrok-skip-browser-warning': 'true' }
         });
         if (response.ok) {
-            return await response.json();
+            const config = await response.json();
+            // 3. Save to cache
+            try {
+                localStorage.setItem(CACHE_KEY, JSON.stringify({
+                    config,
+                    timestamp: Date.now()
+                }));
+            } catch (e) {
+                console.warn("Error saving auth config cache", e);
+            }
+            return config;
         }
     } catch (e) {
         console.error("Impossible de charger la config Auth", e);
@@ -70,12 +97,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
-    }
-    
-    // Ajout bouton Sign Up (Legacy) & Nouvelle Page
-    const signupBtn = document.getElementById('signup-btn');
-    if (signupBtn && !signupBtn.hasAttribute('onclick')) {
-        signupBtn.addEventListener('click', handleSignup);
     }
 
     const googleBtn = document.getElementById('google-btn');
@@ -196,32 +217,6 @@ async function handlePasswordReset(e) {
     }
 }
 
-async function handleSignup(e) {
-    e.preventDefault();
-    if (!supabaseClient) await initSupabase();
-
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const errorMsg = document.getElementById('error-msg');
-    
-    errorMsg.style.display = 'none';
-    
-    try {
-        const { data, error } = await supabaseClient.auth.signUp({
-            email,
-            password
-        });
-        
-        if (error) throw error;
-        
-        alert("Inscription réussie ! Vérifiez vos emails pour confirmer l'inscription.");
-    } catch (error) {
-        console.error(error);
-        errorMsg.textContent = "Échec de l'inscription : " + (error.message || "Erreur inconnue");
-        errorMsg.style.display = 'block';
-    }
-}
-
 async function handleLogin(e) {
     e.preventDefault();
     
@@ -325,6 +320,7 @@ function removeAccountFromStorage(userId) {
         console.error("Erreur suppression compte", e);
     }
 }
+window.removeAccountFromStorage = removeAccountFromStorage;
 
 // Sync session on auth state change
 document.addEventListener('DOMContentLoaded', async () => {

@@ -306,15 +306,7 @@ async function fetchRoomScore(enseigneNom, roomNom) {
             : "/api/iaq/data";
         const url = `${baseUrl}?enseigne=${encodeURIComponent(enseigneNom)}&salle=${encodeURIComponent(roomNom)}&hours=1`;
         
-        const headers = { 'ngrok-skip-browser-warning': 'true' };
-        try {
-            if (typeof getAuthToken === 'function') {
-                const token = await getAuthToken();
-                if (token) headers['Authorization'] = `Bearer ${token}`;
-            }
-        } catch(e) { console.warn('Auth error', e); }
-
-        const response = await fetch(url, { headers });
+        const response = await fetchWithRetry(url, {}, 1);
         if (!response.ok) {
             return null;
         }

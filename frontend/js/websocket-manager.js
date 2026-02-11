@@ -21,7 +21,7 @@ class WebSocketManager {
      */
     connect() {
         if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
-            console.log('WebSocket déjà connecté ou en cours de connexion');
+            // Silently return if already connecting/connected to avoid console spam
             return;
         }
 

@@ -1,7 +1,21 @@
 /* IAQverse - Responsive Styles - Minimalist */
 
 /* ========================================
-   TABLET & DESKTOP ADJUSTMENTS
+   LARGE SCREENS (> 1400px)
+   ======================================== */
+
+@media (min-width: 1400px) {
+  .score-panel {
+    grid-column: 1 / -1;
+  }
+
+  .chart-box {
+    height: 350px;
+  }
+}
+
+/* ========================================
+   DESKTOP & TABLET (1024px - 1400px)
    ======================================== */
 
 @media (max-width: 1200px) {
@@ -17,12 +31,88 @@
   }
 }
 
+@media (max-width: 1100px) {
+  .grid {
+    width: 100%;
+  }
+}
+
 /* ========================================
-   MOBILE BREAKPOINT
+   TABLET (< 1024px)
+   ======================================== */
+
+@media (max-width: 1024px) {
+  /* Digital Twin Layout */
+  .twin-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .actions-panel {
+    order: 2;
+  }
+
+  .room-panel {
+    order: 1;
+    min-height: 400px;
+  }
+
+  .details-panel {
+    order: 3;
+  }
+
+  /* Settings Layout */
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    padding: 16px;
+  }
+
+  .menu {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .menu li {
+    white-space: nowrap;
+  }
+
+  .settings-content {
+    padding: 20px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .avatar-col {
+    order: -1;
+    align-items: flex-start;
+  }
+
+
+}
+
+/* ========================================
+   TABLET / MOBILE (< 900px)
+   ======================================== */
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+  }
+}
+
+/* ========================================
+   MOBILE (< 768px)
    ======================================== */
 
 @media (max-width: 768px) {
-  /* Header mobile */
+  /* Header */
   header {
     position: fixed;
     bottom: 0;
@@ -30,7 +120,7 @@
     height: 64px;
     border-bottom: none;
     border-top: 1px solid var(--border-color);
-    padding: 0 20px;
+    padding: 0 16px;
   }
 
   .header-nav {
@@ -73,7 +163,7 @@
     justify-content: center;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
-    font-size: 1.0625rem;
+    font-size: 1rem;
   }
 
   .header-buttons {
@@ -95,7 +185,7 @@
     height: 32px;
   }
 
-  /* Account modal mobile */
+  /* Account Modal */
   .account-modal {
     position: fixed;
     top: 60px;
@@ -104,26 +194,28 @@
     width: auto;
   }
 
-  /* Content spacing for mobile header */
+  /* Spacing & Layout */
   .tabs-container {
-    margin-top: 72px;
-    margin-bottom: 80px;
+    margin: 72px 16px 12px;
   }
 
   .preventive-panel-global {
-    margin-top: 72px;
-    margin-bottom: 80px;
+    margin: 72px 16px 12px;
   }
 
   main {
-    margin-bottom: 80px;
+    padding: 0 16px 16px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
   }
 
   .twin-layout {
-    margin-bottom: 80px;
+    padding: 0 16px 16px;
   }
 
-  /* Score panel mobile */
+  /* Score Panel */
   .score-panel {
     flex-direction: column;
     text-align: center;
@@ -155,29 +247,45 @@
     order: 3;
     flex-direction: row;
     gap: 16px;
+    position: static;
+    transform: none;
   }
 
   .score-predicted {
     order: 4;
     width: 100%;
     max-width: 200px;
+    position: static;
+    transform: none;
   }
 
   .occupants-badge {
-    order: 0;
+    position: static;
+    transform: none;
+    order: -1;
   }
 
-  /* Charts mobile */
-  .grid {
-    grid-template-columns: 1fr;
+  .score-history {
+    width: 100%;
+    max-width: none;
   }
 
+  .score-history-chart {
+    height: 100px;
+    width: 100%;
+  }
+
+  /* Charts */
   .chart-box {
-    height: 260px;
+    height: 280px;
     padding: 16px;
   }
 
-  /* Tabs mobile */
+  .metric-card {
+    height: 210px;
+  }
+
+  /* Tabs */
   .location-tabs,
   .room-tabs {
     gap: 6px;
@@ -189,12 +297,7 @@
     font-size: 0.8125rem;
   }
 
-  /* Digital Twin mobile */
-  .twin-layout {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
+  /* Digital Twin */
   .room-panel {
     min-height: 350px;
     padding: 16px;
@@ -256,7 +359,7 @@
     font-size: 0.75rem;
   }
 
-  /* Table mobile */
+  /* Table */
   .table-wrapper {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -272,7 +375,7 @@
     font-size: 0.75rem;
   }
 
-  /* Settings mobile */
+  /* Settings */
   .settings-layout {
     margin-top: 56px;
     margin-bottom: 80px;
@@ -280,27 +383,12 @@
   }
 
   .sidebar {
-    padding: 12px 16px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
 
   .section-title {
     display: none;
-  }
-
-  .menu {
-    flex-direction: row;
-    gap: 8px;
-  }
-
-  .menu li {
-    white-space: nowrap;
-    padding: 8px 16px;
-  }
-
-  .settings-content {
-    padding: 20px 16px;
   }
 
   .settings-content h1 {
@@ -337,17 +425,13 @@
     padding: 20px;
   }
 
-  /* Preventive panel mobile */
-  .preventive-panel-global {
-    margin: 72px 16px 80px;
-  }
-
+  /* Preventive Panel */
   .preventive-room-card {
     min-width: 280px;
     max-width: 280px;
   }
 
-  /* Modal mobile */
+  /* Modal */
   .modal {
     padding: 16px;
   }
@@ -360,7 +444,7 @@
     padding: 16px;
   }
 
-  /* Notification mobile */
+  /* Notification */
   .notification {
     left: 16px;
     right: 16px;
@@ -370,7 +454,7 @@
 }
 
 /* ========================================
-   SMALL MOBILE
+   SMALL MOBILE (< 380px)
    ======================================== */
 
 @media (max-width: 380px) {
@@ -428,25 +512,5 @@
   main,
   .twin-layout {
     margin-bottom: 20px;
-  }
-}
-
-/* ========================================
-   LARGE SCREENS
-   ======================================== */
-
-@media (min-width: 1400px) {
-  .score-panel {
-    grid-column: 1 / -1;
-  }
-
-  .chart-box {
-    height: 350px;
-  }
-}
-
-@media (max-width: 1100px) {
-  .grid {
-    width: 100%;
   }
 }

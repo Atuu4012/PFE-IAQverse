@@ -304,6 +304,9 @@ let mirrors = []; // Stockage des miroirs (CubeCamera pour reflets locaux)
 
 // Fonction pour créer un mur invisible (collision)
 function createInvisibleWall(obj) {
+    // Prevent duplicates
+    if (obj.userData.hasInvisibleWall) return;
+
     // On attend que la matrice monde soit à jour
     obj.updateWorldMatrix(true, false);
     
@@ -348,6 +351,10 @@ function createInvisibleWall(obj) {
     // Ajouter à la scène directement (ne bougera pas si la porte s'ouvre)
     scene.add(wall);
     invisibleWalls.push(wall);
+    
+    // Mark as created
+    obj.userData.hasInvisibleWall = true;
+    
     console.log(`[Collision] Mur invisible ajouté pour: ${obj.name}`);
 }
 

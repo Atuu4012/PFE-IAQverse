@@ -129,15 +129,7 @@ async function fetchOccupantsFromAPI() {
         }
         
         // Récupérer les dernières données depuis l'API
-        const headers = { 'ngrok-skip-browser-warning': 'true' };
-        try {
-            if (typeof getAuthToken === 'function') {
-                const token = await getAuthToken();
-                if (token) headers['Authorization'] = `Bearer ${token}`;
-            }
-        } catch(e) {}
-
-        const response = await fetch(`/api/iaq/data?enseigne=${encodeURIComponent(enseigneNom)}&salle=${encodeURIComponent(pieceNom)}&hours=1`, { headers });
+        const response = await fetchWithRetry(`/api/iaq/data?enseigne=${encodeURIComponent(enseigneNom)}&salle=${encodeURIComponent(pieceNom)}&hours=1`, {}, 1);
         
         if (!response.ok) {
             console.warn('[occupants-display] Erreur lors de la récupération des données');

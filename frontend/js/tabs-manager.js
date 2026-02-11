@@ -127,6 +127,7 @@ function renderRoomTabs(enseigneId) {
                 data-room-id="${piece.id}">
             <img src="/assets/icons/${piece.type || 'room'}.png" alt="${piece.type || 'Pièce'}">
             ${escapeHtml(piece.nom)}
+            <span class="room-occupant-badge" id="room-badge-${piece.id}" style="display: none;" onclick="event.stopPropagation()"></span>
         </div>
     `).join('');
 

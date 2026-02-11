@@ -130,58 +130,59 @@
       </ul>
     </div>
 
-    <!-- Info Modal -->
-    <div id="infoModal" class="modal">
-      <div class="modal-content">
-        <span class="close" onclick="closeModal()">&times;</span>
-        <h2 data-i18n="digitalTwin.aboutTitle">À propos</h2>
-        <p data-i18n="digitalTwin.aboutParagraph">Visualisation 3D des alertes qualité d'air.</p>
-        <ul>
-          <li data-i18n="digitalTwin.tip.table">Actions recommandées</li>
-          <li data-i18n="digitalTwin.tip.visual">Zones concernées</li>
-          <li data-i18n="digitalTwin.tip.details">Causes des alertes</li>
-        </ul>
-      </div>
-    </div>
+  </header>
 
-    <!-- Legend Modal -->
-    <div id="legendModal" class="modal">
-      <div class="modal-content legend-modal-content">
-        <span class="close" onclick="closeLegendModal()">&times;</span>
-        <h2 data-i18n="digitalTwin.legend.title">Légende</h2>
-        <div class="legend-list">
-          <div class="legend-row">
-            <div class="legend-color color-red"></div>
-            <div class="legend-desc">
-              <strong data-i18n="digitalTwin.legend.urgent">Urgent</strong>
-              <p data-i18n="digitalTwin.legend.urgentDesc">Action critique immédiate</p>
-            </div>
+  <!-- Info Modal (outside header to avoid backdrop-filter containing block) -->
+  <div id="infoModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <h2 data-i18n="digitalTwin.aboutTitle">À propos</h2>
+      <p data-i18n="digitalTwin.aboutParagraph">Visualisation 3D des alertes qualité d'air.</p>
+      <ul>
+        <li data-i18n="digitalTwin.tip.table">Actions recommandées</li>
+        <li data-i18n="digitalTwin.tip.visual">Zones concernées</li>
+        <li data-i18n="digitalTwin.tip.details">Causes des alertes</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Legend Modal -->
+  <div id="legendModal" class="modal">
+    <div class="modal-content legend-modal-content">
+      <span class="close" onclick="closeLegendModal()">&times;</span>
+      <h2 data-i18n="digitalTwin.legend.title">Légende</h2>
+      <div class="legend-list">
+        <div class="legend-row">
+          <div class="legend-color color-red"></div>
+          <div class="legend-desc">
+            <strong data-i18n="digitalTwin.legend.urgent">Urgent</strong>
+            <p data-i18n="digitalTwin.legend.urgentDesc">Action critique immédiate</p>
           </div>
-          <div class="legend-row">
-            <div class="legend-color color-yellow"></div>
-            <div class="legend-desc">
-              <strong data-i18n="digitalTwin.legend.warning">Avertissement</strong>
-              <p data-i18n="digitalTwin.legend.warningDesc">Action recommandée</p>
-            </div>
+        </div>
+        <div class="legend-row">
+          <div class="legend-color color-yellow"></div>
+          <div class="legend-desc">
+            <strong data-i18n="digitalTwin.legend.warning">Avertissement</strong>
+            <p data-i18n="digitalTwin.legend.warningDesc">Action recommandée</p>
           </div>
-          <div class="legend-row">
-            <div class="legend-color color-green"></div>
-            <div class="legend-desc">
-              <strong data-i18n="digitalTwin.legend.success">Satisfaisant</strong>
-              <p data-i18n="digitalTwin.legend.successDesc">Paramètres optimaux</p>
-            </div>
+        </div>
+        <div class="legend-row">
+          <div class="legend-color color-green"></div>
+          <div class="legend-desc">
+            <strong data-i18n="digitalTwin.legend.success">Satisfaisant</strong>
+            <p data-i18n="digitalTwin.legend.successDesc">Paramètres optimaux</p>
           </div>
-          <div class="legend-row">
-            <div class="legend-color color-gray"></div>
-            <div class="legend-desc">
-              <strong data-i18n="digitalTwin.legend.info">Neutre</strong>
-              <p data-i18n="digitalTwin.legend.infoDesc">Données non disponibles</p>
-            </div>
+        </div>
+        <div class="legend-row">
+          <div class="legend-color color-gray"></div>
+          <div class="legend-desc">
+            <strong data-i18n="digitalTwin.legend.info">Neutre</strong>
+            <p data-i18n="digitalTwin.legend.infoDesc">Données non disponibles</p>
           </div>
         </div>
       </div>
     </div>
-  </header>
+  </div>
 
   <!-- Preventive Panel -->
   <section class="preventive-panel-global">

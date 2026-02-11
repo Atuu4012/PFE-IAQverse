@@ -23,27 +23,31 @@ function updateOccupantsDisplay(occupantsCount) {
     } catch (e) {}
     
     // Pour la page index.html
-    const occupantsBadge = document.getElementById('occupants-badge');
-    const occupantsCountEl = document.getElementById('occupants-count');
+    // On cible le badge de la pièce active dans les onglets
+    const activePiece = sessionStorage.getItem('activePieceId') || localStorage.getItem('activeRoom');
+    const roomBadge = activePiece ? document.getElementById(`room-badge-${activePiece}`) : null;
     
-    if (occupantsBadge && occupantsCountEl) {
+    // On supprime l'ancien affichage s'il existe encore (nettoyage au cas où)
+    const oldBadge = document.getElementById('occupants-badge');
+    if (oldBadge) oldBadge.style.display = 'none';
+
+    if (roomBadge) {
         if (count !== null && count >= 0) {
-            occupantsCountEl.textContent = count;
-            occupantsBadge.style.display = 'flex';
+            roomBadge.textContent = count;
+            roomBadge.style.display = 'flex';
+            roomBadge.title = `${count} personne${count > 1 ? 's' : ''} détectée${count > 1 ? 's' : ''} dans la salle`;
             
-            // Animation d'apparition
-            if (occupantsBadge.style.opacity === '0' || !occupantsBadge.style.opacity) {
-                occupantsBadge.style.opacity = '0';
-                occupantsBadge.style.transform = 'translateY(-50%) scale(0.8)';
-                
+            
+            // Animation d'apparition "Pop"
+            if (roomBadge.style.transform !== 'scale(1)') {
+                roomBadge.style.transform = 'scale(0)';
                 requestAnimationFrame(() => {
-                    occupantsBadge.style.transition = 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
-                    occupantsBadge.style.opacity = '1';
-                    occupantsBadge.style.transform = 'translateY(-50%) scale(1)';
+                    roomBadge.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                    roomBadge.style.transform = 'scale(1)';
                 });
             }
         } else {
-            occupantsBadge.style.display = 'none';
+            roomBadge.style.display = 'none';
         }
     }
     

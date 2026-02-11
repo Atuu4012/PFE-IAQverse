@@ -117,52 +117,53 @@
       </ul>
     </div>
 
-    <!-- Info Modal -->
-    <div id="infoModal" class="modal">
-      <div class="modal-content">
-        <span class="close" onclick="closeModal()">&times;</span>
-        <h2 data-i18n="settings.aboutTitle">À propos</h2>
-        <p data-i18n="settings.aboutParagraph">Gérez vos paramètres et préférences.</p>
-        <ul>
-          <li data-i18n="settings.infoList.account">Informations du compte</li>
-          <li data-i18n="settings.infoList.display">Affichage et langue</li>
-          <li data-i18n="settings.infoList.notifications">Notifications</li>
-          <li data-i18n="settings.infoList.rooms">Gestion des salles</li>
-          <li data-i18n="settings.infoList.subscription">Abonnement</li>
-          <li data-i18n="settings.infoList.contact">Contact</li>
-        </ul>
-      </div>
+  </header>
+
+  <!-- Info Modal (outside header to avoid backdrop-filter containing block) -->
+  <div id="infoModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <h2 data-i18n="settings.aboutTitle">À propos</h2>
+      <p data-i18n="settings.aboutParagraph">Gérez vos paramètres et préférences.</p>
+      <ul>
+        <li data-i18n="settings.infoList.account">Informations du compte</li>
+        <li data-i18n="settings.infoList.display">Affichage et langue</li>
+        <li data-i18n="settings.infoList.notifications">Notifications</li>
+        <li data-i18n="settings.infoList.rooms">Gestion des salles</li>
+        <li data-i18n="settings.infoList.subscription">Abonnement</li>
+        <li data-i18n="settings.infoList.contact">Contact</li>
+      </ul>
     </div>
+  </div>
 
-    <!-- Delete Account Modal -->
-    <div id="deleteAccountModal" class="modal">
-      <div class="modal-content" style="max-width: 400px;">
-        <span class="close" onclick="closeDeleteAccountModal()">&times;</span>
-        <h2 style="color: var(--danger);" data-i18n="settings.delete_modal.title">Supprimer le compte</h2>
+  <!-- Delete Account Modal -->
+  <div id="deleteAccountModal" class="modal">
+    <div class="modal-content" style="max-width: 400px;">
+      <span class="close" onclick="closeDeleteAccountModal()">&times;</span>
+      <h2 style="color: var(--danger);" data-i18n="settings.delete_modal.title">Supprimer le compte</h2>
 
-        <div style="padding: 20px;">
-          <p style="font-size: 0.875rem; margin-bottom: 12px;" data-i18n="settings.delete_modal.confirmation">
-            Êtes-vous sûr de vouloir supprimer définitivement votre compte ?
-          </p>
-          <p style="font-size: 0.8125rem; color: var(--danger); margin-bottom: 20px;" data-i18n="settings.delete_modal.warning">
-            Cette action est irréversible.
-          </p>
+      <div style="padding: 20px;">
+        <p style="font-size: 0.875rem; margin-bottom: 12px;" data-i18n="settings.delete_modal.confirmation">
+          Êtes-vous sûr de vouloir supprimer définitivement votre compte ?
+        </p>
+        <p style="font-size: 0.8125rem; color: var(--danger); margin-bottom: 20px;" data-i18n="settings.delete_modal.warning">
+          Cette action est irréversible.
+        </p>
 
-          <div class="form-group">
-            <label for="delete-password-input" data-i18n="settings.delete_modal.password_label">Confirmez votre mot de passe :</label>
-            <input type="password" id="delete-password-input" class="form-control" placeholder="Votre mot de passe">
-          </div>
+        <div class="form-group">
+          <label for="delete-password-input" data-i18n="settings.delete_modal.password_label">Confirmez votre mot de passe :</label>
+          <input type="password" id="delete-password-input" class="form-control" placeholder="Votre mot de passe">
+        </div>
 
-          <div id="delete-error-msg" style="color: var(--danger); display: none; margin: 12px 0; font-size: 0.8125rem;"></div>
+        <div id="delete-error-msg" style="color: var(--danger); display: none; margin: 12px 0; font-size: 0.8125rem;"></div>
 
-          <div class="form-actions" style="padding: 0; border: none; margin-top: 20px;">
-            <button class="btn-secondary" onclick="closeDeleteAccountModal()" data-i18n="actions.cancel">Annuler</button>
-            <button class="btn-danger" onclick="confirmDeleteAccount()" data-i18n="actions.confirm_delete">Confirmer</button>
-          </div>
+        <div class="form-actions" style="padding: 0; border: none; margin-top: 20px;">
+          <button class="btn-secondary" onclick="closeDeleteAccountModal()" data-i18n="actions.cancel">Annuler</button>
+          <button class="btn-danger" onclick="confirmDeleteAccount()" data-i18n="actions.confirm_delete">Confirmer</button>
         </div>
       </div>
     </div>
-  </header>
+  </div>
 
   <!-- Settings Layout -->
   <div class="settings-layout">

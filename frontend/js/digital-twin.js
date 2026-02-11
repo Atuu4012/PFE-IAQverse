@@ -215,7 +215,11 @@ async function fetchAndDisplayPreventiveScore(params) {
     try {
         const response = await fetchWithRetry(`${API_ENDPOINTS.preventiveActions}?${params}`, {}, 1);
         const data = await response.json();
-        const predictedScore = data.predicted_score;
+        
+        // Support both structures
+        const predictedScore = data.status && data.status.predicted_score !== undefined 
+            ? data.status.predicted_score 
+            : data.predicted_score;
         
         if (predictedScore !== undefined) {
             const roundedScore = Math.round(predictedScore);

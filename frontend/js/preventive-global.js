@@ -105,7 +105,9 @@ async function fetchAndDisplayGlobalPreventiveActions() {
                             enseigne: enseigne.nom,
                             salle: salle.nom,
                             actions: actionsData.actions,
-                            score: actionsData.predicted_score || null
+                            score: (actionsData.status && actionsData.status.predicted_score !== undefined) 
+                                ? actionsData.status.predicted_score 
+                                : (actionsData.predicted_score || null)
                         });
                     }
                 } catch (error) {

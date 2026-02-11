@@ -617,7 +617,24 @@ header h1 {
     cursor: pointer;
 }
 
-
+.room-occupant-bage title {
+    border: 1px solid var(--bg-primary);
+    padding: 2px;
+    border-radius: 50%;
+    background: var(--bg-primary);
+    color: white;
+    font-size: 0.75rem; 
+    font-weight: 600;
+    line-height: 18px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto; /* Allow hover */
+    box-sizing: content-box; /* To ensure border doesn't shrink content */
+}
 
 /* Badge update animation */
 @keyframes badge-pop {

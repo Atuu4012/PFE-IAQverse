@@ -1,0 +1,63 @@
+.tutorial-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: var(--accent);
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  transition: var(--transition);
+  border: none;
+  cursor: pointer;
+  z-index: 999;
+}
+
+.tutorial-button.fixed {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+}
+
+.tutorial-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
+}
+
+.tutorial-button:active {
+  transform: scale(0.95);
+}
+
+.tutorial-tooltip {
+  position: absolute;
+  right: 70px;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: var(--transition);
+  box-shadow: 0 2px 8px var(--shadow);
+}
+
+.tutorial-button:hover .tutorial-tooltip {
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .tutorial-button {
+    width: 48px;
+    height: 48px;
+    bottom: 16px;
+    right: 16px;
+  }
+
+  .tutorial-tooltip {
+    display: none;
+  }
+}

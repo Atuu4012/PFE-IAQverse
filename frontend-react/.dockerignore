@@ -1,0 +1,12 @@
+# .dockerignore pour frontend-react
+node_modules
+npm-debug.log
+dist
+build
+.DS_Store
+.env*.local
+.vscode
+.idea
+*.log
+coverage
+.cache

@@ -1,8 +1,11 @@
+# Docker Compose pour Développement React
+# Ce fichier est optimisé pour le développement avec hot-reload
+
 services:
   # InfluxDB - Time series database
   influxdb:
     image: influxdb:2.7
-    container_name: iaqverse-influxdb
+    container_name: iaqverse-influxdb-dev
     restart: unless-stopped
     ports:
       - "8086:8086"
@@ -25,7 +28,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
-    container_name: iaqverse-backend
+    container_name: iaqverse-backend-dev
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -46,112 +49,58 @@ services:
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
     depends_on:
       - influxdb
-      - mlflow
     networks:
       - iaqverse-network
 
   # MLflow - Model Registry & Tracking
   mlflow:
     image: ghcr.io/mlflow/mlflow:v3.8.1
-    container_name: iaqverse-mlflow
+    container_name: iaqverse-mlflow-dev
     restart: unless-stopped
     ports:
       - "5000:5000"
     environment:
-      # Stockage des métriques dans un fichier local SQLite pour la simplicité
       - MLFLOW_BACKEND_STORE_URI=sqlite:////mlflow/mlflow.db
       - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
       - MLFLOW_HOST=0.0.0.0
-    # Sécurité (v3+) : On autorise "*" pour le réseau Docker
     command: mlflow server --backend-store-uri sqlite:////mlflow/mlflow.db --default-artifact-root /mlflow/artifacts --host 0.0.0.0 --serve-artifacts --allowed-hosts "*"
     volumes:
       - ../backend/dl/mlflow_data:/mlflow
     networks:
       - iaqverse-network
 
-  # Frontend (optional - can also be served separately)
-  frontend:
-    image: nginx:alpine
-    container_name: iaqverse-frontend
-    restart: unless-stopped
-    ports:
-      - "8080:80"
-    volumes:
-      - ../frontend:/usr/share/nginx/html
-      - ../assets:/usr/share/nginx/html/assets
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - backend
-    networks:
-      - iaqverse-network
-
-  # Frontend React (Développement avec Vite)
+  # Frontend React (Développement avec Vite + Hot Reload)
   frontend-react:
     build:
       context: ..
       dockerfile: docker/Dockerfile.frontend-react
-    container_name: iaqverse-frontend-react
+    container_name: iaqverse-frontend-react-dev
     restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
-      # Volume pour le hot-reload
-      - ../frontend-react:/app
+      # Volume pour le hot-reload - monte tout le code source
+      - ../frontend-react/src:/app/src
+      - ../frontend-react/public:/app/public
+      - ../frontend-react/index.html:/app/index.html
+      - ../frontend-react/vite.config.js:/app/vite.config.js
+      - ../frontend-react/package.json:/app/package.json
+      # Exclure node_modules pour éviter les conflits
       - /app/node_modules
-      # Assets publics
+      # Assets partagés
       - ../assets:/app/public/assets
     environment:
       - NODE_ENV=development
-      - VITE_API_URL=http://localhost:8000
-      - VITE_WS_URL=ws://localhost:8000/ws
+      - VITE_API_URL=http://backend:8000
+      - VITE_WS_URL=ws://backend:8000
       - VITE_SUPABASE_URL=${SUPABASE_URL}
       - VITE_SUPABASE_ANON_KEY=${SUPABASE_KEY}
     depends_on:
       - backend
     networks:
       - iaqverse-network
-
-  # ML Scheduler - Réentraînement périodique
-  ml-scheduler:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.ml-scheduler
-    container_name: iaqverse-ml-scheduler
-    restart: unless-stopped
-    volumes:
-      - ../assets/ml_models:/app/assets/ml_models
-      - ../assets/datasets:/app/assets/datasets
-      - ../backend/ml:/app/backend/ml
-      - ../backend/dl:/app/backend/dl
-      # Montage nécessaire pour partager les artifacts MLflow (Mode Local)
-      - ../backend/dl/mlflow_data:/mlflow
-    environment:
-      - RETRAIN_INTERVAL=${RETRAIN_INTERVAL}
-      - INFLUXDB_ENABLED=${INFLUXDB_ENABLED}
-      - API_URL=http://backend:8000/api/iaq/data?hours=72
-      - PYTHONUNBUFFERED=1
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
-    depends_on:
-      - backend
-      - influxdb
-      - mlflow
-    networks:
-      - iaqverse-network
-
-  # Ngrok - Secure Tunneling
-  ngrok:
-    image: ngrok/ngrok:latest
-    container_name: iaqverse-ngrok
-    restart: unless-stopped
-    command: "http frontend:80"
-    env_file:
-      - ../.env
-    ports:
-      - "4040:4040"
-    depends_on:
-      - frontend
-    networks:
-      - iaqverse-network
+    stdin_open: true
+    tty: true
 
 networks:
   iaqverse-network:

@@ -1,0 +1,283 @@
+/* ========================================
+   HEADER - Matches HTML frontend exactly
+   ======================================== */
+
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 70px;
+  background: var(--bg-secondary);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 1000;
+  transition: all var(--transition-base);
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-icon-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.nav-icon-link:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.nav-icon-link.active-page {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.nav-icon-link.active-page:hover {
+  background: var(--accent-hover);
+}
+
+.header-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.header-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Avatar */
+.header-avatar-wrapper {
+  position: relative;
+}
+
+.header-avatar-link {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  border: 2px solid var(--border-color);
+  transition: border-color var(--transition-fast);
+  cursor: pointer;
+  background: transparent;
+  padding: 0;
+  display: block;
+}
+
+.header-avatar-link:hover {
+  border-color: var(--accent-primary);
+}
+
+.header-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ========================================
+   ACCOUNT MODAL
+   ======================================== */
+
+.account-modal {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  width: 280px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 2000;
+  overflow: hidden;
+}
+
+.account-modal.visible {
+  display: block;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.account-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.close-account {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  transition: color var(--transition-fast);
+}
+
+.close-account:hover {
+  color: var(--text-primary);
+}
+
+.account-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.account-item {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  font-size: 0.875rem;
+}
+
+.account-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.account-item.active {
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.account-avatar-small {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+}
+
+.account-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 8px 0;
+}
+
+.account-action {
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.account-action:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.account-action.logout {
+  color: var(--danger);
+}
+
+.account-action.logout:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ========================================
+   MOBILE (<768px): Bottom bar
+   ======================================== */
+
+@media (max-width: 768px) {
+  .header {
+    position: fixed;
+    bottom: 0;
+    top: auto;
+    height: 64px;
+    border-bottom: none;
+    border-top: 1px solid var(--border-color);
+    padding: 0 16px;
+  }
+
+  .header-nav {
+    position: static;
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .nav-icon-link {
+    width: 48px;
+    height: 48px;
+  }
+
+  .nav-icon-link.active-page {
+    background: transparent;
+    color: var(--accent-primary);
+  }
+
+  .nav-icon-link.active-page::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+  }
+
+  .header-title {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 1rem;
+  }
+
+  .header-buttons {
+    position: fixed;
+    top: 0;
+    right: 12px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+  }
+
+  .account-modal {
+    position: fixed;
+    top: 60px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+  }
+}

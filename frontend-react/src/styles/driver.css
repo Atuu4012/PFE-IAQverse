@@ -1,0 +1,84 @@
+/* Driver.js custom styles for IAQverse */
+.driver-popover {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 8px 24px var(--shadow) !important;
+  border-radius: 12px !important;
+}
+
+.driver-popover-title {
+  color: var(--text-primary) !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+.driver-popover-description {
+  color: var(--text-secondary) !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+.driver-popover-progress-text {
+  color: var(--text-tertiary) !important;
+  font-size: 12px !important;
+}
+
+.driver-popover-footer {
+  padding: 16px !important;
+}
+
+.driver-popover-btn {
+  background-color: var(--accent) !important;
+  color: white !important;
+  border: none !important;
+  padding: 10px 20px !important;
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+  font-family: 'Inter', sans-serif !important;
+  transition: all 0.3s ease !important;
+}
+
+.driver-popover-btn:hover {
+  background-color: var(--accent-hover) !important;
+  transform: translateY(-1px) !important;
+}
+
+.driver-popover-btn-disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+.driver-popover-close-btn {
+  color: var(--text-secondary) !important;
+}
+
+.driver-popover-close-btn:hover {
+  color: var(--text-primary) !important;
+}
+
+.driver-popover-arrow {
+  border-color: var(--bg-secondary) !important;
+}
+
+.driver-active-element {
+  outline: 3px solid var(--accent) !important;
+  outline-offset: 4px !important;
+  border-radius: 8px !important;
+}
+
+.driver-overlay {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .driver-popover {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .driver-overlay {
+  background-color: rgba(0, 0, 0, 0.85) !important;
+}

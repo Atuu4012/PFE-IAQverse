@@ -1,0 +1,23 @@
+# Dockerfile pour le développement React avec Vite
+FROM node:20-alpine
+
+# Définir le répertoire de travail
+WORKDIR /app
+
+# Installer les dépendances système nécessaires
+RUN apk add --no-cache git
+
+# Copier les fichiers de configuration
+COPY frontend-react/package*.json ./
+
+# Installer les dépendances avec --legacy-peer-deps (React 19 compatibility)
+RUN npm install --legacy-peer-deps
+
+# Copier le reste du code
+COPY frontend-react/ .
+
+# Exposer le port Vite
+EXPOSE 3000
+
+# Commande de développement avec hot-reload
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

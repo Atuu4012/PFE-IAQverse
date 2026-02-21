@@ -124,7 +124,11 @@ async function ensureConfigLoaded() {
 function formatLabel(ts) {
   const d = new Date(ts);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return d.toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
 
 function formatValue(value, decimals) {
@@ -512,12 +516,14 @@ async function fetchPredictedScore(enseigne, salle) {
     if (!resp.ok) return;
     const data = await resp.json();
 
-    const el = document.getElementById("predicted-score-value");
-    const trend = document.getElementById("predicted-score-trend");
-    if (el)
-      el.textContent =
-        typeof data.score === "number" ? Math.round(data.score) : "—";
-    if (trend) trend.textContent = data.trend || "";
+    // Only update the element if we got a valid score — don't overwrite with "—"
+    // since dashboard.js may have already set a valid value from another endpoint.
+    if (typeof data.score === "number") {
+      const el = document.getElementById("predicted-score-value");
+      const trend = document.getElementById("predicted-score-trend");
+      if (el) el.textContent = Math.round(data.score);
+      if (trend) trend.textContent = data.trend || "";
+    }
   } catch (e) {
     console.warn("[charts] predicted score error", e);
   }
@@ -659,8 +665,7 @@ function handleRealtimeMeasurement(data) {
     // Update color/status
     const status = applyMetricState(metric, val, secVal);
     chart.data.datasets[0].borderColor = STATUS_COLORS[status.primary].line;
-    chart.data.datasets[0].backgroundColor =
-      STATUS_COLORS[status.primary].fill;
+    chart.data.datasets[0].backgroundColor = STATUS_COLORS[status.primary].fill;
 
     // Secondary Dataset
     if (metric.secondary && chart.data.datasets.length > 1) {
@@ -703,7 +708,10 @@ function handleRealtimeMeasurement(data) {
     }
     chart.update("none");
 
-    if (typeof score === "number" && typeof window.setRoomScore === "function") {
+    if (
+      typeof score === "number" &&
+      typeof window.setRoomScore === "function"
+    ) {
       window.setRoomScore(score, { note: "" });
     }
   }

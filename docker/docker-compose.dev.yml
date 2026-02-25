@@ -9,14 +9,14 @@ services:
     volumes:
       - ../database/influx_data:/var/lib/influxdb2
     env_file:
-      - ../.env
+      - .env.dev
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=admin
-      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
-      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-iaqverse}
-      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-iaq_data}
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:-iaqverse-secret-token}
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USERNAME}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN}
     networks:
       - iaqverse-network
 
@@ -37,9 +37,9 @@ services:
       - INFLUXDB_ENABLED=${INFLUXDB_ENABLED}
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-iaqverse}
-      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-iaq_data}
-      - WEBSOCKET_ENABLED=${WEBSOCKET_ENABLED:-true}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      - WEBSOCKET_ENABLED=${WEBSOCKET_ENABLED}
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
@@ -85,31 +85,6 @@ services:
     networks:
       - iaqverse-network
 
-  # Frontend React (Développement avec Vite)
-  frontend-react:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.frontend-react
-    container_name: iaqverse-frontend-react
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    volumes:
-      # Volume pour le hot-reload
-      - ../frontend-react:/app
-      - /app/node_modules
-      # Assets publics
-      - ../assets:/app/public/assets
-    environment:
-      - NODE_ENV=development
-      - VITE_API_URL=http://localhost:8000
-      - VITE_WS_URL=ws://localhost:8000/ws
-      - VITE_SUPABASE_URL=${SUPABASE_URL}
-      - VITE_SUPABASE_ANON_KEY=${SUPABASE_KEY}
-    depends_on:
-      - backend
-    networks:
-      - iaqverse-network
 
   # ML Scheduler - Réentraînement périodique
   ml-scheduler:
@@ -135,21 +110,6 @@ services:
       - backend
       - influxdb
       - mlflow
-    networks:
-      - iaqverse-network
-
-  # Ngrok - Secure Tunneling
-  ngrok:
-    image: ngrok/ngrok:latest
-    container_name: iaqverse-ngrok
-    restart: unless-stopped
-    command: "http frontend:80"
-    env_file:
-      - ../.env
-    ports:
-      - "4040:4040"
-    depends_on:
-      - frontend
     networks:
       - iaqverse-network
 

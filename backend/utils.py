@@ -13,7 +13,7 @@ from .core.supabase import supabase
 
 logger = logging.getLogger("uvicorn.error")
 
-CONFIG_PATH = Path(__file__).resolve().parent.parent / 'assets' / 'config.json'
+
 
 
 def sanitize_for_storage(d: dict) -> dict:
@@ -107,33 +107,7 @@ def load_dataset_df(path: Optional[Path] = None) -> Optional[pd.DataFrame]:
     return out
 
 
-def load_config():
-    """Charge le fichier de configuration principal."""
-    try:
-        if not CONFIG_PATH.exists():
-            logger.warning(f"Fichier de configuration introuvable: {CONFIG_PATH}")
-            return None
-        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
-            cfg = json.load(f)
-        return cfg
-    except Exception as e:
-        logger.error(f"Erreur lors du chargement de la configuration : {e}")
-        return None
 
-
-def save_config(config):
-    """Sauvegarde le fichier de configuration principal."""
-    try:
-        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        tmp = CONFIG_PATH.with_suffix('.tmp')
-        with open(tmp, 'w', encoding='utf-8') as f:
-            json.dump(config, f, ensure_ascii=False, indent=4)
-        tmp.replace(CONFIG_PATH)
-        logger.info(f"Configuration sauvegardee dans {CONFIG_PATH}")
-        return True
-    except Exception as e:
-        logger.error(f"Erreur lors de la sauvegarde de la configuration : {e}")
-        return False
 
 
 def extract_sensors_from_config(config):

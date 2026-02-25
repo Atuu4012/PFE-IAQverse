@@ -6,13 +6,11 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pathlib import Path
 from typing import List, Dict, Union, Optional
 import logging
-import shutil
-import mimetypes
 
 
 import os
 import httpx
-from ..utils import load_config, save_config, load_user_config, save_user_config, extract_sensors_from_config
+from ..utils import load_user_config, save_user_config, extract_sensors_from_config
 from ..core.supabase import supabase
 from ..core import get_websocket_manager, settings
 
@@ -105,9 +103,6 @@ def _sanitize_room_path(p: str, rooms_dir: Path) -> Path:
     return target
 
 
-async def _save_upload_file(file: UploadFile, target_path: Path) -> None:
-    with target_path.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
 
 
 async def _broadcast_config_update(config: dict) -> None:
@@ -262,56 +257,27 @@ async def get_config(user: dict = Depends(get_current_user)):
             cfg["vous"]["email"] = user_email
             needs_save = True
 
-    # Migration auto: avatar local vers Supabase Storage
+    # Résolution avatar depuis Supabase Storage (pas de fichier local)
     try:
         avatar_path = cfg.get("vous", {}).get("avatar") if cfg else None
-        is_local_avatar = isinstance(avatar_path, str) and avatar_path.startswith("/assets/")
 
-        if supabase:
+        if supabase and not avatar_path:
             bucket_name = "assets"
-
-            # Si avatar local ou manquant, tenter de recuperer depuis le bucket
-            if is_local_avatar or not avatar_path:
-                try:
-                    items = supabase.storage.from_(bucket_name).list(path=str(user_id)) or []
-                    for item in items:
-                        name = item.get("name") if isinstance(item, dict) else None
-                        if name and name.startswith("avatar"):
-                            public_url = supabase.storage.from_(bucket_name).get_public_url(f"{user_id}/{name}")
-                            if "vous" not in cfg or not isinstance(cfg.get("vous"), dict):
-                                cfg["vous"] = {}
-                            cfg["vous"]["avatar"] = public_url
-                            needs_save = True
-                            break
-                except Exception as e:
-                    logger.warning(f"Avatar lookup in Supabase failed: {e}")
-
-            # Migration local -> Supabase si fichier present
-            if is_local_avatar:
-                local_rel = avatar_path.lstrip("/").replace("assets/", "", 1)
-                local_file = _get_assets_dir() / local_rel
-                if local_file.exists():
-                    ext = local_file.suffix.lower() or ".png"
-                    if ext not in {".png", ".jpg", ".jpeg", ".webp"}:
-                        ext = ".png"
-                    filename = f"avatar{ext}"
-                    storage_path = f"{user_id}/{filename}"
-                    content = local_file.read_bytes()
-                    content_type = mimetypes.guess_type(local_file.name)[0] or "image/png"
-
-                    supabase.storage.from_(bucket_name).upload(
-                        path=storage_path,
-                        file=content,
-                        file_options={"content-type": content_type, "upsert": "true"}
-                    )
-                    public_url = supabase.storage.from_(bucket_name).get_public_url(storage_path)
-
-                    if "vous" not in cfg or not isinstance(cfg.get("vous"), dict):
-                        cfg["vous"] = {}
-                    cfg["vous"]["avatar"] = public_url
-                    needs_save = True
+            try:
+                items = supabase.storage.from_(bucket_name).list(path=str(user_id)) or []
+                for item in items:
+                    name = item.get("name") if isinstance(item, dict) else None
+                    if name and name.startswith("avatar"):
+                        public_url = supabase.storage.from_(bucket_name).get_public_url(f"{user_id}/{name}")
+                        if "vous" not in cfg or not isinstance(cfg.get("vous"), dict):
+                            cfg["vous"] = {}
+                        cfg["vous"]["avatar"] = public_url
+                        needs_save = True
+                        break
+            except Exception as e:
+                logger.warning(f"Avatar lookup in Supabase failed: {e}")
     except Exception as e:
-        logger.warning(f"Avatar migration to Supabase failed: {e}")
+        logger.warning(f"Avatar resolution failed: {e}")
             
     if needs_save:
         save_user_config(user_id, cfg)
@@ -438,16 +404,7 @@ async def upload_glb(
                 raise HTTPException(status_code=500, detail=f"Stockage distant indisponible: {storage_error}")
         
         else:
-            # Fallback Local
-            logger.warning("Supabase non configuré, fallback sur stockage local GLB")
-            rooms_dir = _get_rooms_dir()
-            target = rooms_dir / safe_name
-            
-            with target.open("wb") as buffer:
-                buffer.write(content)
-
-            rel = f"/assets/rooms/{safe_name}"
-            return {"path": rel}
+            raise HTTPException(status_code=503, detail="Supabase non configuré. Stockage distant requis en production.")
             
     except HTTPException:
         raise

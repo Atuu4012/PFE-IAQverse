@@ -2,15 +2,13 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
-import json
 import logging
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 class EmailSender:
-    def __init__(self, config_path="assets/config.json"):
-        self.config_path = config_path
+    def __init__(self, user_id: str = ""):
+        self.user_id = user_id
         self.smtp_server = "smtp.gmail.com"
         self.smtp_port = 587
         self.password = os.getenv("SMTP_PASSWORD")
@@ -18,17 +16,20 @@ class EmailSender:
         
     def _load_config(self):
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+            from ..utils import load_user_config
+            if self.user_id:
+                cfg = load_user_config(self.user_id)
+                if cfg:
+                    return cfg
         except Exception as e:
-            logger.error(f"Erreur chargement config email: {e}")
-            return {}
+            logger.error(f"Erreur chargement config email depuis Supabase: {e}")
+        return {}
 
     def send_alert_email(self, alert_details):
         # Vérification du paramètre d'activation
         email_enabled = self.config.get("alert_system", {}).get("email_notifications", True)
         if not email_enabled:
-            logger.info("🚫 Envoi d'email désactivé dans config.json")
+            logger.info("🚫 Envoi d'email désactivé dans la configuration")
             return False
 
         if not self.password:
@@ -91,3 +92,4 @@ class EmailSender:
         except Exception as e:
             logger.error(f"❌ Erreur envoi email: {e}")
             return False
+

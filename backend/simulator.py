@@ -11,8 +11,27 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.core.influx_client import get_influx_client, write_data
-from backend.utils import load_config
+from backend.utils import load_user_config
 from backend.core.settings import settings
+
+# User ID pour charger la config depuis Supabase (configurable via env)
+SIMULATOR_USER_ID = os.getenv("SIMULATOR_USER_ID", "")
+
+# Config par défaut si aucune config utilisateur n'est disponible
+DEFAULT_SIMULATOR_CONFIG = {
+    "lieux": {
+        "enseignes": [{
+            "id": "default",
+            "nom": "Maison",
+            "pieces": [{
+                "id": "bureau",
+                "nom": "Bureau",
+                "capteurs": ["Bureau1"],
+                "modules": []
+            }]
+        }]
+    }
+}
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -160,12 +179,12 @@ def run_simulation():
 
     while True:
         try:
-            config = load_config()
-            
+            config = None
+            if SIMULATOR_USER_ID:
+                config = load_user_config(SIMULATOR_USER_ID)
             if not config:
-                logger.warning("No configuration available (load_config returned None). Simulation paused.")
-                time.sleep(60)
-                continue
+                config = DEFAULT_SIMULATOR_CONFIG
+                logger.info("Using default simulator config (no SIMULATOR_USER_ID or no Supabase config found).")
             
             points_batch = []
             

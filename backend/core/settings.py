@@ -25,10 +25,8 @@ class Settings:
     # Paths
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
     ASSETS_DIR: Path = BASE_DIR / "assets"
-    CONFIG_FILE: Path = ASSETS_DIR / "config.json"
     ML_MODELS_DIR: Path = ASSETS_DIR / "ml_models"
     DATASETS_DIR: Path = ASSETS_DIR / "datasets"
-    ROOMS_DIR: Path = ASSETS_DIR / "rooms"
     
     # InfluxDB
     INFLUXDB_ENABLED: bool = os.getenv("INFLUXDB_ENABLED", "false").lower() == "true"
@@ -37,8 +35,7 @@ class Settings:
     INFLUXDB_ORG: str = os.getenv("INFLUXDB_ORG", "iaqverse")
     INFLUXDB_BUCKET: str = os.getenv("INFLUXDB_BUCKET", "iaq_data")
     
-    # SQLite
-    SQLITE_DB_PATH: Path = BASE_DIR / "database" / "sqlite.db"
+
     
     # WebSocket
     WEBSOCKET_ENABLED: bool = os.getenv("WEBSOCKET_ENABLED", "true").lower() == "true"

@@ -1,5 +1,5 @@
 /* Simple client-side i18n module
-    - Loads /assets/i18n/{lang}.json
+  - Loads /api/i18n/{lang}
     - Applies keys to elements with data-i18n, data-i18n-html, data-i18n-placeholder, data-i18n-title
     - Exposes i18n.init(), i18n.setLanguage(lang), i18n.getLanguage()
     - Syncs across tabs via BroadcastChannel (localStorage removed - centralized config)
@@ -17,7 +17,7 @@
 
   async function load(lang) {
     try {
-      const res = await fetch(`/assets/i18n/${lang}.json`, {
+        const res = await fetch(`/api/i18n/${encodeURIComponent(lang)}`, {
         cache: "no-cache"
       });
       if (!res.ok) throw new Error("Not found");

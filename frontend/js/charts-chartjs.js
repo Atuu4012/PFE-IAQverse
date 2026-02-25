@@ -501,6 +501,14 @@ function updateChartsWithData(data) {
     const score = last.global_score ?? last.score;
     window.setRoomScore(typeof score === "number" ? score : null, { note: "" });
   }
+
+  if (last) {
+    try {
+      document.dispatchEvent(
+        new CustomEvent("measurementReceived", { detail: last }),
+      );
+    } catch (e) {}
+  }
 }
 
 async function fetchPredictedScore(enseigne, salle) {
@@ -518,11 +526,11 @@ async function fetchPredictedScore(enseigne, salle) {
 
     // Only update the element if we got a valid score — don't overwrite with "—"
     // since dashboard.js may have already set a valid value from another endpoint.
-    if (typeof data.score === "number") {
+    if (typeof data.predicted_score === "number") {
       const el = document.getElementById("predicted-score-value");
       const trend = document.getElementById("predicted-score-trend");
-      if (el) el.textContent = Math.round(data.score);
-      if (trend) trend.textContent = data.trend || "";
+      if (el) el.textContent = Math.round(data.predicted_score);
+      if (trend) trend.textContent = data.trend || data.predicted_level || "";
     }
   } catch (e) {
     console.warn("[charts] predicted score error", e);
@@ -542,7 +550,7 @@ async function fetchAndUpdate() {
     const params = new URLSearchParams();
     if (enseigne) params.set("enseigne", enseigne);
     if (salle) params.set("salle", salle);
-    params.set("hours", "24");
+    params.set("hours", "1");
     const url = `${API_URL_DATA}?${params.toString()}`;
     let resp = await fetch(url, { headers });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -559,7 +567,7 @@ async function fetchAndUpdate() {
       if (resp.ok) data = await resp.json();
     }
     updateChartsWithData(Array.isArray(data) ? data : []);
-    if (enseigne && salle) fetchPredictedScore(enseigne, salle);
+    // Note: predicted score is fetched by dashboard.js via roomChanged event, not here.
   } catch (e) {
     console.error("[charts] fetch error", e);
   }
@@ -726,15 +734,14 @@ window.setupWebSocket = setupWebSocket;
 // Initialize on DOMContentLoaded
 document.addEventListener("DOMContentLoaded", () => {
   initCharts();
-  fetchAndUpdate(); // Load initial history via HTTP
   setupWebSocket(); // Start real-time updates
+  // Note: fetchAndUpdate() is triggered by the initial roomChanged event from tabs-manager
 });
 
 // Note: no duplicate 'load' handler — DOMContentLoaded already initializes charts
 
 // Refresh charts on room changes (tabs manager)
+// Note: fetchAndUpdate() is called by dashboard.js via updateCharts()
 document.addEventListener("roomChanged", () => {
-  // Clear charts and fetch new context data
   resetCharts();
-  fetchAndUpdate();
 });

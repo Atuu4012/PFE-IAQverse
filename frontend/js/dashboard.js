@@ -80,9 +80,9 @@ async function fetchAndDisplayPredictedScore(enseigneId, salleId) {
       const resp = await fetch(scoreUrl, { headers });
       if (resp.ok) {
         const data = await resp.json();
-        if (typeof data.score === "number") {
-          predictedScore = data.score;
-          trendValue = data.trend || "";
+        if (typeof data.predicted_score === "number") {
+          predictedScore = data.predicted_score;
+          trendValue = data.trend || data.predicted_level || "";
           console.log(
             `[dashboard] Got predicted score from /predict/score: ${predictedScore}`,
           );

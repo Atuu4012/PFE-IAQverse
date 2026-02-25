@@ -348,14 +348,46 @@ async function fetchAndDisplayPreventiveActions() {
       enseigne: ens.nom || "Maison",
       salle: salle.nom || "",
     });
-
     const url = `${API_ENDPOINTS.preventiveActions}?${params}`;
     const response = await fetchWithRetry(url, {}, 2);
     const data = await response.json();
 
-    fetchAndDisplayPreventiveScore(params).catch((e) =>
-      console.warn("[preventive] Score fetch failed:", e),
-    );
+    // Réutiliser les données déjà récupérées pour mettre à jour le score prédit
+    // au lieu de refaire une requête identique
+    try {
+      const predictedScore =
+        data.status && data.status.predicted_score !== undefined
+          ? data.status.predicted_score
+          : data.predicted_score;
+
+      if (predictedScore !== undefined) {
+        const scoreElement = document.getElementById("preventive-score-value");
+        const trendElement = document.getElementById("preventive-score-trend");
+        const containerElement = document.getElementById("preventive-predicted-score");
+
+        if (scoreElement && containerElement) {
+          const roundedScore = Math.round(predictedScore);
+          scoreElement.textContent = roundedScore;
+
+          containerElement.classList.remove("predicted-a", "predicted-b", "predicted-c", "predicted-d", "predicted-e");
+          if (roundedScore >= 81) containerElement.classList.add("predicted-a");
+          else if (roundedScore >= 61) containerElement.classList.add("predicted-b");
+          else if (roundedScore >= 41) containerElement.classList.add("predicted-c");
+          else if (roundedScore >= 21) containerElement.classList.add("predicted-d");
+          else containerElement.classList.add("predicted-e");
+
+          if (trendElement && window.scoreHistory && window.scoreHistory.length > 0) {
+            const lastScore = window.scoreHistory[window.scoreHistory.length - 1];
+            const diff = roundedScore - lastScore;
+            if (diff > 2) { trendElement.textContent = "↗"; trendElement.className = "predicted-trend up"; }
+            else if (diff < -2) { trendElement.textContent = "↘"; trendElement.className = "predicted-trend down"; }
+            else { trendElement.textContent = "→"; trendElement.className = "predicted-trend stable"; }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[preventive] Score extraction failed:", e);
+    }
     displayPreventiveActions(data);
   } catch (error) {
     console.error("[preventive] Error fetching actions:", error);

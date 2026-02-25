@@ -116,6 +116,7 @@ async function fetchAndDisplayGlobalPreventiveActions() {
             }
         }
         
+        _lastRoomActions = allRoomActions;
         displayGlobalPreventiveActions(allRoomActions);
         
     } catch (error) {
@@ -292,24 +293,23 @@ function toggleAction(actionId) {
 window.toggleRoomCard = toggleRoomCard;
 window.toggleAction = toggleAction;
 
+// Cache des dernières données récupérées pour re-render sans re-fetch
+let _lastRoomActions = null;
+
 // Initialiser au chargement de la page
 document.addEventListener('DOMContentLoaded', () => {
     try {
         fetchAndDisplayGlobalPreventiveActions();
-        // Rafraîchir toutes les minutes, synchronisé
-        const now = new Date();
-        const secondsUntilNextMinute = 60 - now.getSeconds();
-        const initialDelay = secondsUntilNextMinute * 1000;
-        setTimeout(() => {
-            fetchAndDisplayGlobalPreventiveActions();
-            setInterval(fetchAndDisplayGlobalPreventiveActions, 30000);
-        }, initialDelay);
+        // Rafraîchir toutes les 30 secondes
+        setInterval(fetchAndDisplayGlobalPreventiveActions, 30000);
     } catch (e) {
         console.error('[preventive-global] Error in DOMContentLoaded:', e);
     }
 });
 
-// Rafraîchir lors du changement de langue
+// Rafraîchir l'affichage (sans re-fetch) lors du changement de langue
 window.addEventListener('language-changed', () => {
-    try { fetchAndDisplayGlobalPreventiveActions(); } catch (e) {}
+    if (_lastRoomActions !== null) {
+        try { displayGlobalPreventiveActions(_lastRoomActions); } catch (e) {}
+    }
 });

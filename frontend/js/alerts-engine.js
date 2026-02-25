@@ -360,6 +360,24 @@
     let activeRoomName = null;
     let activeEnseigneId = null;
     let activeRoomId = null;
+    let hasReceivedContextMeasurement = false;
+    let pendingHttpFallbackTimer = null;
+
+    function clearHttpFallbackTimer() {
+        if (pendingHttpFallbackTimer) {
+            clearTimeout(pendingHttpFallbackTimer);
+            pendingHttpFallbackTimer = null;
+        }
+    }
+
+    function scheduleHttpFallback() {
+        clearHttpFallbackTimer();
+        pendingHttpFallbackTimer = setTimeout(() => {
+            if (!hasReceivedContextMeasurement) {
+                fetchLatestIAQ();
+            }
+        }, 1500);
+    }
     
     function initActiveContext() {
         try {
@@ -421,8 +439,9 @@
                 renderAlertPoints(activeEnseigneId, activeRoomId);
             }
             
-            // Rafraîchir immédiatement les alertes
-            fetchLatestIAQ();
+            // WebSocket-first: fallback HTTP seulement si aucun message ne vient
+            hasReceivedContextMeasurement = false;
+            scheduleHttpFallback();
         } catch (e) { 
             console.error('[alerts-engine] roomChanged error:', e);
         }
@@ -436,9 +455,9 @@
             if (activeEnseigneId && activeRoomId) {
                 renderAlertPoints(activeEnseigneId, activeRoomId);
             }
-            
-            // Rafraîchir immédiatement les alertes
-            fetchLatestIAQ();
+
+            hasReceivedContextMeasurement = false;
+            scheduleHttpFallback();
         } catch (e) { 
             console.error('[alerts-engine] enseigneChanged error:', e);
         }
@@ -564,6 +583,8 @@
              const data = payload.data || payload; 
              if (data && data.enseigne === activeEnseigneName && data.salle === activeRoomName) {
                 console.log('[alerts-engine] Received WS data:', data);
+                hasReceivedContextMeasurement = true;
+                clearHttpFallbackTimer();
                  processIAQData(data);
              }
         });
@@ -586,31 +607,15 @@
         
         // Initialiser le WebSocket
         setupWebSocket();
-        
-        // Attendre le premier roomChanged pour être sûr que le contexte est correctement restauré
-        let isFirstLoad = true;
-        const handleFirstRoomChange = () => {
-            if (isFirstLoad) {
-                isFirstLoad = false;
-                fetchLatestIAQ(); // Premier chargement HTTP
-                // Fallback polling long (30s) au lieu de 5s
-                setInterval(fetchLatestIAQ, 30000);
-            }
-        };
-        
-        // Écouter le premier roomChanged
-        document.addEventListener('roomChanged', handleFirstRoomChange, { once: true });
-        
-        // Fallback: si aucun roomChanged après 1 seconde, démarrer quand même
-        setTimeout(() => {
-            if (isFirstLoad) {
-                // Générer les alert-points pour la pièce active
-                if (activeEnseigneId && activeRoomId) {
-                    renderAlertPoints(activeEnseigneId, activeRoomId);
-                }
-                handleFirstRoomChange();
-            }
-        }, 1000);
+
+        // Générer les alert-points pour la pièce active
+        if (activeEnseigneId && activeRoomId) {
+            renderAlertPoints(activeEnseigneId, activeRoomId);
+        }
+
+        // WebSocket-first, avec fallback HTTP si aucun message ne vient rapidement
+        hasReceivedContextMeasurement = false;
+        scheduleHttpFallback();
     }
 
     if (typeof window !== "undefined") {

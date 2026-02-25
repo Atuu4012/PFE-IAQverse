@@ -3,36 +3,11 @@ let supabaseClient = null;
 let initPromise = null;
 
 async function fetchAuthConfig() {
-    const CACHE_KEY = 'iaq_auth_config';
-    const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
-
-    // 1. Try to load from cache
+    // Fetch uniquement depuis le backend (pas de cache local)
     try {
-        const cached = localStorage.getItem(CACHE_KEY);
-        if (cached) {
-            const { config, timestamp } = JSON.parse(cached);
-            if (Date.now() - timestamp < CACHE_DURATION) {
-                return config;
-            }
-        }
-    } catch (e) {
-        console.warn("Error reading auth config cache", e);
-    }
-
-    // 2. Fetch from network
-     try {
         const response = await fetch('/api/auth/config');
         if (response.ok) {
             const config = await response.json();
-            // 3. Save to cache
-            try {
-                localStorage.setItem(CACHE_KEY, JSON.stringify({
-                    config,
-                    timestamp: Date.now()
-                }));
-            } catch (e) {
-                console.warn("Error saving auth config cache", e);
-            }
             return config;
         }
     } catch (e) {

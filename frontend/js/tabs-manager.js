@@ -217,11 +217,6 @@ function switchRoom(roomId, save = true) {
     document.dispatchEvent(new CustomEvent('roomChanged', { 
         detail: { roomId, enseigneId: activeEnseigne } 
     }));
-    
-    // Mettre à jour l'affichage des occupants si la fonction existe
-    if (typeof window.fetchOccupantsFromAPI === 'function') {
-        setTimeout(() => window.fetchOccupantsFromAPI(), 100);
-    }
 }
 
 /**
@@ -335,12 +330,19 @@ async function fetchRoomScore(enseigneNom, roomNom) {
 async function updateAllRoomScores() {
     const config = getConfig();
     if (!config || !config.lieux || !config.lieux.enseignes) return;
+
+    const currentEnseigneId = activeEnseigne || config.lieux.active || null;
+    const currentRoomId = activeRoom || config.lieux.activeRoom || null;
     
-    // Fetch scores for ALL rooms in parallel (including active one to ensure consistency)
+    // Fetch scores for all rooms except active one to avoid duplicate fetch
+    // with the main page modules already loading active room data.
     const promises = [];
     config.lieux.enseignes.forEach(enseigne => {
         if (Array.isArray(enseigne.pieces)) {
             enseigne.pieces.forEach(piece => {
+                if (enseigne.id === currentEnseigneId && piece.id === currentRoomId) {
+                    return;
+                }
                 promises.push(
                     fetchRoomScore(enseigne.nom, piece.nom).then(score => ({
                         enseigneId: enseigne.id,
@@ -413,12 +415,18 @@ function refreshAllTabAlerts() {
 
 function startBackgroundMonitoring() {
     if (monitoringInterval) return; // Already running
+
+    // Attendre que le contexte actif soit initialisé pour pouvoir ignorer
+    // correctement la salle active dans updateAllRoomScores.
+    if (!activeEnseigne || !activeRoom) {
+        setTimeout(startBackgroundMonitoring, 300);
+        return;
+    }
     
-    // Initial update
+    // Single initial fetch to seed tab alerts before WebSocket data arrives
     updateAllRoomScores();
     
-    // Update every 5 seconds (same frequency as charts.js updates)
-    monitoringInterval = setInterval(updateAllRoomScores, 5000);
+    // No polling interval needed: WebSocket (setupWsListeners) handles real-time updates
 }
 
 function stopBackgroundMonitoring() {
@@ -430,7 +438,6 @@ function stopBackgroundMonitoring() {
 
 // Start monitoring after initialization
 document.addEventListener('DOMContentLoaded', () => {
-    // Start monitoring as soon as tabs are initialized
     setTimeout(startBackgroundMonitoring, 500);
 });
 

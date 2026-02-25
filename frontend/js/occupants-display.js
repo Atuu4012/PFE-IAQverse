@@ -4,6 +4,8 @@
 
 // Variable pour stocker le dernier nombre d'occupants connu
 let lastOccupantsCount = null;
+const isDigitalTwinPage = typeof window !== 'undefined' && /digital-twin\.html$/i.test(window.location.pathname);
+const isIndexPage = typeof window !== 'undefined' && (/index\.html$/i.test(window.location.pathname) || window.location.pathname === '/');
 
 // Fonction pour mettre à jour l'affichage du nombre d'occupants
 function updateOccupantsDisplay(occupantsCount) {
@@ -174,7 +176,9 @@ function initOccupantsDisplay() {
     restoreCachedOccupants();
     setTimeout(() => {
         setupOccupantsWebSocket();
-        fetchOccupantsFromAPI();
+        if (!isDigitalTwinPage && !isIndexPage) {
+            fetchOccupantsFromAPI();
+        }
     }, 100);
 }
 
@@ -186,20 +190,14 @@ if (document.readyState === 'loading') {
 }
 
 // Écouter les changements de pièce (via les onglets) - mise à jour immédiate
-window.addEventListener('roomChanged', () => {
+document.addEventListener('roomChanged', () => {
     restoreCachedOccupants();
-    fetchOccupantsFromAPI();
-});
-
-// Écouter aussi les clics sur les onglets de pièces - mise à jour immédiate
-document.addEventListener('click', (e) => {
-    if (e.target.closest('.room-tab')) {
-        setTimeout(fetchOccupantsFromAPI, 50);
+    if (!isDigitalTwinPage && !isIndexPage) {
+        fetchOccupantsFromAPI();
     }
 });
 
-// Rafraîchir périodiquement (toutes les 30 secondes comme backup)
-setInterval(fetchOccupantsFromAPI, 30000);
+// WebSocket gère les mises à jour en temps réel, pas besoin de polling
 
 // Export pour utilisation externe
 if (typeof window !== 'undefined') {

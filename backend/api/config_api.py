@@ -6,6 +6,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pathlib import Path
 from typing import List, Dict, Union, Optional
 import logging
+import json
 
 
 import os
@@ -18,6 +19,24 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["config"])
 security = HTTPBearer(auto_error=False) # Permet de ne pas crasher si pas de header, on gère manuellement
+
+
+@router.get("/api/i18n/{lang}")
+async def get_i18n(lang: str):
+    """Retourne le dictionnaire i18n pour une langue donnée."""
+    normalized = (lang or "").strip().lower()
+    if not normalized or len(normalized) > 10:
+        raise HTTPException(status_code=400, detail="Invalid language")
+
+    i18n_file = _get_assets_dir() / "i18n" / f"{normalized}.json"
+    if not i18n_file.exists():
+        raise HTTPException(status_code=404, detail="Language not found")
+
+    try:
+        return json.loads(i18n_file.read_text(encoding="utf-8"))
+    except Exception as e:
+        logger.error(f"Failed to load i18n file {i18n_file}: {e}")
+        raise HTTPException(status_code=500, detail="Unable to load language")
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),

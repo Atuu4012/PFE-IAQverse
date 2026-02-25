@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Dict, Union, Optional
 import logging
 import shutil
+import mimetypes
 
 
 import os
@@ -129,30 +130,69 @@ def _apply_config_updates(config: dict, updates: dict) -> dict:
 
 
 @router.post("/api/uploadAvatar")
-async def upload_avatar(file: UploadFile = File(...)):
+async def upload_avatar(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
     """
-    Upload d'un avatar utilisateur (Local).
-    Sauvegarde dans assets/icons/user_avatar.png (Partagé).
+    Upload d'un avatar utilisateur (Supabase Storage).
+    Bucket: 'assets'
+    Path: '{user_id}/avatar.{ext}'
     """
     try:
-        # Retour au stockage local pour les icônes/avatars
-        assets_dir = _get_assets_dir()
-        
-        icons_dir = assets_dir / "icons"
-        icons_dir.mkdir(parents=True, exist_ok=True)
-        
-        ext = Path(file.filename).suffix or ".png"
-            
-        # Nom fixe "user_avatar" comme demandé
-        filename = f"user_avatar{ext}"
-        target_path = icons_dir / filename
-        
-        await _save_upload_file(file, target_path)
-            
-        # Retourner le chemin relatif pour le frontend
-        relative_path = f"/assets/icons/{filename}"
-        
-        logger.info(f"Avatar uploaded to {target_path}")
+        if not supabase:
+            raise HTTPException(status_code=503, detail="Supabase non configuré")
+
+        user_id = user.get("id")
+        if not user_id:
+            raise HTTPException(status_code=400, detail="Utilisateur invalide")
+
+        ext = Path(file.filename).suffix.lower() or ".png"
+        if ext not in {".png", ".jpg", ".jpeg", ".webp"}:
+            ext = ".png"
+
+        # Nom par utilisateur pour eviter l'ecrasement entre comptes
+        filename = f"avatar{ext}"
+        storage_path = f"{user_id}/{filename}"
+        bucket_name = "assets"
+
+        content = await file.read()
+        content_type = file.content_type or "image/png"
+
+        try:
+            # Supprimer les anciens avatars pour eviter les doublons et cache stale
+            try:
+                existing = supabase.storage.from_(bucket_name).list(path=str(user_id)) or []
+                to_remove = []
+                for item in existing:
+                    name = item.get("name") if isinstance(item, dict) else None
+                    if name and name.startswith("avatar"):
+                        to_remove.append(f"{user_id}/{name}")
+                if to_remove:
+                    supabase.storage.from_(bucket_name).remove(to_remove)
+            except Exception as cleanup_error:
+                logger.warning(f"Avatar cleanup failed: {cleanup_error}")
+
+            supabase.storage.from_(bucket_name).upload(
+                path=storage_path,
+                file=content,
+                file_options={"content-type": content_type, "upsert": "true"}
+            )
+        except Exception as storage_error:
+            logger.error(f"Supabase Storage avatar error: {storage_error}")
+            raise HTTPException(status_code=500, detail=f"Stockage distant indisponible: {storage_error}")
+
+        public_url = supabase.storage.from_(bucket_name).get_public_url(storage_path)
+        relative_path = public_url
+
+        # Mettre a jour la config utilisateur pour garder l'avatar associe
+        try:
+            cfg = load_user_config(user_id) or {}
+            if "vous" not in cfg or not isinstance(cfg.get("vous"), dict):
+                cfg["vous"] = {}
+            cfg["vous"]["avatar"] = relative_path
+            save_user_config(user_id, cfg)
+        except Exception as e:
+            logger.warning(f"Unable to persist avatar path in config: {e}")
+
+        logger.info(f"Avatar uploaded to Supabase Storage: {relative_path}")
         return {"path": relative_path}
         
     except Exception as e:
@@ -221,6 +261,57 @@ async def get_config(user: dict = Depends(get_current_user)):
                 cfg["vous"] = {}
             cfg["vous"]["email"] = user_email
             needs_save = True
+
+    # Migration auto: avatar local vers Supabase Storage
+    try:
+        avatar_path = cfg.get("vous", {}).get("avatar") if cfg else None
+        is_local_avatar = isinstance(avatar_path, str) and avatar_path.startswith("/assets/")
+
+        if supabase:
+            bucket_name = "assets"
+
+            # Si avatar local ou manquant, tenter de recuperer depuis le bucket
+            if is_local_avatar or not avatar_path:
+                try:
+                    items = supabase.storage.from_(bucket_name).list(path=str(user_id)) or []
+                    for item in items:
+                        name = item.get("name") if isinstance(item, dict) else None
+                        if name and name.startswith("avatar"):
+                            public_url = supabase.storage.from_(bucket_name).get_public_url(f"{user_id}/{name}")
+                            if "vous" not in cfg or not isinstance(cfg.get("vous"), dict):
+                                cfg["vous"] = {}
+                            cfg["vous"]["avatar"] = public_url
+                            needs_save = True
+                            break
+                except Exception as e:
+                    logger.warning(f"Avatar lookup in Supabase failed: {e}")
+
+            # Migration local -> Supabase si fichier present
+            if is_local_avatar:
+                local_rel = avatar_path.lstrip("/").replace("assets/", "", 1)
+                local_file = _get_assets_dir() / local_rel
+                if local_file.exists():
+                    ext = local_file.suffix.lower() or ".png"
+                    if ext not in {".png", ".jpg", ".jpeg", ".webp"}:
+                        ext = ".png"
+                    filename = f"avatar{ext}"
+                    storage_path = f"{user_id}/{filename}"
+                    content = local_file.read_bytes()
+                    content_type = mimetypes.guess_type(local_file.name)[0] or "image/png"
+
+                    supabase.storage.from_(bucket_name).upload(
+                        path=storage_path,
+                        file=content,
+                        file_options={"content-type": content_type, "upsert": "true"}
+                    )
+                    public_url = supabase.storage.from_(bucket_name).get_public_url(storage_path)
+
+                    if "vous" not in cfg or not isinstance(cfg.get("vous"), dict):
+                        cfg["vous"] = {}
+                    cfg["vous"]["avatar"] = public_url
+                    needs_save = True
+    except Exception as e:
+        logger.warning(f"Avatar migration to Supabase failed: {e}")
             
     if needs_save:
         save_user_config(user_id, cfg)

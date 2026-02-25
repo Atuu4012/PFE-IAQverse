@@ -256,7 +256,7 @@ async function updateHeaderAvatar() {
         if (typeof window.loadConfig === 'function') {
             const config = await window.loadConfig();
             if (config && config.vous && config.vous.avatar) {
-                avatarImg.src = config.vous.avatar;
+                avatarImg.src = `${config.vous.avatar}?t=${Date.now()}`;
             }
         }
     } catch (e) {
@@ -328,6 +328,9 @@ async function renderAccountList() {
         accounts = JSON.parse(localStorage.getItem('iaq_accounts') || '[]');
     } catch (e) { accounts = []; }
 
+    // Tenter d'hydrater les avatars a partir des configs stockees
+    accounts = await hydrateAccountAvatars(accounts);
+
     // Filtrer pour ne pas afficher le compte courant dans la liste "autres"
     const otherAccounts = accounts.filter(a => !currentUser || a.user.id !== currentUser.id);
 
@@ -339,10 +342,12 @@ async function renderAccountList() {
     // 1. Current User
     if (currentUser) {
         // Essayer de trouver l'avatar dans la config ou utiliser defaut
-        let avatarSrc = '/assets/icons/profil.png';
+           let avatarSrc = '/assets/icons/profil.png';
         const currentStored = accounts.find(a => a.user.id === currentUser.id);
-        if (currentStored && currentStored.user.user_metadata?.avatar_url) {
-             avatarSrc = currentStored.user.user_metadata.avatar_url;
+           if (currentStored && currentStored.avatar) {
+               avatarSrc = currentStored.avatar;
+           } else if (currentStored && currentStored.user.user_metadata?.avatar_url) {
+               avatarSrc = currentStored.user.user_metadata.avatar_url;
         }
         // Sinon peut-etre maj via updateHeaderAvatar qui a lu config.json... 
         // On check l'image du header
@@ -351,7 +356,7 @@ async function renderAccountList() {
 
         html += `
         <li class="account-item active" style="cursor: default;">
-          <img src="${avatarSrc}" class="account-avatar-small">
+            <img src="${avatarSrc}?t=${Date.now()}" class="account-avatar-small">
           <div style="display:flex; flex-direction:column; justify-content:center;">
              <span data-i18n="account.currentUser" style="font-weight:bold;">${currentUser.email || 'Utilisateur Actuel'}</span>
              <span style="font-size: 0.8em; color: var(--text-secondary);">Actif</span>
@@ -360,11 +365,11 @@ async function renderAccountList() {
     }
 
     // 2. Other stored accounts
-    otherAccounts.forEach(acc => {
-        let avatarSrc = acc.user.user_metadata?.avatar_url || '/assets/icons/profil.png';
+        otherAccounts.forEach(acc => {
+                let avatarSrc = acc.avatar || acc.user.user_metadata?.avatar_url || '/assets/icons/profil.png';
         html += `
         <li class="account-item" onclick="switchAccount('${acc.user.id}')" style="cursor: pointer;">
-          <img src="${avatarSrc}" class="account-avatar-small" style="filter: grayscale(1);">
+                    <img src="${avatarSrc}?t=${Date.now()}" class="account-avatar-small" style="filter: grayscale(1);">
           <div style="display:flex; flex-direction:column; justify-content:center;">
              <span>${acc.user.email}</span>
              <span style="font-size: 0.8em; color: var(--text-secondary);">Connecté</span>
@@ -400,6 +405,33 @@ async function renderAccountList() {
              showLogoutConfirmation();
         };
     }
+}
+
+async function hydrateAccountAvatars(accounts) {
+    if (!accounts || !accounts.length) return accounts;
+
+    const updated = await Promise.all(accounts.map(async (acc) => {
+        if (acc.avatar || !acc.access_token) return acc;
+        try {
+            const resp = await fetch('/api/config', {
+                headers: { 'Authorization': `Bearer ${acc.access_token}` }
+            });
+            if (resp.ok) {
+                const cfg = await resp.json();
+                const avatar = cfg && cfg.vous ? cfg.vous.avatar : null;
+                if (avatar) acc.avatar = avatar;
+            }
+        } catch (e) {
+            console.warn('Avatar hydrate failed', e);
+        }
+        return acc;
+    }));
+
+    try {
+        localStorage.setItem('iaq_accounts', JSON.stringify(updated));
+    } catch (e) {}
+
+    return updated;
 }
 
 window.switchAccount = async (userId) => {

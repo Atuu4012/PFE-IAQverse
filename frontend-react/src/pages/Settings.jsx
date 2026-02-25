@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useConfigStore } from '../stores/configStore'
 import { useThemeStore } from '../stores/themeStore'
+import { supabase } from '../services/supabase'
 import Navbar from '../components/common/Navbar'
 import './Settings.css'
 
@@ -232,7 +233,10 @@ export default function Settings() {
                         const file = e.target.files?.[0]; if (!file) return
                         const fd = new FormData(); fd.append('file', file)
                         try {
-                          const r = await fetch('/api/uploadAvatar', { method: 'POST', body: fd })
+                          const { data } = await supabase.auth.getSession()
+                          const token = data.session?.access_token
+                          const headers = token ? { Authorization: `Bearer ${token}` } : {}
+                          const r = await fetch('/api/uploadAvatar', { method: 'POST', headers, body: fd })
                           if (r.ok) { const d = await r.json(); if (d.path) { setVal('vous.avatar', d.path); await doSave(setByPath(localConfig, 'vous.avatar', d.path)) } }
                         } catch { showNotification('Erreur upload avatar', true) }
                       }} />

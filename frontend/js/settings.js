@@ -1791,8 +1791,23 @@ document.addEventListener("DOMContentLoaded", function () {
         formData.append("file", file);
 
         try {
+          const headers = {};
+          try {
+            if (!supabaseClient && typeof initSupabase === "function") {
+              await initSupabase();
+            }
+            if (supabaseClient) {
+              const { data } = await supabaseClient.auth.getSession();
+              const token = data.session?.access_token;
+              if (token) headers.Authorization = `Bearer ${token}`;
+            }
+          } catch (e) {
+            console.warn("Avatar upload auth token unavailable", e);
+          }
+
           const response = await fetch("/api/uploadAvatar", {
             method: "POST",
+            headers,
             body: formData,
           });
 

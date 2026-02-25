@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../stores/authStore'
+import { useConfigStore } from '../../stores/configStore'
 import { useTranslation } from 'react-i18next'
 import { useState, useRef, useEffect } from 'react'
 import ThemeToggle from './ThemeToggle'
@@ -7,12 +8,15 @@ import './Navbar.css'
 
 export default function Navbar({ title }) {
   const { user, signOut } = useAuthStore()
+  const { getConfig } = useConfigStore()
   const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const [accountOpen, setAccountOpen] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
+  const [avatarSrc, setAvatarSrc] = useState('/assets/icons/profil.png')
   const accountRef = useRef(null)
+  const avatarPath = getConfig('vous.avatar', '')
 
   // Determine page title
   const pageTitle = title || (() => {
@@ -37,6 +41,14 @@ export default function Navbar({ title }) {
     if (accountOpen) document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [accountOpen])
+
+  useEffect(() => {
+    if (avatarPath) {
+      setAvatarSrc(`${avatarPath}?t=${Date.now()}`)
+    } else {
+      setAvatarSrc('/assets/icons/profil.png')
+    }
+  }, [avatarPath])
 
   const navItems = [
     {
@@ -109,8 +121,8 @@ export default function Navbar({ title }) {
               className="header-avatar-link" 
               onClick={() => setAccountOpen(!accountOpen)}
             >
-              <img src="/assets/icons/profil.png" alt="Avatar" className="header-avatar-img" 
-                onError={(e) => { e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23999"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>' }}
+              <img src={avatarSrc} alt="Avatar" className="header-avatar-img" 
+                onError={(e) => { e.target.src = '/assets/icons/profil.png' }}
               />
             </button>
 
@@ -123,8 +135,8 @@ export default function Navbar({ title }) {
                 </div>
                 <ul className="account-list">
                   <li className="account-item active">
-                    <img src="/assets/icons/profil.png" className="account-avatar-small" alt=""
-                      onError={(e) => { e.target.style.display = 'none' }}
+                    <img src={avatarSrc} className="account-avatar-small" alt=""
+                      onError={(e) => { e.target.src = '/assets/icons/profil.png' }}
                     />
                     <span>{user?.email || t('account.currentUser', 'Utilisateur Actuel')}</span>
                   </li>

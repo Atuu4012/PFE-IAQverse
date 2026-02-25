@@ -9,7 +9,7 @@ let currentDetailsSubject = null;
  * @param {object} detail - Détails optionnels { issues: [{code,name,unit,severity,value,direction,threshold}], actionKey }
  * @param {boolean} forceRefresh - Si true, force la mise à jour sans toggle
  */
-function showDetails(sujet, detail, forceRefresh = false) {
+async function showDetails(sujet, detail, forceRefresh = false) {
   const panel = document.getElementById("details-panel");
   const list = document.getElementById("details-list");
   if (!panel || !list) return;

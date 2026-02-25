@@ -176,57 +176,69 @@ const updateEnvironment = async (configOverride = null) => {
         return;
     }
 
-    textureLoader.load(
-      path, 
-      (texture) => {
-        // Configuration de l'espace colorimétrique pour un rendu correct
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.mapping = THREE.EquirectangularReflectionMapping;
+    // Délai le chargement de la texture pour laisser le rendu initial s'afficher
+    setTimeout(() => {
+        textureLoader.load(
+          path, 
+          (texture) => {
+            // Configuration de l'espace colorimétrique pour un rendu correct
+            texture.colorSpace = THREE.SRGBColorSpace;
+            texture.mapping = THREE.EquirectangularReflectionMapping;
 
-        // Si la sphère existe déjà, on met à jour la texture
-        if (environmentSphere) {
-            const oldTexture = environmentSphere.material.map;
-            if (oldTexture) {
-                oldTexture.dispose(); // Libérer la mémoire GPU
+            // Si la sphère existe déjà, on met à jour la texture
+            if (environmentSphere) {
+                const oldTexture = environmentSphere.material.map;
+                if (oldTexture) {
+                    oldTexture.dispose(); // Libérer la mémoire GPU
+                }
+                environmentSphere.material.map = texture;
+                environmentSphere.material.needsUpdate = true;
+                scene.environment = texture;
+                console.log(`Environment theme updated to: ${path}`);
+                return;
             }
-            environmentSphere.material.map = texture;
-            environmentSphere.material.needsUpdate = true;
+
+            const sphereGeometry = new THREE.SphereGeometry(500, 60, 40);
+            // Inverser la géométrie sur l'axe X pour voir la texture de l'intérieur
+            sphereGeometry.scale(-0.1, 0.1, 0.1);
+
+            const sphereMaterial = new THREE.MeshBasicMaterial({
+              map: texture
+            });
+
+            environmentSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+            
+            // Position par défaut
+            // Note : Monter la sphère aligne le sol mais déplace l'horizon. 
+            environmentSphere.position.y = 0;
+            environmentSphere.name = 'EnvironmentSphere'; // Nom pour identification
+
+            scene.add(environmentSphere);
+            
+            // Ajoute l'environnement pour les réflexions sur les matériaux (vitres, métal)
             scene.environment = texture;
-            console.log(`Environment theme updated to: ${path}`);
-            return;
-        }
-
-        const sphereGeometry = new THREE.SphereGeometry(500, 60, 40);
-        // Inverser la géométrie sur l'axe X pour voir la texture de l'intérieur
-        sphereGeometry.scale(-0.1, 0.1, 0.1);
-
-        const sphereMaterial = new THREE.MeshBasicMaterial({
-          map: texture
-        });
-
-        environmentSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-        
-        // Position par défaut
-        // Note : Monter la sphère aligne le sol mais déplace l'horizon. 
-        environmentSphere.position.y = 0;
-        environmentSphere.name = 'EnvironmentSphere'; // Nom pour identification
-
-        scene.add(environmentSphere);
-        
-        // Ajoute l'environnement pour les réflexions sur les matériaux (vitres, métal)
-        scene.environment = texture;
-        
-        console.log(`Environment sphere added: ${path}`);
-      },
-      undefined,
-      (err) => {
-        console.error('Erreur lors du chargement de la texture 360°', err);
-      }
-    );
+            
+            console.log(`Environment sphere added: ${path}`);
+          },
+          undefined,
+          (err) => {
+            console.error('Erreur lors du chargement de la texture 360°', err);
+          }
+        );
+    }, 0); // 0ms = après le rendu initial, mais peut être augmenté si besoin
 };
 
 // Initialiser l'environnement
-updateEnvironment();
+// On ne charge l'environnement (photo paysage) qu'après le modèle 3D
+let environmentReady = false;
+
+// Hook pour charger la skybox après le modèle
+function loadEnvironmentAfterModel() {
+  if (!environmentReady) {
+    environmentReady = true;
+    updateEnvironment();
+  }
+}
 
 // Exposer la fonction (utile pour les mises à jour via WebSocket ou autre)
 window.updateThreeEnvironment = updateEnvironment;
@@ -249,11 +261,20 @@ let isLoading = false; // prevent concurrent loads
 let animationStarted = false; // ensure only one animate loop
 
 // Cache pour stocker les modèles 3D déjà chargés (évite de recharger)
+
 const modelCache = new Map(); // clé: glbPath, valeur: {scene: clonedScene, original: gltf.scene}
 
 let objectStates = {};
 let currentEnseigneId = null;
 let currentPieceId = null;
+
+// Patch le chargement du modèle pour déclencher le paysage après
+const originalLoadModel = window.loadModel3D;
+window.loadModel3D = async function(...args) {
+  const result = await originalLoadModel.apply(this, args);
+  setTimeout(loadEnvironmentAfterModel, 0); // Lance la skybox juste après le modèle
+  return result;
+};
 
 const objectAnimations = {
   door: {
@@ -1749,6 +1770,8 @@ function loadPieceModel(roomId) {
         }
         
         scene.add(modelRoot);
+        // Charger la skybox juste après le modèle
+        setTimeout(() => updateEnvironment(), 0);
         
         // Configurer les miroirs (CubeCamera)
         setupMirrors(modelRoot);

@@ -15,24 +15,9 @@ function applyTheme(mode) {
 // Fonction pour initialiser le thème au chargement de la page
 async function initTheme() {
     try {
-        const currentConfig = typeof window.getConfig === 'function' ? window.getConfig() : null;
-        if (currentConfig?.affichage?.mode) {
-            applyTheme(currentConfig.affichage.mode);
-        }
-
-        if (window.configReady) {
-            const freshConfig = await window.configReady;
-            if (freshConfig?.affichage?.mode) {
-                applyTheme(freshConfig.affichage.mode);
-                return;
-            }
-        }
-
-        if (typeof window.loadConfig === 'function') {
-            const config = await window.loadConfig();
-            const mode = config?.affichage?.mode || 'clair';
-            applyTheme(mode);
-            return;
+        const config = window.configReady ? await window.configReady : (typeof window.getConfig === 'function' ? window.getConfig() : null);
+        if (config?.affichage?.mode) {
+            applyTheme(config.affichage.mode);
         }
     } catch(e) {
         console.warn('Theme: loadConfig failed', e);

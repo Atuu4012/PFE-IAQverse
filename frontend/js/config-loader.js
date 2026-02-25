@@ -11,9 +11,10 @@ let configPromise = null;
  * @returns {Promise<Object>} La configuration chargée
  */
 async function loadConfig() {
-    if (config) return config;
+    if (config) return Promise.resolve(config);
     if (configPromise) return configPromise;
 
+    // Empêche les fetchs concurrents : une seule promesse globale
     configPromise = (async () => {
         try {
             let token = null;
@@ -98,8 +99,3 @@ window.saveConfig = saveConfig;
 window.getConfig = getConfig;
 window.setConfig = setConfig;
 
-// Démarrage anticipé du chargement
-window.configReady = loadConfig().catch((err) => {
-    console.warn('Config auto-load failed', err);
-    return null;
-});

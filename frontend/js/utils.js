@@ -410,22 +410,25 @@ async function renderAccountList() {
 async function hydrateAccountAvatars(accounts) {
     if (!accounts || !accounts.length) return accounts;
 
-    const updated = await Promise.all(accounts.map(async (acc) => {
-        if (acc.avatar || !acc.access_token) return acc;
-        try {
-            const resp = await fetch('/api/config', {
-                headers: { 'Authorization': `Bearer ${acc.access_token}` }
-            });
-            if (resp.ok) {
-                const cfg = await resp.json();
-                const avatar = cfg && cfg.vous ? cfg.vous.avatar : null;
-                if (avatar) acc.avatar = avatar;
-            }
-        } catch (e) {
-            console.warn('Avatar hydrate failed', e);
+    // Utilise la config globale (cache) pour éviter les fetchs multiples
+    let globalConfig = null;
+    try {
+        if (typeof window.loadConfig === 'function') {
+            globalConfig = await window.loadConfig();
         }
+    } catch (e) {
+        console.warn('Impossible de charger la config globale pour avatars', e);
+    }
+
+    const updated = accounts.map(acc => {
+        if (acc.avatar) return acc;
+        // Si access_token différent, on ne peut pas utiliser la config globale
+        if (globalConfig && globalConfig.vous && acc.email === globalConfig.vous.email) {
+            acc.avatar = globalConfig.vous.avatar || acc.avatar;
+        }
+        // Sinon, on ne fait pas de fetch supplémentaire
         return acc;
-    }));
+    });
 
     try {
         localStorage.setItem('iaq_accounts', JSON.stringify(updated));

@@ -93,7 +93,9 @@ const updateEnvironment = async (configOverride = null) => {
     // Si toujours pas de config, essayer de la charger (asynchrone)
     if (!cfg && window.loadConfig) {
         try {
-            cfg = await window.loadConfig();
+          if (window.configReady) {
+            cfg = await window.configReady;
+          }
         } catch(e) { console.warn("Config load failed for env", e); }
     }
     

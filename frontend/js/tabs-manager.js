@@ -16,9 +16,7 @@ const ALERT_THRESHOLD = 81;
  */
 async function initTabsManager() {
     try {
-        await loadConfig();
-        const config = getConfig();
-
+        const config = await window.loadConfig();
         if (!config || !config.lieux || !config.lieux.enseignes) {
             console.error('Pas d\'enseignes trouvées dans la configuration');
             return;
@@ -31,7 +29,7 @@ async function initTabsManager() {
         } catch (e) {
             console.warn('[tabs-manager] setupWsListeners failed:', e);
         }
-        
+
         // Removed localStorage. Using config.lieux.active / config.lieux.activeRoom instead.
         const configActiveEnseigne = config.lieux.active;
         const configActiveRoom = config.lieux.activeRoom;
@@ -39,7 +37,6 @@ async function initTabsManager() {
         if (config.lieux.enseignes.length > 0) {
             // Locate the enseigne from config or default to first
             let defaultEnseigne = configActiveEnseigne;
-            
             // Verify it exists in the list
             if (!config.lieux.enseignes.find(e => e.id === defaultEnseigne)) {
                 defaultEnseigne = config.lieux.enseignes[0].id;
@@ -147,11 +144,9 @@ function renderRoomTabs(enseigneId) {
         }
     });
 
-    // Si aucune pièce n'est active, activer la première
+    // Si aucune pièce n'est active, activer la première sans save (on sauvegardera tout dans switchEnseigne)
     if (!activeRoom && enseigne.pieces.length > 0) {
-        // save=true is implied for this auto-select? 
-        // Actually, if user switches enseigne, we auto-select room. Ideally we should save it.
-        switchRoom(enseigne.pieces[0].id, true);
+        switchRoom(enseigne.pieces[0].id, false);
     }
 }
 
@@ -168,14 +163,8 @@ function switchEnseigne(enseigneId, keepActiveRoom = false, save = true) {
     }
     
     if (save && typeof window.saveConfig === 'function') {
-        // We only save the active enseigne here. Active room will be saved when switchRoom is called (or reset).
-        // If we reset room, maybe we should save activeRoom: null? 
-        // For now, let's just save the active Enseigne.
-        window.saveConfig({ lieux: { active: enseigneId } });
-        if (!keepActiveRoom && activeRoom === null) {
-            // Optional: clear activeRoom in config? 
-            // window.saveConfig({ lieux: { activeRoom: null } }); // If API supports it
-        }
+        // On sauvegarde enseigne ET pièce active en un seul PUT
+        window.saveConfig({ lieux: { active: enseigneId, activeRoom: activeRoom || null } });
     }
     
     // Mettre à jour l'apparence des onglets d'enseignes

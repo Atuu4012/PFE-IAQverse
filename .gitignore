@@ -6,6 +6,8 @@ venv/
 
 # Environment variables
 .env
+.env.*
+!.env.*.example
 
 # Database
 database/influx_data/

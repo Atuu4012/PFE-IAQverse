@@ -68,7 +68,7 @@ jobs:
 
             # 4. Lancer la production avec le bon fichier
             # On utilise explicitement le fichier de PROD
-            docker compose -f docker/docker-compose.prod.yml --env-file .env up -d --build --remove-orphans
+            docker compose -f docker/docker-compose.prod.yml --env-file .env.prod up -d --build --remove-orphans
 
             # 5. Nettoyer les vieilles images
             docker image prune -f

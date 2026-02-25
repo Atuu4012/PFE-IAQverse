@@ -794,7 +794,7 @@ async function addPiece(enseigneId) {
           try {
             token = await getAuthToken();
           } catch (e) {}
-          const headers = { "ngrok-skip-browser-warning": "true" };
+          const headers = {};
           if (token) headers["Authorization"] = `Bearer ${token}`;
 
           const uploadResp = await fetch("/api/rooms/files", {
@@ -998,7 +998,6 @@ async function removeEnseigne(enseigneId) {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
-            "ngrok-skip-browser-warning": "true",
           },
           body: JSON.stringify(pathsToDelete),
         });
@@ -1057,7 +1056,6 @@ async function removePiece(enseigneId, pieceId) {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
-            "ngrok-skip-browser-warning": "true",
           },
           body: JSON.stringify(pathsToDelete),
         });
@@ -1889,7 +1887,6 @@ async function selectPlan(planType) {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "ngrok-skip-browser-warning": "true",
         },
         body: JSON.stringify(updates),
       });

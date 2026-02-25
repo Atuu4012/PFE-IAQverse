@@ -533,7 +533,7 @@ async function fetchAndUpdate() {
   try {
     await ensureConfigLoaded();
     const { enseigne, salle } = getActiveContext();
-    const headers = { "ngrok-skip-browser-warning": "true" };
+    const headers = {};
     if (typeof getAuthToken === "function") {
       const token = await getAuthToken();
       if (token) headers["Authorization"] = `Bearer ${token}`;

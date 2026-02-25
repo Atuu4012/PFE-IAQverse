@@ -21,9 +21,7 @@ async function fetchAuthConfig() {
 
     // 2. Fetch from network
      try {
-        const response = await fetch('/api/auth/config', {
-            headers: { 'ngrok-skip-browser-warning': 'true' }
-        });
+        const response = await fetch('/api/auth/config');
         if (response.ok) {
             const config = await response.json();
             // 3. Save to cache

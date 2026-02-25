@@ -23,9 +23,7 @@ async function loadConfig() {
                 console.warn("Auth token not available yet", e);
             }
             
-            const headers = { 
-                'ngrok-skip-browser-warning': 'true' 
-            };
+            const headers = {};
             // Injection du token
             if (token) headers['Authorization'] = `Bearer ${token}`; 
 

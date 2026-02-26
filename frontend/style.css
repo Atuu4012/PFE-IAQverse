@@ -156,16 +156,28 @@ header {
   background: var(--accent-hover);
 }
 
-.header-nav img {
+.header-nav img.nav-icon {
   width: 20px;
   height: 20px;
-  opacity: 0.7;
-  transition: opacity var(--transition-fast);
+  opacity: 0.6;
+  transition:
+    opacity var(--transition-fast),
+    filter var(--transition-fast);
+  filter: brightness(0) saturate(100%);
 }
 
-.header-nav a.active-page img,
-.header-nav a:hover img {
+[data-theme="sombre"] .header-nav img.nav-icon {
+  opacity: 0.7;
+  filter: brightness(0) invert(1);
+}
+
+.header-nav a.active-page img.nav-icon,
+.header-nav a:hover img.nav-icon {
   opacity: 1;
+}
+
+.header-nav a.active-page img.nav-icon {
+  filter: brightness(0) invert(1);
 }
 
 header h1 {
@@ -752,6 +764,8 @@ select.form-control,
   display: flex;
   align-items: center;
   gap: 8px;
+  position: relative;
+  overflow: visible;
 }
 
 .location-tab:hover {
@@ -865,6 +879,30 @@ select.form-control,
 /* ========================================
    ROOM OCCUPANT BADGE
    ======================================== */
+
+.location-occupant-badge {
+  position: absolute;
+  top: -10px;
+  right: -11px;
+  min-width: 18px;
+  height: 18px;
+  padding: 2px;
+  border-radius: 50%;
+  background: #616d91;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  border: 1px solid var(--bg-primary);
+  box-sizing: content-box;
+}
 
 .room-tab {
   position: relative; /* Ensure badge positioning */
@@ -1122,23 +1160,23 @@ main {
 
 /* Predicted score color by level (matches A–E badges) */
 .predicted-a .predicted-value > span:first-child {
-  color: #3aaa8a;
+  color: var(--success);
 }
 
 .predicted-b .predicted-value > span:first-child {
-  color: #6dbf47;
+  color: #84cc16;
 }
 
 .predicted-c .predicted-value > span:first-child {
-  color: #f5b731;
+  color: var(--warning);
 }
 
 .predicted-d .predicted-value > span:first-child {
-  color: #e87d2f;
+  color: #f97316;
 }
 
 .predicted-e .predicted-value > span:first-child {
-  color: #e05252;
+  color: var(--danger);
 }
 
 /* Occupants Badge */
@@ -1237,6 +1275,39 @@ main {
   gap: 16px;
 }
 
+.metric-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.metric-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.metric-legend-line {
+  width: 18px;
+  border-top: 2px solid currentColor;
+  border-radius: 2px;
+}
+
+.metric-legend-line--dashed {
+  border-top: none;
+  height: 2px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    currentColor,
+    currentColor 4px,
+    transparent 4px,
+    transparent 7px
+  );
+  border-radius: 2px;
+}
+
 .metric-value-secondary-big {
   font-size: 2rem;
   font-weight: 600;
@@ -1300,11 +1371,11 @@ main {
   background: var(--danger);
 }
 
-.metric-card.metric-ok .metric-value {
+.metric-card.metric-ok:not(.metric-dual) .metric-value {
   color: var(--success);
 }
 
-.metric-card.metric-alert .metric-value {
+.metric-card.metric-alert:not(.metric-dual) .metric-value {
   color: var(--danger);
 }
 
@@ -1450,6 +1521,26 @@ main {
   font-weight: 700;
   font-size: 0.75rem;
   line-height: 1.6;
+}
+
+.preventive-room-score.badge-a {
+  background: var(--success);
+}
+
+.preventive-room-score.badge-b {
+  background: #84cc16;
+}
+
+.preventive-room-score.badge-c {
+  background: var(--warning);
+}
+
+.preventive-room-score.badge-d {
+  background: #f97316;
+}
+
+.preventive-room-score.badge-e {
+  background: var(--danger);
 }
 
 .preventive-room-count {

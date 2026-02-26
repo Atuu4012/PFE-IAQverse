@@ -14,16 +14,24 @@ function applyTheme(mode) {
 
 // Fonction pour initialiser le thème au chargement de la page
 async function initTheme() {
+    let applied = false;
     try {
         const config = window.configReady ? await window.configReady : (typeof window.getConfig === 'function' ? window.getConfig() : null);
         if (config?.affichage?.mode) {
             applyTheme(config.affichage.mode);
+            applied = true;
         }
     } catch(e) {
         console.warn('Theme: loadConfig failed', e);
     }
-
-    applyTheme('clair');
+    if (!applied) {
+        const storedTheme = localStorage.getItem('iaq_theme');
+        if (storedTheme) {
+            applyTheme(storedTheme);
+            applied = true;
+        }
+    }
+    if (!applied) applyTheme('clair');
 }
 
 // Fonction pour changer le thème
@@ -31,6 +39,7 @@ async function toggleTheme() {
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'clair';
     const newTheme = currentTheme === 'clair' ? 'sombre' : 'clair';
     applyTheme(newTheme);
+    localStorage.setItem('iaq_theme', newTheme);
     await updateThemeInConfig(newTheme);
     if (typeof refreshChartsTheme === 'function') {
         refreshChartsTheme();

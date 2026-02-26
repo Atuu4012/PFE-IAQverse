@@ -170,13 +170,14 @@ function displayGlobalPreventiveActions(allRoomActions) {
     allRoomActions.forEach((roomData, index) => {
         const actionsCount = roomData.actions.length;
         const score = roomData.score !== null && roomData.score !== undefined ? Math.round(roomData.score) : null;
+        const scoreClass = score === null ? '' : (score >= 81 ? 'badge-a' : score >= 61 ? 'badge-b' : score >= 41 ? 'badge-c' : score >= 21 ? 'badge-d' : 'badge-e');
         
         html += `
             <div class="preventive-room-card">
                 <div class="preventive-room-header">
                     <div class="preventive-room-title-row">
                         <div class="preventive-room-title">${roomData.salle}</div>
-                        ${score !== null ? `<div class="preventive-room-score">${score}</div>` : ''}
+                        ${score !== null ? `<div class="preventive-room-score ${scoreClass}">${score}</div>` : ''}
                     </div>
                     <div class="preventive-room-location">${roomData.enseigne}</div>
                     <div class="preventive-room-count">

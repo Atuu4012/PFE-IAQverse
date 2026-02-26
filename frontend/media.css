@@ -151,6 +151,10 @@
     background: var(--accent-primary);
   }
 
+  .header-nav a.active-page img.nav-icon {
+    filter: brightness(0) saturate(100%) invert(29%) sepia(86%) saturate(2481%) hue-rotate(211deg) brightness(98%) contrast(95%);
+  }
+
   header h1 {
     position: fixed;
     top: 0;

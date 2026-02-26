@@ -27,6 +27,7 @@ function updateOccupantsDisplay(occupantsCount) {
     // Pour la page index.html
     // On cible le badge de la pièce active dans les onglets
     const activePiece = sessionStorage.getItem('activePieceId') || localStorage.getItem('activeRoom');
+    const activeEnseigne = sessionStorage.getItem('activeEnseigneId') || localStorage.getItem('activeEnseigne');
     const roomBadge = activePiece ? document.getElementById(`room-badge-${activePiece}`) : null;
     
     // On supprime l'ancien affichage s'il existe encore (nettoyage au cas où)
@@ -50,6 +51,12 @@ function updateOccupantsDisplay(occupantsCount) {
             }
         } else {
             roomBadge.style.display = 'none';
+        }
+    }
+
+    if (activeEnseigne && activePiece && typeof window.updateRoomOccupants === 'function') {
+        if (count !== null && count >= 0) {
+            window.updateRoomOccupants(activeEnseigne, activePiece, count);
         }
     }
     

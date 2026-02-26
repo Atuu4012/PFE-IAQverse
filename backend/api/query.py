@@ -128,10 +128,10 @@ def get_iaq_data(
                         record["global_level"] = "unknown"
                         record["occupants"] = 0
                 
-                logger.info(f"✅ Données récupérées depuis InfluxDB: {len(influx_data)} points (step={step})")
+                logger.info(f"Données récupérées depuis InfluxDB: {len(influx_data)} points (step={step})")
                 return influx_data
             else:
-                logger.info(f"⚠️ InfluxDB a retourné 0 points pour {enseigne}/{salle} (step={step})")
+                logger.info(f"InfluxDB a retourné 0 points pour {enseigne}/{salle} (step={step})")
                 
         except Exception as e:
             logger.warning(f"Erreur requête InfluxDB: {e}")

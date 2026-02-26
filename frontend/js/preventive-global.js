@@ -300,8 +300,8 @@ let _lastRoomActions = null;
 document.addEventListener('DOMContentLoaded', () => {
     try {
         fetchAndDisplayGlobalPreventiveActions();
-        // Rafraîchir toutes les 30 secondes
-        setInterval(fetchAndDisplayGlobalPreventiveActions, 30000);
+        // Rafraîchir sur le tick prédictif (toutes les X mesures)
+        document.addEventListener('predictScoreTick', fetchAndDisplayGlobalPreventiveActions);
     } catch (e) {
         console.error('[preventive-global] Error in DOMContentLoaded:', e);
     }

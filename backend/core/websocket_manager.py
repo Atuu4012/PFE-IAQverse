@@ -47,7 +47,7 @@ class ConnectionManager:
             if topic in self.subscriptions:
                 self.subscriptions[topic].add(websocket)
         
-        logger.info(f"✅ WebSocket connecté. Total: {len(self.active_connections)}, Topics: {topics}")
+        logger.info(f"WebSocket connecté. Total: {len(self.active_connections)}, Topics: {topics}")
         
         # Envoyer un message de bienvenue
         await self.send_personal_message({
@@ -68,7 +68,7 @@ class ConnectionManager:
         for topic_subs in self.subscriptions.values():
             topic_subs.discard(websocket)
         
-        logger.info(f"❌ WebSocket déconnecté. Total: {len(self.active_connections)}")
+        logger.info(f"WebSocket déconnecté. Total: {len(self.active_connections)}")
     
     async def send_personal_message(self, message: Dict, websocket: WebSocket):
         """Envoie un message à une connexion spécifique"""

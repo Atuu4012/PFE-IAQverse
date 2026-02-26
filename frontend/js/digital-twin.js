@@ -935,8 +935,8 @@ document.addEventListener("DOMContentLoaded", () => {
   try {
     syncAlertPointsToTable();
     fetchAndDisplayPreventiveActions();
-    // Rafraîchir les actions préventives toutes les 30 secondes
-    setInterval(fetchAndDisplayPreventiveActions, 30000);
+    // Rafraîchir les actions préventives sur le tick prédictif (toutes les X mesures)
+    document.addEventListener('predictScoreTick', fetchAndDisplayPreventiveActions);
   } catch (e) {
     console.error("[digital-twin] Error in DOMContentLoaded:", e);
   }

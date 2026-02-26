@@ -167,10 +167,22 @@ function closeModal() {
   ModalManager.close("infoModal");
 }
 
+let currentDashboardEnseigneId = null;
+let currentDashboardSalleId = null;
+
 // Écouter les changements de pièce pour mettre à jour les graphiques
 document.addEventListener("roomChanged", (event) => {
   const { roomId, enseigneId } = event.detail;
+  currentDashboardEnseigneId = enseigneId;
+  currentDashboardSalleId = roomId;
   updateCharts(enseigneId, roomId);
+});
+
+// Écouter les ticks de mesures (toutes les 6 mesures) pour actualiser le score
+document.addEventListener("predictScoreTick", () => {
+  if (currentDashboardEnseigneId && currentDashboardSalleId) {
+    fetchAndDisplayPredictedScore(currentDashboardEnseigneId, currentDashboardSalleId);
+  }
 });
 
 // Export des fonctions

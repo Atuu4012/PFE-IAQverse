@@ -67,6 +67,7 @@ let charts = {
 };
 
 let httpPollingInterval = null;
+let measurementTickCount = 0;
 
 function getActiveContext() {
   const cfg =
@@ -408,6 +409,7 @@ function destroyCharts() {
 function resetCharts() {
   destroyCharts();
   initCharts();
+  measurementTickCount = 0;
 }
 
 function resolveStatus(value, threshold) {
@@ -738,6 +740,13 @@ function handleRealtimeMeasurement(data) {
     ) {
       window.setRoomScore(score, { note: "" });
     }
+  }
+
+  // Polling score predictif toutes les 5 mesures
+  measurementTickCount++;
+  if (measurementTickCount >= 5) {
+    measurementTickCount = 0;
+    document.dispatchEvent(new CustomEvent("predictScoreTick"));
   }
 }
 

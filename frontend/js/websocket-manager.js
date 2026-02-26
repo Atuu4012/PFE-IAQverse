@@ -8,7 +8,7 @@ class WebSocketManager {
         this.ws = null;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 10;
-        this.reconnectDelay = 1000; // 1 seconde
+        this.reconnectDelay = 800; // 0.8 seconde
         this.subscriptions = new Set(['measurements']); // Topics par défaut
         this.listeners = new Map(); // Callbacks par topic
         this.isConnected = false;

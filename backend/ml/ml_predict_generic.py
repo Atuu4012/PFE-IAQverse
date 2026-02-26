@@ -167,57 +167,80 @@ class RealtimeGenericPredictor:
                                  sensor_id: Optional[str] = None,
                                  limit: int = 100) -> pd.DataFrame:
         """
-        Récupère les données DIRECTEMENT depuis iaq_database via l'API.
-        
-        Args:
-            enseigne: Filtrer par enseigne
-            salle: Filtrer par salle
-            sensor_id: Filtrer par capteur
-            limit: Nombre de lignes à récupérer
-            
-        Returns:
-            DataFrame avec les données récentes
+        Récupère les données DIRECTEMENT depuis iaq_database en mémoire.
+        Évite un appel HTTP loopback coûteux (~200-400ms).
+        Fallback HTTP si iaq_database n'est pas accessible.
         """
+        # --- Lecture directe en mémoire (rapide, 0 réseau) ---
+        try:
+            import sys
+            # Le module principal est enregistré sous le nom de package FastAPI
+            main_mod = sys.modules.get("backend.main") or sys.modules.get("app.main")
+            db = getattr(main_mod, "iaq_database", None) if main_mod else None
+
+            if db is not None:
+                # Filtrer
+                rows = list(db)  # snapshot de la liste (thread-safe lecture)
+                if enseigne:
+                    rows = [r for r in rows if r.get("enseigne") == enseigne]
+                if salle:
+                    rows = [r for r in rows if r.get("salle") == salle]
+                if sensor_id:
+                    rows = [r for r in rows if r.get("sensor_id") == sensor_id]
+
+                if rows:
+                    # Garder les N derniers pour le lookback LSTM (12h @ 5min = 144 points)
+                    rows = rows[-limit:]
+                    df = pd.DataFrame(rows)
+                    if "timestamp" in df.columns:
+                        df["timestamp"] = pd.to_datetime(df["timestamp"])
+                        df = df.sort_values("timestamp")
+                    numeric_cols = ["co2", "pm25", "tvoc", "temperature", "humidity"]
+                    for col in numeric_cols:
+                        if col in df.columns:
+                            df[col] = pd.to_numeric(df[col], errors="coerce")
+                    logger.debug(f"[predict] Données lues depuis iaq_database: {len(df)} points")
+                    return df
+                else:
+                    logger.warning(f"[predict] iaq_database vide pour enseigne={enseigne}, salle={salle}")
+                    return pd.DataFrame()
+        except Exception as e:
+            logger.warning(f"[predict] Lecture mémoire échouée ({e}), fallback HTTP")
+
+        # --- Fallback HTTP (si iaq_database non accessible) ---
         try:
             url = f"{self.api_base_url}/api/iaq/data"
-            params = {
-                'hours': 12  # Augmenté à 12h pour supporter les lookbacks longs (ex: 6h) du LSTM
-            }
+            params = {"hours": 12}
             if enseigne:
-                params['enseigne'] = enseigne
+                params["enseigne"] = enseigne
             if salle:
-                params['salle'] = salle
+                params["salle"] = salle
             if sensor_id:
-                params['sensor_id'] = sensor_id
-            
+                params["sensor_id"] = sensor_id
+
             response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
-            
+
             data = response.json()
-            if not data or len(data) == 0:
-                logger.warning(f"Aucune donnée pour enseigne={enseigne}, salle={salle}, capteur={sensor_id}")
+            if not data:
                 return pd.DataFrame()
-            
+
             df = pd.DataFrame(data)
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-            df = df.sort_values('timestamp')
-            
-            # Convertir les colonnes numériques en float
-            numeric_cols = ['co2', 'pm25', 'tvoc', 'temperature', 'humidity']
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
+            df = df.sort_values("timestamp")
+            numeric_cols = ["co2", "pm25", "tvoc", "temperature", "humidity"]
             for col in numeric_cols:
                 if col in df.columns:
-                    df[col] = pd.to_numeric(df[col], errors='coerce')
-            
-            # Limiter au nombre demandé
+                    df[col] = pd.to_numeric(df[col], errors="coerce")
             if limit and len(df) > limit:
                 df = df.tail(limit)
-            
-            logger.info(f"Données récupérées: {len(df)} points")
+            logger.info(f"[predict] Données récupérées via HTTP fallback: {len(df)} points")
             return df
-            
+
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération des données: {e}")
+            logger.error(f"[predict] Erreur récupération données: {e}")
             return pd.DataFrame()
+
     
     def create_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Crée les mêmes features que lors de l'entraînement (aligné avec ml_train.py)."""

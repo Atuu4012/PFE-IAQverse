@@ -151,32 +151,71 @@ def extract_sensors_from_config(config):
 
 
 def load_user_config(user_id: str):
-    """Charge la configuration depuis Supabase pour un utilisateur spécifique"""
-    if not supabase:
-        return None # Pas de supabase, pas de config user
-
-    response = supabase.table("user_configs").select("config_data").eq("user_id", user_id).execute()
+    """Charge la configuration depuis Supabase pour un utilisateur spécifique.
     
+    Lit les colonnes dédiées (profile, lieux, preferences, abonnement, assurance)
+    et reconstruit un dictionnaire unifié identique à l'ancien format.
+    """
+    if not supabase:
+        return None  # Pas de supabase, pas de config user
+
+    response = (
+        supabase.table("user_configs")
+        .select("profile, lieux, preferences, abonnement, assurance")
+        .eq("user_id", user_id)
+        .execute()
+    )
+
     # Si l'utilisateur n'a pas encore de config, on renvoie None
     if not response.data:
         return None
-        
-    return response.data[0]['config_data']
+
+    row = response.data[0]
+    prefs = row.get("preferences") or {}
+
+    # Reconstruction du dict unifié (format identique à l'ancien config_data)
+    return {
+        "vous":          row.get("profile") or {},
+        "lieux":         row.get("lieux") or {"enseignes": []},
+        "affichage":     prefs.get("affichage") or {},
+        "notifications": prefs.get("notifications") or {},
+        "digital_twin":  prefs.get("digital_twin") or {},
+        "abonnement":    row.get("abonnement") or {},
+        "assurance":     row.get("assurance") or {},
+    }
 
 def save_user_config(user_id: str, new_config: dict):
-    """Sauvegarde la configuration d'un utilisateur"""
+    """Sauvegarde la configuration d'un utilisateur dans les colonnes dédiées.
+    
+    Distribue les sections du dict unifié dans leurs colonnes respectives :
+      - profile      ← "vous"
+      - lieux        ← "lieux"
+      - preferences  ← { affichage, notifications, digital_twin }
+      - abonnement   ← "abonnement"
+      - assurance    ← "assurance"
+    """
     if not supabase:
         logger.error(f"Supabase non configure. Echec sauvegarde pour user {user_id}")
         return False
 
-    # Upsert (Insérer ou Mettre à jour)
     try:
-        # On force explicitement user_id dans les données
-        # Cela permet l'Upsert même si RLS est actif (si la policy autorise le service_role ou si user_id matche)
-        data = {"user_id": user_id, "config_data": new_config}
-        
-        # Note: supabase.table.upsert utilise la clé du client (service_role ou anon)
-        # Si c'est service_role, cela passera grâce à la policy 'For Service Role'
+        # Regroupement des préférences UI dans une seule colonne
+        preferences = {
+            k: new_config[k]
+            for k in ("affichage", "notifications", "digital_twin")
+            if k in new_config
+        }
+
+        data = {
+            "user_id":    user_id,
+            "profile":    new_config.get("vous"),
+            "lieux":      new_config.get("lieux"),
+            "preferences": preferences if preferences else None,
+            "abonnement": new_config.get("abonnement"),
+            "assurance":  new_config.get("assurance"),
+        }
+
+        # Upsert : service_role passe la RLS ; user_id correspond à la policy
         supabase.table("user_configs").upsert(data).execute()
         return True
     except Exception as e:

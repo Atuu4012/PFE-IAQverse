@@ -4,7 +4,8 @@ API endpoints pour la configuration de l'application
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Body, Depends, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pathlib import Path
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Union, Optional, Any
+from pydantic import BaseModel, Field
 import logging
 import json
 
@@ -17,9 +18,70 @@ from ..core import get_websocket_manager, settings
 
 logger = logging.getLogger(__name__)
 
+# Cache JWKS en mémoire pour éviter les appels réseau répétés (ES256/ECC)
+_jwks_cache: dict = {}
+
+# Cache de configuration par user_id (TTL 60s) pour éviter les appels Supabase
+# répétés à chaque navigation de page
+import time as _time
+_config_cache: dict = {}  # {user_id: {"data": cfg, "ts": float}}
+CONFIG_CACHE_TTL = 60  # secondes
+
 router = APIRouter(tags=["config"])
 security = HTTPBearer(auto_error=False) # Permet de ne pas crasher si pas de header, on gère manuellement
 
+
+# --- Pydantic Models for Configuration ---
+class ModuleSchema(BaseModel):
+    id: str
+    name: str
+    type: str
+    state: str
+    is_iot: Optional[bool] = False
+
+class PieceSchema(BaseModel):
+    id: str
+    nom: str
+    type: Optional[str] = None
+    area: Optional[float] = None
+    glbModel: Optional[str] = None
+    modules: Optional[List[ModuleSchema]] = []
+
+class EnseigneSchema(BaseModel):
+    id: str
+    nom: str
+    adresse: Optional[str] = None
+    pieces: Optional[List[PieceSchema]] = []
+
+class LieuxSchema(BaseModel):
+    active: Optional[str] = None
+    activeRoom: Optional[str] = None
+    enseignes: Optional[List[EnseigneSchema]] = []
+
+class AffichageSchema(BaseModel):
+    mode: Optional[str] = None
+    langue: Optional[str] = None
+    lastSection: Optional[str] = None
+    localisation: Optional[str] = None
+
+class ConfigUpdatePayload(BaseModel):
+    """
+    Modèle de validation pour la mise à jour de la configuration globale.
+    Chaque section est optionnelle pour permettre des mises à jour partielles.
+    """
+    vous: Optional[Dict[str, Any]] = None
+    lieux: Optional[LieuxSchema] = None
+    affichage: Optional[AffichageSchema] = None
+    assurance: Optional[Dict[str, Any]] = None
+    syndicat: Optional[Dict[str, Any]] = None
+    abonnement: Optional[Dict[str, Any]] = None
+    digital_twin: Optional[Dict[str, Any]] = None
+    notifications: Optional[Dict[str, Any]] = None
+
+    model_config = {
+        "extra": "ignore"  # Ignore les champs non définis (ex: 'message', 'config')
+    }
+# -----------------------------------------
 
 @router.get("/api/i18n/{lang}")
 async def get_i18n(lang: str):
@@ -42,9 +104,14 @@ async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     authorization: Optional[str] = Header(None)
 ) -> dict:
-    """ Extrait l'objet utilisateur (avec ID et email) du token JWT Supabase """
+    """ Extrait l'objet utilisateur (avec ID et email) du token JWT Supabase.
+
+    Détecte automatiquement l'algorithme dans le header JWT :
+    - HS256 → vérifie avec SUPABASE_JWT_SECRET (0 appel réseau)
+    - ES256 → vérifie avec la clé publique JWKS de Supabase (cachée en mémoire)
+    - Fallback → appel HTTP /auth/v1/user (lent, si rien d'autre n'est dispo)
+    """
     if not supabase:
-        # En mode local/fallback, on renvoie une structure compatible
         return {"id": "local_user", "email": "local@iaqverse.com"}
 
     token = None
@@ -56,31 +123,88 @@ async def get_current_user(
     if not token:
         raise HTTPException(status_code=401, detail="Authentication token required")
 
-    try:
-        sb_url = os.getenv("SUPABASE_URL")
-        sb_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
-        
-        if sb_url and sb_key:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{sb_url}/auth/v1/user",
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "ApiKey": sb_key
-                    },
-                    timeout=10.0
-                )
+    import jwt as pyjwt
 
-                if response.status_code == 200:
-                    user_data = response.json()
-                    return user_data
-                else:
-                    logger.warning(f"Validation token échouée via API: {response.status_code} {response.text}")
-        
+    # Lire l'entête du token sans vérification pour connaître l'algo
+    try:
+        header = pyjwt.get_unverified_header(token)
+        alg = header.get("alg", "HS256")
+    except pyjwt.DecodeError as e:
+        raise HTTPException(status_code=401, detail=f"Token malformé : {e}")
+
+    try:
+        if alg == "ES256":
+            sb_url = settings.SUPABASE_URL or os.getenv("SUPABASE_URL", "")
+            jwks_url = f"{sb_url}/auth/v1/.well-known/jwks.json"
+
+            if jwks_url not in _jwks_cache:
+                logger.info(f"Chargement JWKS depuis {jwks_url}")
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get(jwks_url, timeout=10.0)
+                    resp.raise_for_status()
+                    _jwks_cache[jwks_url] = resp.json()
+
+            jwks = pyjwt.PyJWKClient.__new__(pyjwt.PyJWKClient)
+            # Utilise PyJWKSet pour charger les clés depuis le dict en cache
+            from jwt import PyJWKSet
+            key_set = PyJWKSet.from_dict(_jwks_cache[jwks_url])
+            # Cherche la clé correspondant au kid du token
+            kid = header.get("kid")
+            signing_key = None
+            for k in key_set.keys:
+                if kid is None or k.key_id == kid:
+                    signing_key = k.key
+                    break
+            if signing_key is None:
+                # Clé non trouvée → invalider le cache et lever une erreur
+                _jwks_cache.pop(jwks_url, None)
+                raise HTTPException(status_code=401, detail="Clé JWKS introuvable pour ce token")
+
+            payload = pyjwt.decode(
+                token, signing_key,
+                algorithms=["ES256"],
+                options={"verify_aud": False}
+            )
+
+        else:
+            raise HTTPException(status_code=401, detail=f"Algorithme JWT non supporté : {alg}")
+
+        user_id = payload.get("sub")
+        email   = payload.get("email", "")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Token invalide : sub manquant")
+        return {"id": user_id, "email": email}
+
+    except HTTPException:
+        raise
+    except pyjwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expiré")
+    except pyjwt.InvalidTokenError as e:
+        # Si la clé JWKS est périmée, on vide le cache pour forcer un rechargement
+        if alg == "ES256":
+            sb_url = settings.SUPABASE_URL or os.getenv("SUPABASE_URL", "")
+            _jwks_cache.pop(f"{sb_url}/auth/v1/.well-known/jwks.json", None)
+        raise HTTPException(status_code=401, detail=f"Token invalide : {e}")
     except Exception as e:
-        logger.error(f"Token validation failed: {e}")
-    
-    raise HTTPException(status_code=401, detail="Invalid authentication token")
+        logger.error(f"Erreur inattendue lors de la validation JWT ({alg}): {e}")
+        # Fallback HTTP Supabase en dernier recours
+        logger.warning("Fallback validation JWT via HTTP Supabase")
+        try:
+            sb_url = os.getenv("SUPABASE_URL")
+            sb_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
+            if sb_url and sb_key:
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(
+                        f"{sb_url}/auth/v1/user",
+                        headers={"Authorization": f"Bearer {token}", "ApiKey": sb_key},
+                        timeout=10.0
+                    )
+                    if response.status_code == 200:
+                        return response.json()
+        except Exception as fallback_err:
+            logger.error(f"Fallback HTTP aussi échoué : {fallback_err}")
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
+
 
 def _get_assets_dir() -> Path:
     assets_dir = getattr(settings, "ASSETS_DIR", Path("assets"))
@@ -248,16 +372,36 @@ async def delete_account(user: dict = Depends(get_current_user)):
 
 @router.get("/api/config")
 async def get_config(user: dict = Depends(get_current_user)):
-    """Retourne la configuration spécifique à l'utilisateur"""
+    """Retourne la configuration spécifique à l'utilisateur.
+    Cache TTL 60s en mémoire par user_id pour éviter les appels Supabase répétés.
+    """
     user_id = user["id"]
+
+    # --- Lecture du cache ---
+    cached = _config_cache.get(user_id)
+    if cached and (_time.monotonic() - cached["ts"]) < CONFIG_CACHE_TTL:
+        logger.debug(f"[config] Cache HIT pour user {user_id}")
+        return cached["data"]
+
     cfg = load_user_config(user_id)
     
     # Auto-injection de l'email si manquant
     user_email = user.get("email")
     needs_save = False
 
+    # Nettoyage préventif des données imbriquées suite à un potentiel bug
+    if cfg is not None:
+        if "message" in cfg:
+            cfg.pop("message", None)
+            needs_save = True
+        while "config" in cfg and isinstance(cfg["config"], dict):
+            if any(k in cfg["config"] for k in ["vous", "lieux", "assurance", "affichage", "notifications"]):
+                cfg = cfg["config"]
+            else:
+                cfg.pop("config", None)
+            needs_save = True
+
     if cfg is None:
-        # Retourner une config vierge par défaut au lieu de config.json
         cfg = {
             "vous": {"email": user_email} if user_email else {},
             "lieux": {"enseignes": []},
@@ -268,7 +412,6 @@ async def get_config(user: dict = Depends(get_current_user)):
         }
         needs_save = True
     else:
-        # Si la config existe mais n'a pas l'email (ou s'il a changé?)
         vous = cfg.get("vous", {})
         if user_email and vous.get("email") != user_email:
             if "vous" not in cfg:
@@ -276,7 +419,7 @@ async def get_config(user: dict = Depends(get_current_user)):
             cfg["vous"]["email"] = user_email
             needs_save = True
 
-    # Résolution avatar depuis Supabase Storage (pas de fichier local)
+    # Résolution avatar depuis Supabase Storage (seulement si l'avatar est absent)
     try:
         avatar_path = cfg.get("vous", {}).get("avatar") if cfg else None
 
@@ -297,19 +440,29 @@ async def get_config(user: dict = Depends(get_current_user)):
                 logger.warning(f"Avatar lookup in Supabase failed: {e}")
     except Exception as e:
         logger.warning(f"Avatar resolution failed: {e}")
-            
+
     if needs_save:
         save_user_config(user_id, cfg)
-        
+
+    # --- Écriture du cache ---
+    _config_cache[user_id] = {"data": cfg, "ts": _time.monotonic()}
+    logger.debug(f"[config] Cache MISS, config mise en cache pour user {user_id}")
+
     return cfg
 
 
+
 @router.put("/api/config")
-async def update_config(updates: dict = Body(...), user: dict = Depends(get_current_user)):
+async def update_config(payload: ConfigUpdatePayload, user: dict = Depends(get_current_user)):
     """Met à jour la configuration de l'utilisateur"""
     user_id = user["id"]
     logger.info(f"Received config updates for user {user_id}")
+    # Invalider le cache pour que le prochain GET aille chercher en DB
+    _config_cache.pop(user_id, None)
     
+    # Transformation de l'objet pydantic validé en dictionnaire (en excluant les champs non soumis)
+    updates = payload.model_dump(exclude_unset=True)
+
     # Vérification explicite de la disponibilité du stockage
     if not supabase:
         logger.error("Attempt to update config but Supabase is not configured")
@@ -329,7 +482,7 @@ async def update_config(updates: dict = Body(...), user: dict = Depends(get_curr
             "notifications": {},
             "affichage": {"mode": "auto"}
         }
-    
+
     # Appliquer les mises à jour (fonction existante)
     def update_recursive(base, upd):
         for k, v in upd.items():

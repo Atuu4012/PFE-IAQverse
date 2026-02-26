@@ -62,6 +62,10 @@ INTERVAL_SECONDS = 5  # Post toutes les 5 secondes (mode debug)
 # Prédicteur ML (initialisé paresseusement)
 ml_predictor = None
 
+# Cache des prédictions ML pour éviter les appels répétés (TTL = 30s)
+_prediction_cache: dict = {}
+PREDICTION_CACHE_TTL = 30  # secondes
+
 
 def get_ml_predictor():
     """Initialise le prédicteur ML une seule fois"""
@@ -227,22 +231,23 @@ def _calculate_fallback_prediction(enseigne: Optional[str], salle: Optional[str]
 
 
 @app.get("/api/predict/preventive-actions")
-def get_preventive_actions(
+async def get_preventive_actions(
     enseigne: Optional[str] = None,
     salle: Optional[str] = None,
     sensor_id: Optional[str] = None
 ):
     """
     Analyse les prédictions ML et retourne les actions préventives à prendre.
-    Utilise le service ML pour prédire les valeurs futures et générer les actions.
+    L'inférence LSTM est exécutée dans un thread executor pour ne pas bloquer l'event loop.
+    Inclut un cache TTL de 30s par (enseigne, salle) pour éviter les appels répétés.
     """
+    import time
     try:
         predictor = get_ml_predictor()
-        
+
         if not enseigne:
             enseigne = "Maison"
-        
-        # Si le modèle ML n'est pas disponible, retourner une erreur
+
         if not predictor:
             logger.error("ML predictor not available")
             return {
@@ -250,15 +255,30 @@ def get_preventive_actions(
                 "error": "ML predictor not available",
                 "timestamp": datetime.now().isoformat()
             }
-        
+
         try:
-            # Faire la prédiction ML complète avec risk_analysis
-            prediction_result = predictor.predict(
-                enseigne=enseigne,
-                salle=salle,
-                sensor_id=sensor_id
-            )
-            
+            cache_key = f"{enseigne}|{salle}|{sensor_id}"
+            now = time.monotonic()
+
+            # --- Lecture du cache (évite les appels ML répétés dans le TTL) ---
+            cached = _prediction_cache.get(cache_key)
+            if cached and (now - cached["ts"]) < PREDICTION_CACHE_TTL:
+                prediction_result = cached["data"]
+                logger.debug(f"Cache HIT preventive-actions pour {cache_key}")
+            else:
+                # --- Appel ML dans un thread executor (non-bloquant pour l'event loop) ---
+                loop = asyncio.get_event_loop()
+                prediction_result = await loop.run_in_executor(
+                    None,
+                    lambda: predictor.predict(
+                        enseigne=enseigne,
+                        salle=salle,
+                        sensor_id=sensor_id
+                    )
+                )
+                _prediction_cache[cache_key] = {"data": prediction_result, "ts": now}
+                logger.debug(f"Cache MISS preventive-actions pour {cache_key}")
+
             if "error" in prediction_result:
                 logger.error(f"ML prediction error: {prediction_result['error']}")
                 return {
@@ -266,12 +286,12 @@ def get_preventive_actions(
                     "error": prediction_result["error"],
                     "timestamp": datetime.now().isoformat()
                 }
-            
+
             # Extraire les données de prédiction
             current_values = prediction_result.get("current_values", {})
             predicted_values = prediction_result.get("predicted_values", {})
             risk_analysis = prediction_result.get("risk_analysis", {})
-            
+
             # Générer les actions depuis l'analyse de risque ML
             actions = _generate_actions_from_ml_risk_analysis(
                 current_values=current_values,
@@ -279,10 +299,10 @@ def get_preventive_actions(
                 risk_analysis=risk_analysis,
                 forecast_minutes=prediction_result.get("forecast_minutes", 30)
             )
-            
+
             logger.info(f"ML prediction generated {len(actions)} actions for {enseigne}/{salle}")
-            
-            # Calcul du score IAQ si manquant (pour avoir une réponse complète)
+
+            # Calcul du score IAQ si manquant
             predicted_score = prediction_result.get("predicted_score")
             predicted_level = None
             if predicted_score is None and predicted_values:
@@ -294,7 +314,6 @@ def get_preventive_actions(
                 except ImportError:
                     pass
 
-            # Structure simplifiée et claire pour le Frontend
             return {
                 "timestamp": datetime.now().isoformat(),
                 "status": {
@@ -306,10 +325,10 @@ def get_preventive_actions(
                     "minutes": prediction_result.get("forecast_minutes", 30),
                     "model_used": "LSTM" if prediction_result.get("model") == "LSTM" else "Generic"
                 },
-                "metrics": risk_analysis.get("metrics", {}), # Contient Detail (Current vs Predicted + Trend)
+                "metrics": risk_analysis.get("metrics", {}),
                 "actions": actions
             }
-                
+
         except Exception as e:
             logger.error(f"ML prediction failed: {e}")
             return {
@@ -317,6 +336,8 @@ def get_preventive_actions(
                 "error": f"ML prediction failed: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
+
+
         
     except Exception as e:
         logger.error(f"Error in preventive actions endpoint: {e}")

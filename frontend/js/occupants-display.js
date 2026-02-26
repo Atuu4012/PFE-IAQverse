@@ -41,14 +41,7 @@ function updateOccupantsDisplay(occupantsCount) {
             roomBadge.title = `${count} personne${count > 1 ? 's' : ''} détectée${count > 1 ? 's' : ''} dans la salle`;
             
             
-            // Animation d'apparition "Pop"
-            if (roomBadge.style.transform !== 'scale(1)') {
-                roomBadge.style.transform = 'scale(0)';
-                requestAnimationFrame(() => {
-                    roomBadge.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-                    roomBadge.style.transform = 'scale(1)';
-                });
-            }
+
         } else {
             roomBadge.style.display = 'none';
         }
@@ -69,17 +62,7 @@ function updateOccupantsDisplay(occupantsCount) {
             occupantsCountTwin.textContent = count;
             occupantsBadgeTwin.style.display = 'flex';
             
-            // Animation d'apparition
-            if (occupantsBadgeTwin.style.opacity === '0' || !occupantsBadgeTwin.style.opacity) {
-                occupantsBadgeTwin.style.opacity = '0';
-                occupantsBadgeTwin.style.transform = 'scale(0.8)';
-                
-                requestAnimationFrame(() => {
-                    occupantsBadgeTwin.style.transition = 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
-                    occupantsBadgeTwin.style.opacity = '1';
-                    occupantsBadgeTwin.style.transform = 'scale(1)';
-                });
-            }
+
         } else {
             occupantsBadgeTwin.style.display = 'none';
         }

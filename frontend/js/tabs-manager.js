@@ -46,10 +46,6 @@ function updateBadgeElement(badge, count, title) {
         badge.textContent = String(count);
         badge.style.display = 'flex';
         if (title) badge.title = title;
-        // Restart animation for updates
-        badge.style.animation = 'none';
-        void badge.offsetHeight;
-        badge.style.animation = 'badge-pop 0.25s ease';
     } else {
         badge.style.display = 'none';
     }

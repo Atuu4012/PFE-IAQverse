@@ -133,14 +133,14 @@ async function fetchAndDisplayPredictedScore(enseigneId, salleId) {
 
       scoreElement.style.color =
         roundedScore >= 81
-          ? "#3aaa8a"
+          ? "#10b981"
           : roundedScore >= 61
-            ? "#6dbf47"
+            ? "#84cc16"
             : roundedScore >= 41
-              ? "#f5b731"
+              ? "#f59e0b"
               : roundedScore >= 21
-                ? "#e87d2f"
-                : "#e05252";
+                ? "#f97316"
+                : "#ef4444";
 
       if (trendElement) {
         trendElement.textContent = trendValue;

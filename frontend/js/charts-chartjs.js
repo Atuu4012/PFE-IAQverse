@@ -61,6 +61,11 @@ const STATUS_COLORS = {
   alert: { line: "#ef4444", fill: "rgba(239,68,68,0.2)" },
 };
 
+const SECONDARY_STATUS_COLORS = {
+  ok: { line: "#34d399", fill: "rgba(52,211,153,0.12)" },
+  alert: { line: "#f87171", fill: "rgba(248,113,113,0.12)" },
+};
+
 let charts = {
   metrics: {},
   scoreHistory: null,
@@ -144,6 +149,7 @@ function getRecentSlice(data, count) {
 function buildMetricCard(metric) {
   const container = document.getElementById(metric.containerId);
   if (!container) return null;
+  container.classList.toggle("metric-dual", !!metric.secondary);
   const valuesRow = metric.secondary
     ? `
       <div class="metric-values-row">
@@ -152,6 +158,21 @@ function buildMetricCard(metric) {
       </div>
     `
     : `<div class="metric-value" id="${metric.id}-value">—</div>`;
+
+  const legend = metric.secondary
+    ? `
+      <div class="metric-legend">
+        <span class="metric-legend-item">
+          <span class="metric-legend-line"></span>
+          <span>Temp.</span>
+        </span>
+        <span class="metric-legend-item">
+          <span class="metric-legend-line metric-legend-line--dashed"></span>
+          <span>Hum.</span>
+        </span>
+      </div>
+    `
+    : "";
 
   // Always use a single canvas for the chart, even if secondary exists (dual axis)
   const sparkline = `
@@ -167,6 +188,7 @@ function buildMetricCard(metric) {
     </div>
     ${valuesRow}
     <div class="metric-subtitle">60 dernières mesures</div>
+    ${legend}
     ${sparkline}
   `;
   return {
@@ -198,11 +220,12 @@ function createSparklineChart(canvas, metric) {
   if (secondaryConfig) {
     datasets.push({
       data: [],
-      borderColor: "#9ca3af", // Permanent gray for secondary
+      borderColor: SECONDARY_STATUS_COLORS.ok.line,
       backgroundColor: "rgba(0,0,0,0)",
       tension: 0.35,
       pointRadius: 0,
       borderWidth: 2,
+      borderDash: [6, 4],
       fill: false,
       yAxisID: "y1",
     });
@@ -285,6 +308,13 @@ function createSparklineChart(canvas, metric) {
           const val = chart.data.datasets[0].data[index];
           const valueEl = document.getElementById(`${metric.id}-value`);
           if (valueEl) valueEl.textContent = formatValue(val, metric.decimals);
+          if (metric.secondary) {
+            applyPrimaryValueStyle(
+              metric.id,
+              resolveStatus(val, metric.threshold),
+              val,
+            );
+          }
 
           if (secondaryConfig && chart.data.datasets.length > 1) {
             const val2 = chart.data.datasets[1].data[index];
@@ -293,6 +323,11 @@ function createSparklineChart(canvas, metric) {
             );
             if (secondaryBigEl) {
               secondaryBigEl.textContent = `${formatValue(val2, secondaryConfig.decimals)} ${secondaryConfig.unit}`;
+              applySecondaryValueStyle(
+                metric.id,
+                resolveStatus(val2, secondaryConfig.threshold),
+                val2,
+              );
             }
           }
         } else {
@@ -303,6 +338,13 @@ function createSparklineChart(canvas, metric) {
             const valueEl = document.getElementById(`${metric.id}-value`);
             if (valueEl)
               valueEl.textContent = formatValue(val, metric.decimals);
+            if (metric.secondary) {
+              applyPrimaryValueStyle(
+                metric.id,
+                resolveStatus(val, metric.threshold),
+                val,
+              );
+            }
 
             if (secondaryConfig && chart.data.datasets.length > 1) {
               const val2 = chart.data.datasets[1].data[lastIndex];
@@ -311,6 +353,11 @@ function createSparklineChart(canvas, metric) {
               );
               if (secondaryBigEl) {
                 secondaryBigEl.textContent = `${formatValue(val2, secondaryConfig.decimals)} ${secondaryConfig.unit}`;
+                applySecondaryValueStyle(
+                  metric.id,
+                  resolveStatus(val2, secondaryConfig.threshold),
+                  val2,
+                );
               }
             }
           }
@@ -430,6 +477,30 @@ function applyMetricState(metric, value, secondaryValue) {
   return { primary, secondary };
 }
 
+function applyPrimaryValueStyle(metricId, status, value) {
+  const valueEl = document.getElementById(`${metricId}-value`);
+  if (!valueEl) return;
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    valueEl.style.color = "";
+    return;
+  }
+  valueEl.style.color =
+    status === "alert" ? STATUS_COLORS.alert.line : STATUS_COLORS.ok.line;
+}
+
+function applySecondaryValueStyle(metricId, status, value) {
+  const secondaryBigEl = document.getElementById(`${metricId}-secondary-big`);
+  if (!secondaryBigEl) return;
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    secondaryBigEl.style.color = "";
+    return;
+  }
+  secondaryBigEl.style.color =
+    status === "alert"
+      ? SECONDARY_STATUS_COLORS.alert.line
+      : SECONDARY_STATUS_COLORS.ok.line;
+}
+
 function updateChartsWithData(data) {
   if (!Array.isArray(data)) return;
   if (!charts.scoreHistory || Object.keys(charts.metrics).length === 0)
@@ -468,6 +539,11 @@ function updateChartsWithData(data) {
       );
       if (secondaryBigEl) {
         secondaryBigEl.textContent = `${formatValue(secondaryValue, metric.secondary.decimals)} ${metric.secondary.unit}`;
+        applySecondaryValueStyle(
+          metric.id,
+          resolveStatus(secondaryValue, metric.secondary.threshold),
+          secondaryValue,
+        );
       }
     }
 
@@ -482,16 +558,18 @@ function updateChartsWithData(data) {
       ds0.data = series;
       ds0.borderColor = STATUS_COLORS[status.primary].line;
       ds0.backgroundColor = STATUS_COLORS[status.primary].fill;
+      if (metric.secondary) {
+        applyPrimaryValueStyle(metric.id, status.primary, value);
+      }
 
       // Update Secondary Dataset (Index 1) if chart has secondary
       if (metric.secondary && chartEntry.primary.data.datasets.length > 1) {
         const ds1 = chartEntry.primary.data.datasets[1];
         ds1.data = secondarySeries;
-        // Use a distinct color for humidity/secondary (e.g., blue or purple) or status color
-        // Using status color for consistency with alert logic, but ensuring it's distinct if ok
-        ds1.borderColor = "#9ca3af";
-
+        ds1.borderColor = SECONDARY_STATUS_COLORS[status.secondary].line;
         ds1.backgroundColor = "rgba(0,0,0,0)";
+        ds1.borderDash = [6, 4];
+        applySecondaryValueStyle(metric.id, status.secondary, secondaryValue);
       }
 
       chartEntry.primary.update("none");
@@ -688,6 +766,9 @@ function handleRealtimeMeasurement(data) {
 
     // Update color/status
     const status = applyMetricState(metric, val, secVal);
+    if (metric.secondary) {
+      applyPrimaryValueStyle(metric.id, status.primary, val);
+    }
     chart.data.datasets[0].borderColor = STATUS_COLORS[status.primary].line;
     chart.data.datasets[0].backgroundColor = STATUS_COLORS[status.primary].fill;
 
@@ -703,9 +784,11 @@ function handleRealtimeMeasurement(data) {
         );
         if (secondaryBigEl) {
           secondaryBigEl.textContent = `${formatValue(secVal, metric.secondary.decimals)} ${metric.secondary.unit}`;
+          applySecondaryValueStyle(metric.id, status.secondary, secVal);
         }
       }
-      ds1.borderColor = "#9ca3af";
+      ds1.borderColor = SECONDARY_STATUS_COLORS[status.secondary].line;
+      ds1.borderDash = [6, 4];
     }
 
     chart.update("none");

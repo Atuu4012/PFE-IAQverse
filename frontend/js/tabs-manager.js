@@ -7,9 +7,103 @@ let activeRoom = null;
 
 // Store room scores for alert highlighting: key = "enseigneId:roomId", value = score
 const roomScores = new Map();
+// Store occupant counts per room: key = "enseigneId:roomId", value = count
+const roomOccupants = new Map();
 
 // Global threshold for alerting tabs (rooms & enseignes). Change this to tune sensitivity.
 const ALERT_THRESHOLD = 81;
+
+function normalizeOccupants(value) {
+    if (typeof value !== 'number' || Number.isNaN(value)) return null;
+    return Math.max(0, Math.round(value));
+}
+
+function setRoomOccupants(enseigneId, roomId, count) {
+    if (!enseigneId || !roomId) return;
+    const key = `${enseigneId}:${roomId}`;
+    if (count === null) {
+        roomOccupants.delete(key);
+    } else {
+        roomOccupants.set(key, count);
+    }
+}
+
+function readCachedOccupants(roomId) {
+    if (!roomId) return null;
+    try {
+        const cached = localStorage.getItem('cached_occupants_' + roomId);
+        if (cached === null) return null;
+        const parsed = parseInt(cached, 10);
+        return Number.isNaN(parsed) ? null : parsed;
+    } catch (e) {
+        return null;
+    }
+}
+
+function updateBadgeElement(badge, count, title) {
+    if (!badge) return;
+    if (typeof count === 'number') {
+        badge.textContent = String(count);
+        badge.style.display = 'flex';
+        if (title) badge.title = title;
+        // Restart animation for updates
+        badge.style.animation = 'none';
+        void badge.offsetHeight;
+        badge.style.animation = 'badge-pop 0.25s ease';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+function getEnseigneOccupantTotal(enseigne) {
+    let total = 0;
+    let hasData = false;
+
+    (enseigne.pieces || []).forEach(piece => {
+        const key = `${enseigne.id}:${piece.id}`;
+        const count = roomOccupants.get(key);
+        if (typeof count === 'number') {
+            total += count;
+            hasData = true;
+        }
+    });
+
+    return { total, hasData };
+}
+
+function refreshAllOccupantBadges() {
+    const config = getConfig();
+    if (!config || !config.lieux || !config.lieux.enseignes) return;
+
+    document.querySelectorAll('.room-tab[data-room-id]').forEach(roomTab => {
+        const roomId = roomTab.getAttribute('data-room-id');
+        const enseigneId = roomTab.getAttribute('data-enseigne-id') || activeEnseigne;
+        const key = `${enseigneId}:${roomId}`;
+        let count = roomOccupants.has(key) ? roomOccupants.get(key) : null;
+        if (count === null && roomId === activeRoom) {
+            const cached = readCachedOccupants(roomId);
+            if (cached !== null) count = cached;
+        }
+
+        const badge = roomTab.querySelector('.room-occupant-badge');
+        const title = (typeof count === 'number')
+            ? `${count} personne${count > 1 ? 's' : ''} dans la piece`
+            : '';
+        updateBadgeElement(badge, count, title);
+    });
+
+    config.lieux.enseignes.forEach(enseigne => {
+        const badge = document.querySelector(
+            `.location-occupant-badge[data-enseigne-id="${enseigne.id}"]`
+        );
+        const { total, hasData } = getEnseigneOccupantTotal(enseigne);
+        const count = hasData ? total : null;
+        const title = (typeof count === 'number')
+            ? `${count} personne${count > 1 ? 's' : ''} au total`
+            : '';
+        updateBadgeElement(badge, count, title);
+    });
+}
 
 /**
  * Initialise le gestionnaire de tabs
@@ -78,6 +172,7 @@ function renderLocationTabs() {
                 data-id="${enseigne.id}">
             <img src="/assets/icons/building.png" alt="Enseigne">
             ${escapeHtml(enseigne.nom)}
+            <span class="location-occupant-badge" data-enseigne-id="${enseigne.id}" style="display: none;"></span>
         </div>
     `).join('');
     
@@ -99,6 +194,8 @@ function renderLocationTabs() {
             }
         }
     });
+
+    refreshAllOccupantBadges();
 }
 
 /**
@@ -121,7 +218,8 @@ function renderRoomTabs(enseigneId) {
         <div class="room-tab${piece.id === activeRoom ? ' active' : ''}" 
                 onclick="switchRoom('${piece.id}')"
                 data-id="${piece.id}"
-                data-room-id="${piece.id}">
+                data-room-id="${piece.id}"
+                data-enseigne-id="${enseigneId}">
             <img src="/assets/icons/${piece.type || 'room'}.png" alt="${piece.type || 'Pièce'}">
             ${escapeHtml(piece.nom)}
             <span class="room-occupant-badge" id="room-badge-${piece.id}" style="display: none;" onclick="event.stopPropagation()"></span>
@@ -148,6 +246,8 @@ function renderRoomTabs(enseigneId) {
     if (!activeRoom && enseigne.pieces.length > 0) {
         switchRoom(enseigne.pieces[0].id, false);
     }
+
+    refreshAllOccupantBadges();
 }
 
 /**
@@ -174,6 +274,8 @@ function switchEnseigne(enseigneId, keepActiveRoom = false, save = true) {
 
     // Mettre à jour les onglets des pièces pour l'enseigne sélectionnée
     renderRoomTabs(enseigneId);
+
+    refreshAllOccupantBadges();
 
     // Émettre un événement personnalisé pour notifier le changement
     document.dispatchEvent(new CustomEvent('enseigneChanged', { 
@@ -241,8 +343,9 @@ function setupWsListeners() {
             const enseigneName = msg.enseigne || msg.enseigneName || msg.building;
             const salleName = msg.salle || msg.room || msg.salleName;
             const score = (typeof msg.global_score === 'number') ? msg.global_score : null;
+            const occupants = normalizeOccupants(msg.occupants);
 
-            if (!enseigneName || !salleName || score === null) return;
+            if (!enseigneName || !salleName) return;
 
             const config = getConfig();
             if (!config || !config.lieux || !Array.isArray(config.lieux.enseignes)) return;
@@ -257,9 +360,14 @@ function setupWsListeners() {
             if (!piece) return;
 
             const key = `${enseigne.id}:${piece.id}`;
-            roomScores.set(key, score);
-            // Refresh UI immediately
-            if (typeof refreshAllTabAlerts === 'function') refreshAllTabAlerts();
+            if (score !== null) {
+                roomScores.set(key, score);
+                if (typeof refreshAllTabAlerts === 'function') refreshAllTabAlerts();
+            }
+            if (occupants !== null) {
+                roomOccupants.set(key, occupants);
+                refreshAllOccupantBadges();
+            }
         } catch (err) {
             console.error('[tabs-manager] Error handling WS measurement:', err);
         }
@@ -276,6 +384,7 @@ window.getActiveEnseigne = getActiveEnseigne;
 window.getActiveRoom = getActiveRoom;
 window.renderLocationTabs = renderLocationTabs;
 window.renderRoomTabs = renderRoomTabs;
+window.refreshAllOccupantBadges = refreshAllOccupantBadges;
 
 /**
  * Background monitoring service for all rooms
@@ -283,7 +392,7 @@ window.renderRoomTabs = renderRoomTabs;
  */
 let monitoringInterval = null;
 
-async function fetchRoomScore(enseigneNom, roomNom) {
+async function fetchRoomMetrics(enseigneNom, roomNom) {
     try {
         const baseUrl = (window.API_ENDPOINTS && window.API_ENDPOINTS.measurements)
             ? window.API_ENDPOINTS.measurements
@@ -298,22 +407,18 @@ async function fetchRoomScore(enseigneNom, roomNom) {
         const data = await response.json();
         
         if (!Array.isArray(data) || data.length === 0) {
-            return null;
+            return { score: null, occupants: null };
         }
         
         const latest = data[data.length - 1];
         
-        // Utiliser global_score de l'API backend
-        if (typeof latest.global_score === 'number') {
-            return latest.global_score;
-        } else {
-            // Retourner null pour éviter de bloquer le monitoring
-            return null;
-        }
+        const score = (typeof latest.global_score === 'number') ? latest.global_score : null;
+        const occupants = normalizeOccupants(latest.occupants);
+        return { score, occupants };
     } catch (error) {
         console.error(`[tabs-manager] ❌ Error fetching score for ${enseigneNom}:${roomNom}:`, error);
     }
-    return null;
+    return { score: null, occupants: null };
 }
 
 async function updateAllRoomScores() {
@@ -333,10 +438,11 @@ async function updateAllRoomScores() {
                     return;
                 }
                 promises.push(
-                    fetchRoomScore(enseigne.nom, piece.nom).then(score => ({
+                    fetchRoomMetrics(enseigne.nom, piece.nom).then(({ score, occupants }) => ({
                         enseigneId: enseigne.id,
                         roomId: piece.id,
-                        score
+                        score,
+                        occupants
                     }))
                 );
             });
@@ -346,15 +452,20 @@ async function updateAllRoomScores() {
     const results = await Promise.all(promises);
     
     // Update scores and tab alerts
-    results.forEach(({ enseigneId, roomId, score }) => {
+    results.forEach(({ enseigneId, roomId, score, occupants }) => {
         if (score !== null) {
             const key = `${enseigneId}:${roomId}`;
             roomScores.set(key, score);
+        }
+        if (occupants !== null) {
+            const key = `${enseigneId}:${roomId}`;
+            roomOccupants.set(key, occupants);
         }
     });
     
     // Always refresh UI to ensure consistency
     refreshAllTabAlerts();
+    refreshAllOccupantBadges();
 }
 
 function refreshAllTabAlerts() {
@@ -458,4 +569,11 @@ window.updateTabAlerts = function(score) {
     if (typeof refreshAllTabAlerts === 'function') {
         refreshAllTabAlerts();
     }
+};
+
+window.updateRoomOccupants = function(enseigneId, roomId, occupants) {
+    const count = normalizeOccupants(occupants);
+    if (count === null) return;
+    setRoomOccupants(enseigneId, roomId, count);
+    refreshAllOccupantBadges();
 };

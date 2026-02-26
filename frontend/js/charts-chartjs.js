@@ -607,31 +607,6 @@ function updateChartsWithData(data) {
   }
 }
 
-async function fetchPredictedScore(enseigne, salle) {
-  try {
-    const headers = {};
-    if (typeof getAuthToken === "function") {
-      const token = await getAuthToken();
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-    }
-
-    const url = `/api/predict/score?enseigne=${encodeURIComponent(enseigne)}&salle=${encodeURIComponent(salle)}`;
-    const resp = await fetch(url, { headers });
-    if (!resp.ok) return;
-    const data = await resp.json();
-
-    // Only update the element if we got a valid score — don't overwrite with "—"
-    // since dashboard.js may have already set a valid value from another endpoint.
-    if (typeof data.predicted_score === "number") {
-      const el = document.getElementById("predicted-score-value");
-      const trend = document.getElementById("predicted-score-trend");
-      if (el) el.textContent = Math.round(data.predicted_score);
-      if (trend) trend.textContent = data.trend || data.predicted_level || "";
-    }
-  } catch (e) {
-    console.warn("[charts] predicted score error", e);
-  }
-}
 
 async function fetchAndUpdate() {
   try {

@@ -54,80 +54,69 @@ async function fetchAndDisplayGlobalPreventiveActions() {
             return;
         }
         
-        const allRoomActions = [];
-        
-        // Parcourir toutes les enseignes et toutes les pièces
+        // Construire la liste de toutes les pièces à requêter
+        const roomRequests = [];
         for (const enseigne of cfg.lieux.enseignes) {
             if (!enseigne.pieces || !Array.isArray(enseigne.pieces)) continue;
-            
             for (const salle of enseigne.pieces) {
-                const capteur_id = salle.capteurs?.[0] || salle.nom || 'Unknown';
-                
-                const actionsParams = new URLSearchParams({
-                    enseigne: enseigne.nom || 'Unknown',
-                    salle: salle.nom || 'Unknown',
-                    capteur_id: capteur_id
-                });
-                
-                const scoreParams = new URLSearchParams({
+                roomRequests.push({ enseigne, salle });
+            }
+        }
+
+        // Lancer TOUS les fetch en parallèle (Promise.all)
+        const results = await Promise.all(
+            roomRequests.map(async ({ enseigne, salle }) => {
+                const params = new URLSearchParams({
                     enseigne: enseigne.nom || 'Unknown',
                     salle: salle.nom || 'Unknown'
                 });
-                
                 try {
-                    // Récupérer les actions préventives depuis l'API
-                    const actionsParams = new URLSearchParams({
-                        enseigne: enseigne.nom || 'Unknown',
-                        salle: salle.nom || 'Unknown'
-                    });
-                    
-                    const actionsResponse = await fetchWithRetry(`${API_ENDPOINTS.preventiveActions}?${actionsParams}`, {}, 1);
-                    // Defensive: some responses may be HTML error pages (502/Bad Gateway from proxy)
-                    // Read as text first and try to parse JSON to avoid Uncaught SyntaxError
-                    let actionsData = null;
+                    const actionsResponse = await fetchWithRetry(`${API_ENDPOINTS.preventiveActions}?${params}`, {}, 1);
                     const rawText = await actionsResponse.text();
                     if (!actionsResponse.ok) {
-                        console.error(`[preventive-global] HTTP ${actionsResponse.status} fetching actions for ${enseigne.nom}/${salle.nom}:`, rawText.slice(0, 300));
-                        // create a placeholder error object so downstream code won't crash
-                        actionsData = { error: `HTTP ${actionsResponse.status}` };
-                    } else {
-                        try {
-                            actionsData = JSON.parse(rawText);
-                        } catch (e) {
-                            console.error(`[preventive-global] Invalid JSON response for ${enseigne.nom}/${salle.nom}:`, rawText.slice(0, 500));
-                            actionsData = { error: 'invalid_json' };
-                        }
+                        console.error(`[preventive-global] HTTP ${actionsResponse.status} pour ${enseigne.nom}/${salle.nom}:`, rawText.slice(0, 300));
+                        return null;
                     }
-                    
-                    // Les actions préventives incluent maintenant le score prédit
+                    let actionsData;
+                    try {
+                        actionsData = JSON.parse(rawText);
+                    } catch (e) {
+                        console.error(`[preventive-global] JSON invalide pour ${enseigne.nom}/${salle.nom}:`, rawText.slice(0, 500));
+                        return null;
+                    }
                     if (!actionsData.error && actionsData.actions && actionsData.actions.length > 0) {
-                        allRoomActions.push({
+                        return {
                             enseigne: enseigne.nom,
                             salle: salle.nom,
                             actions: actionsData.actions,
-                            score: (actionsData.status && actionsData.status.predicted_score !== undefined) 
-                                ? actionsData.status.predicted_score 
+                            score: (actionsData.status && actionsData.status.predicted_score !== undefined)
+                                ? actionsData.status.predicted_score
                                 : (actionsData.predicted_score || null)
-                        });
+                        };
                     }
+                    return null;
                 } catch (error) {
-                    console.error(`[preventive-global] Error fetching actions for ${enseigne.nom}/${salle.nom}:`, error);
+                    console.error(`[preventive-global] Erreur pour ${enseigne.nom}/${salle.nom}:`, error);
+                    return null;
                 }
-            }
-        }
+            })
+        );
+
+        // Filtrer les null (pièces sans actions ou en erreur)
+        const allRoomActions = results.filter(Boolean);
         
         _lastRoomActions = allRoomActions;
         displayGlobalPreventiveActions(allRoomActions);
         
     } catch (error) {
         console.error('[preventive-global] Error fetching global actions:', error);
-        const t = (window.i18n && typeof window.i18n.t === 'function') ? window.i18n.t : (()=>undefined);
         container.innerHTML = `<div class="preventive-info" style="color: #666;">
             ℹ️ ${t('digitalTwin.preventive.loading') || 'Chargement des prédictions...'}<br>
             <small>Les données seront disponibles dans quelques instants</small>
         </div>`;
     }
 }
+
 
 /**
  * Affiche les actions préventives globales en carrousel

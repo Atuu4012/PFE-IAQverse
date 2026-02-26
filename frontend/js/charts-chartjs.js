@@ -435,13 +435,22 @@ function updateChartsWithData(data) {
   if (!charts.scoreHistory || Object.keys(charts.metrics).length === 0)
     initCharts();
 
-  const recent = getRecentSlice(data, SPARKLINE_POINTS);
-  const labels = recent.map((d) =>
+  let recent = getRecentSlice(data, SPARKLINE_POINTS);
+  let labels = recent.map((d) =>
     formatLabel(d._time || d.time || d.timestamp),
   );
+  // Compléter à gauche si moins de 60 points
+  if (labels.length < SPARKLINE_POINTS) {
+    const missing = SPARKLINE_POINTS - labels.length;
+    labels = Array(missing).fill("").concat(labels);
+    // Compléter recent avec des objets vides pour garder l'alignement
+    recent = Array(missing).fill({}).concat(recent);
+  }
 
   METRICS.forEach((metric) => {
     const series = recent.map((d) => d[metric.key] ?? null);
+    // Compléter à gauche si moins de 60 points
+    // (déjà fait via recent, donc series.length == SPARKLINE_POINTS)
     const value = [...series].reverse().find((v) => typeof v === "number");
     const valueEl = document.getElementById(`${metric.id}-value`);
     if (valueEl) valueEl.textContent = formatValue(value, metric.decimals);
@@ -486,6 +495,10 @@ function updateChartsWithData(data) {
       }
 
       chartEntry.primary.update("none");
+      // Forcer le resize pour occuper toute la place
+      if (typeof chartEntry.primary.resize === "function") {
+        chartEntry.primary.resize();
+      }
     }
   });
 
@@ -494,6 +507,9 @@ function updateChartsWithData(data) {
     charts.scoreHistory.data.labels = labels;
     charts.scoreHistory.data.datasets[0].data = scoreSeries;
     charts.scoreHistory.update("none");
+    if (typeof charts.scoreHistory.resize === "function") {
+      charts.scoreHistory.resize();
+    }
   }
 
   const last = data[data.length - 1];

@@ -10,16 +10,16 @@ def test_digital_twin_page_loads(page: Page):
     # In a real scenario, we'd navigate to the deployed URL or local dev server
     # For this example, we'll assume a local server is running
     try:
-        page.goto("http://localhost:8000/frontend/digital-twin.html")
+        page.goto("http://localhost:8080/frontend/digital-twin.html")
     except:
          pytest.skip("Frontend server not validation reachable, skipping UI test")
 
     # Check title
-    expect(page).to_have_title("Digital Twin - IAQverse")
+    expect(page).to_have_title("IAQverse - Digital Twin")
 
     # Check for key elements
-    expect(page.locator("#3d-view")).to_be_visible()
-    expect(page.locator(".sidebar")).to_be_visible()
+    expect(page.locator("#blender-viewer")).to_be_visible()
+    expect(page.locator(".twin-layout")).to_be_visible()
 
 def test_charts_are_present(page: Page):
     """Test that charts are rendered"""

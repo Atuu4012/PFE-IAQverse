@@ -70,6 +70,11 @@ function showSection(id) {
   const target = document.getElementById(id);
   if (target) target.classList.add("active");
 
+  document.body.classList.toggle(
+    "settings-no-scroll",
+    id === "lieux" || id === "contact",
+  );
+
   document
     .querySelectorAll(".menu li")
     .forEach((item) => item.classList.remove("active"));
@@ -1932,14 +1937,18 @@ function updatePlanButtons(selectedPlan) {
         window.i18n && window.i18n.t
           ? window.i18n.t("actions.selected") || "Sélectionné"
           : "Sélectionné";
-      btn.style.background = "var(--success-color)";
-      card.style.borderColor = "var(--success-color)";
+      btn.style.background = "var(--accent-primary)";
+      btn.style.borderColor = "var(--accent-primary)";
+      btn.style.color = "#ffffff";
+      card.style.borderColor = "var(--accent-primary)";
     } else {
       btn.textContent =
         window.i18n && window.i18n.t
           ? window.i18n.t("actions.select") || "Sélectionner"
           : "Sélectionner";
-      btn.style.background = "var(--accent-color)";
+      btn.style.background = "var(--bg-secondary)";
+      btn.style.borderColor = "var(--border-color)";
+      btn.style.color = "var(--text-primary)";
       card.style.borderColor = "var(--border-color)";
     }
   });

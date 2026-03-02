@@ -2039,6 +2039,9 @@ function autoGenerateAlertPoints(modelRoot) {
              // C'est un objet rotatif (porte/fenêtre)
              const targetAngle = initialMode === 'open' ? config.openAngle : config.closeAngle;
              animationObj.rotation[config.axis] = targetAngle;
+             if (initialMode === 'open' && config.particleColor) {
+                createParticles(animationObj, config);
+             }
           } else if (config.colorOn) {
              // C'est un objet à changement de couleur (radiateur/ventil)
              const targetColor = initialMode === 'on' ? config.colorOn : config.colorOff;
@@ -2794,20 +2797,40 @@ function initMobileControls() {
     const controlsZone = document.getElementById('mobile-joystick-zone');
     
     if (toggleBtn && controlsZone) {
-        toggleBtn.addEventListener('click', () => {
-             controlsZone.classList.toggle('collapsed');
-             // Optionnel: changer l'icône ou l'opacité
-             if (controlsZone.classList.contains('collapsed')) {
-                 toggleBtn.style.opacity = '1'; // Ensure visible
-                 toggleBtn.classList.add('collapsed-indicator');
-             } else {
-                 toggleBtn.classList.remove('collapsed-indicator');
-             }
-        });
+      const isFullscreen = () => {
+        const visual = document.querySelector('.room-visual');
+        return document.fullscreenElement === visual || visual?.classList.contains('is-fullscreen');
+      };
 
-         // Initial state: Hidden (collapsed)
-         controlsZone.classList.add('collapsed');
-         toggleBtn.classList.add('collapsed-indicator');
+      const updateToggleState = () => {
+        if (!isFullscreen()) {
+          controlsZone.classList.add('collapsed');
+          toggleBtn.setAttribute('disabled', 'true');
+          toggleBtn.classList.add('disabled');
+        } else {
+          toggleBtn.removeAttribute('disabled');
+          toggleBtn.classList.remove('disabled');
+        }
+      };
+
+      toggleBtn.addEventListener('click', () => {
+         if (!isFullscreen()) return;
+         controlsZone.classList.toggle('collapsed');
+         // Optionnel: changer l'icône ou l'opacité
+         if (controlsZone.classList.contains('collapsed')) {
+           toggleBtn.style.opacity = '1'; // Ensure visible
+           toggleBtn.classList.add('collapsed-indicator');
+         } else {
+           toggleBtn.classList.remove('collapsed-indicator');
+         }
+      });
+
+      document.addEventListener('fullscreenchange', updateToggleState);
+
+      // Initial state: Hidden (collapsed)
+      controlsZone.classList.add('collapsed');
+      toggleBtn.classList.add('collapsed-indicator');
+      updateToggleState();
     }
 
     Object.entries(controls).forEach(([id, keys]) => {

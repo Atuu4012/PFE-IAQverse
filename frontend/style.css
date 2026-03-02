@@ -21,11 +21,13 @@
   --accent-primary: #2563eb;
   --accent-secondary: #3b82f6;
   --accent-hover: #1d4ed8;
+  --accent-color: var(--accent-primary);
 
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
   --info: #06b6d4;
+  --error-color: var(--danger);
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -59,11 +61,13 @@
   --accent-primary: #3b82f6;
   --accent-secondary: #60a5fa;
   --accent-hover: #2563eb;
+  --accent-color: var(--accent-primary);
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
+  --error-color: var(--danger);
 }
 
 /* ========================================
@@ -736,7 +740,7 @@ select.form-control,
    ======================================== */
 
 .tabs-container {
-  margin: 16px 30px 16px;
+  margin: 16px 24px 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -981,8 +985,8 @@ main {
   display: grid;
   grid-template-columns: repeat(2, minmax(280px, 1fr));
   gap: 24px;
-  width: 90%;
-  max-width: none;
+  width: 100%;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
@@ -2011,6 +2015,172 @@ main {
   z-index: 100;
 }
 
+/* Mobile movement controls (hidden by default) */
+.mobile-controls-toggle,
+.mobile-controls {
+  display: none;
+}
+
+.mobile-controls-toggle {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 120;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+[data-theme="sombre"] .mobile-controls-toggle img {
+  filter: brightness(0) invert(1);
+}
+
+.mobile-controls-toggle:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--accent-primary);
+}
+
+.mobile-controls-toggle.collapsed-indicator {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-primary) 35%, transparent);
+}
+
+.mobile-controls-toggle.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.mobile-controls-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.mobile-controls {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 120;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.mobile-controls.collapsed {
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+}
+
+.mobile-controls-pad {
+  display: grid;
+  grid-template-areas:
+    ". up ."
+    "left center right"
+    ". down .";
+  gap: 8px;
+  position: relative;
+  width: 120px;
+  height: 120px;
+  place-items: center;
+}
+
+.mobile-controls-pad::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 70%, transparent);
+  box-shadow: inset 0 0 0 6px color-mix(in srgb, var(--bg-tertiary) 70%, transparent);
+}
+
+.mobile-controls-pad > * {
+  position: relative;
+  z-index: 1;
+}
+
+.mobile-controls-pad #ctrl-fwd {
+  grid-area: up;
+}
+
+.mobile-controls-pad #ctrl-left {
+  grid-area: left;
+}
+
+.mobile-controls-pad #ctrl-right {
+  grid-area: right;
+}
+
+.mobile-controls-pad #ctrl-back {
+  grid-area: down;
+}
+
+.mobile-controls-center {
+  grid-area: center;
+  width: 34px;
+  height: 34px;
+}
+
+.mobile-control-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition: all var(--transition-fast);
+}
+
+.mobile-control-btn.active,
+.mobile-control-btn:active {
+  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-secondary));
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, var(--border-color));
+}
+
+.mobile-controls-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mobile-control-chip {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-control-chip.active,
+.mobile-control-chip:active {
+  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-secondary));
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, var(--border-color));
+}
+
 /* Alert Points */
 #alert-points-container {
   position: absolute;
@@ -2406,6 +2576,7 @@ main {
   border-radius: var(--radius-lg);
   padding: 20px;
   margin-top: 0;
+  box-shadow: var(--shadow-xs);
 }
 
 .details-panel.hidden {
@@ -2413,9 +2584,10 @@ main {
 }
 
 .details-panel h3 {
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 600;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
+  color: var(--text-primary);
 }
 
 .details-panel ul {
@@ -2428,24 +2600,74 @@ main {
   padding: 12px 16px;
   border-radius: var(--radius-md);
   font-size: 0.875rem;
+  line-height: 1.4;
   display: flex;
   align-items: center;
   gap: 12px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
-.issue-danger {
-  background: rgba(239, 68, 68, 0.08);
-  border-left: 3px solid var(--danger);
+.details-panel li::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--text-muted);
+  flex-shrink: 0;
 }
 
-.issue-warning {
-  background: rgba(245, 158, 11, 0.08);
-  border-left: 3px solid var(--warning);
+.details-panel li:hover {
+  border-color: var(--border-color);
 }
 
-.issue-info {
-  background: var(--bg-tertiary);
-  border-left: 3px solid var(--text-muted);
+.details-panel li strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.details-panel .param-value {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  flex: 1;
+}
+
+.details-panel .param-threshold {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.details-panel li.issue-danger {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.16);
+  color: var(--text-primary);
+}
+
+.details-panel li.issue-warning {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.16);
+  color: var(--text-primary);
+}
+
+.details-panel li.issue-info {
+  border-color: rgba(156, 163, 175, 0.35);
+  background: rgba(156, 163, 175, 0.16);
+  color: var(--text-secondary);
+}
+
+.details-panel li.issue-action {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.16);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 /* Legend Modal */
@@ -2508,17 +2730,25 @@ main {
    SETTINGS PAGE - Minimalist
    ======================================== */
 
+body.settings-no-scroll {
+  overflow: hidden;
+}
+
 .settings-layout {
   display: grid;
   grid-template-columns: 260px 1fr;
-  min-height: calc(100vh - 64px);
-  margin-top: 64px;
+  margin-top: 70px;
+  align-items: start;
 }
 
 .sidebar {
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
   padding: 24px;
+  position: sticky;
+  top: 70px;
+  height: calc(100vh - 70px);
+  overflow: hidden;
 }
 
 .section-title {
@@ -2570,8 +2800,8 @@ main {
 
 .settings-content {
   padding: 32px;
-  overflow-y: auto;
-  max-width: 900px;
+  max-width: none;
+  width: 100%;
 }
 
 .settings-content h1 {
@@ -3162,12 +3392,12 @@ a.enterprise-info-value:hover {
 
 .enterprise-footer {
   font-size: 0.8125rem;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   line-height: 1.5;
   padding: 12px 16px;
-  background: color-mix(in srgb, var(--accent-primary) 4%, var(--bg-secondary));
+  background: var(--bg-tertiary);
   border-radius: var(--radius-md);
-  border-left: 3px solid var(--accent-primary);
+  border: 1px solid var(--border-color);
 }
 
 /* Form Actions in Modal */

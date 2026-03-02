@@ -47,13 +47,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function setupListeners() {
     // Listen for config updates
-    wsManager.listeners.set("config_updated", (data) => {
+    wsManager.on("config_updated", (data) => {
       console.log("Config updated remotely:", data);
       if (data && data.config) applyRemoteConfig(data.config, true);
     });
 
     // Also listen for generic 'all' topic if needed
-    wsManager.listeners.set("all", (data) => {
+    wsManager.on("all", (data) => {
       if (data.type === "config_updated" && data.config)
         applyRemoteConfig(data.config, false);
     });

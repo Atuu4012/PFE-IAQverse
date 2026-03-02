@@ -6,8 +6,25 @@
 */
 (function (window) {
   const CHANNEL_NAME = "iaq-i18n";
+  const LANGUAGE_CACHE_KEY = "iaq-language";
   let translations = {};
   let current = null;
+
+  function readCachedLanguage() {
+    try {
+      const cached = localStorage.getItem(LANGUAGE_CACHE_KEY);
+      if (cached && /^[a-z]{2}$/i.test(cached)) return cached.toLowerCase();
+    } catch (e) {}
+    return null;
+  }
+
+  function writeCachedLanguage(lang) {
+    try {
+      if (lang && /^[a-z]{2}$/i.test(lang)) {
+        localStorage.setItem(LANGUAGE_CACHE_KEY, lang.toLowerCase());
+      }
+    } catch (e) {}
+  }
 
   function safeGet(obj, path) {
     return path
@@ -92,6 +109,7 @@
     }
     translations = deepMerge(base, requested || {});
     current = lang;
+    writeCachedLanguage(lang);
     
     applyTranslations(document);
     setUISelect(lang);
@@ -180,6 +198,13 @@
     attachSelectHandler();
     setupMutationObserver();
 
+    const browserLang = (navigator.language || "fr").split("-")[0];
+    const cachedLang = readCachedLanguage();
+
+    // Apply immediately from local cache/browser to avoid initial FR flash
+    const immediatePreferred = cachedLang || browserLang || "fr";
+    await setLanguage(immediatePreferred, false, false);
+
     let configLang = null;
     if (window.loadConfig) {
       try {
@@ -192,11 +217,10 @@
       }
     }
 
-    // Priority: Config > Browser Default > 'fr'
-    let preferred = configLang || navigator.language.split("-")[0] || "fr";
-
-    // Do not save to backend if we are just applying the preference on init
-    await setLanguage(preferred, false, false);
+    // If backend config differs, sync once without saving/broadcasting
+    if (configLang && configLang !== current) {
+      await setLanguage(configLang, false, false);
+    }
   }
 
   // expose

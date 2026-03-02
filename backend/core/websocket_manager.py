@@ -2,9 +2,7 @@
 WebSocket manager pour les communications en temps réel
 """
 from fastapi import WebSocket, WebSocketDisconnect
-from typing import List, Dict, Set, Optional
-import json
-import asyncio
+from typing import List, Dict, Set
 import logging
 from datetime import datetime
 
@@ -132,95 +130,6 @@ class ConnectionManager:
             **data
         }
         await self.broadcast(message, "measurements")
-    
-    async def broadcast_prediction(self, data: Dict):
-        """
-        Diffuse une nouvelle prédiction.
-        
-        Format:
-        {
-            "type": "prediction",
-            "timestamp": "2025-11-18T10:05:00Z",
-            "sensor_id": "bureau1",
-            "enseigne": "Maison",
-            "salle": "Bureau",
-            "predictions": {...},
-            "forecast_minutes": 30
-        }
-        """
-        message = {
-            "type": "prediction",
-            "timestamp": datetime.utcnow().isoformat(),
-            **data
-        }
-        await self.broadcast(message, "predictions")
-    
-    async def broadcast_action(self, data: Dict):
-        """
-        Diffuse l'exécution d'une action.
-        
-        Format:
-        {
-            "type": "action",
-            "timestamp": "2025-11-18T10:05:00Z",
-            "enseigne": "Maison",
-            "salle": "Bureau",
-            "module_type": "ventilation",
-            "action_type": "turn_on",
-            "priority": "high"
-        }
-        """
-        message = {
-            "type": "action",
-            "timestamp": datetime.utcnow().isoformat(),
-            **data
-        }
-        await self.broadcast(message, "actions")
-    
-    async def broadcast_alert(self, data: Dict):
-        """
-        Diffuse une alerte IAQ.
-        
-        Format:
-        {
-            "type": "alert",
-            "timestamp": "2025-11-18T10:05:00Z",
-            "enseigne": "Maison",
-            "salle": "Bureau",
-            "level": "warning",
-            "parameter": "CO2",
-            "value": 1200,
-            "message": "..."
-        }
-        """
-        message = {
-            "type": "alert",
-            "timestamp": datetime.utcnow().isoformat(),
-            **data
-        }
-        await self.broadcast(message, "alerts")
-    
-    async def broadcast_module_state(self, data: Dict):
-        """
-        Diffuse un changement d'état de module.
-        
-        Format:
-        {
-            "type": "module_state",
-            "timestamp": "2025-11-18T10:05:00Z",
-            "enseigne": "Maison",
-            "salle": "Bureau",
-            "module_type": "ventilation",
-            "state": "active",
-            "parameters": {...}
-        }
-        """
-        message = {
-            "type": "module_state",
-            "timestamp": datetime.utcnow().isoformat(),
-            **data
-        }
-        await self.broadcast(message, "modules")
     
     def get_stats(self) -> Dict:
         """Retourne les statistiques des connexions"""

@@ -50,6 +50,7 @@ class WebSocketManager {
                 try {
                     const data = JSON.parse(event.data);
                     console.debug('- WebSocket message:', data);
+                    this.notifyListeners('all', data);
                     
                     // Dispatcher le message selon le type/topic
                     if (data.type === 'pong') {
@@ -160,10 +161,20 @@ class WebSocketManager {
      * @param {Function} callback - Fonction appelée quand un message arrive
      */
     on(topic, callback) {
-        if (!this.listeners.has(topic)) {
-            this.listeners.set(topic, []);
+        const existing = this.listeners.get(topic);
+        if (!existing) {
+            this.listeners.set(topic, [callback]);
+            return;
         }
-        this.listeners.get(topic).push(callback);
+        if (Array.isArray(existing)) {
+            existing.push(callback);
+            return;
+        }
+        if (typeof existing === 'function') {
+            this.listeners.set(topic, [existing, callback]);
+            return;
+        }
+        this.listeners.set(topic, [callback]);
     }
 
     /**
@@ -175,9 +186,16 @@ class WebSocketManager {
         if (!this.listeners.has(topic)) return;
         
         const callbacks = this.listeners.get(topic);
-        const index = callbacks.indexOf(callback);
-        if (index > -1) {
-            callbacks.splice(index, 1);
+        if (Array.isArray(callbacks)) {
+            const index = callbacks.indexOf(callback);
+            if (index > -1) {
+                callbacks.splice(index, 1);
+            }
+            if (callbacks.length === 0) this.listeners.delete(topic);
+            return;
+        }
+        if (typeof callbacks === 'function' && callbacks === callback) {
+            this.listeners.delete(topic);
         }
     }
 
@@ -188,8 +206,12 @@ class WebSocketManager {
      */
     notifyListeners(topic, data) {
         if (!this.listeners.has(topic)) return;
-        
-        this.listeners.get(topic).forEach(callback => {
+        const registered = this.listeners.get(topic);
+        const callbacks = Array.isArray(registered)
+            ? registered
+            : (typeof registered === 'function' ? [registered] : []);
+
+        callbacks.forEach(callback => {
             try {
                 callback(data);
             } catch (error) {

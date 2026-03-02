@@ -16,9 +16,6 @@ if (initLoader) {
 
 if (container) {
   if (!container.style.position) container.style.position = 'relative';
-  // Supprimé pour laisser le CSS gérer la taille responsive
-  // if (!container.style.width) container.style.width = '700px';
-  // if (!container.style.height) container.style.height = '400px';
 }
 
 const width = (container && container.clientWidth) || 700;
@@ -457,13 +454,36 @@ function handleExternalModuleUpdate(data) {
         const ap = document.querySelector(`.alert-point[data-target-names="${module_id}"]`);
         if (ap) {
             ap.setAttribute('data-state', state);
-            // Re-eval background color
-            let bgColor = 'rgba(220, 20, 60, 0.9)'; // default red
-            const isPositive = state === 'open' || state === 'on';
-            if (isPositive) bgColor = 'rgba(34, 139, 34, 0.9)'; // green
+            const bgColor = getAlertPointColorByState(state);
             ap.style.backgroundColor = bgColor;
         }
     }
+}
+
+function isOpenType(type) {
+  return type === 'door' || type === 'window';
+}
+
+function getAlertPointColor(type, state) {
+  if (isOpenType(type)) {
+    return state === 'closed' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(34, 139, 34, 0.9)';
+  }
+  if (type === 'ventilation' || type === 'radiator' || type === 'air_purifier') {
+    return state === 'off' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(34, 139, 34, 0.9)';
+  }
+  return 'rgba(220, 20, 60, 0.9)';
+}
+
+function getAlertPointColorByState(state) {
+  return state === 'open' || state === 'on'
+    ? 'rgba(34, 139, 34, 0.9)'
+    : 'rgba(220, 20, 60, 0.9)';
+}
+
+function getAlertStateLabel(type, state) {
+  return isOpenType(type)
+    ? (state === 'open' ? 'Ouvert' : 'Fermé')
+    : (state === 'on' ? 'Actif' : 'Inactif');
 }
 
 // Start listening
@@ -2077,14 +2097,7 @@ function autoGenerateAlertPoints(modelRoot) {
         alertPoint.setAttribute('data-piece', currentPieceId);
         
         // Déterminer la couleur de fond basé sur l'état actuel
-        let bgColor = '';
-        if (type === 'door' || type === 'window') {
-          bgColor = currentState === 'closed' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(34, 139, 34, 0.9)';
-        } else if (type === 'ventilation' || type === 'radiator' || type === 'air_purifier') {
-          bgColor = currentState === 'off' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(34, 139, 34, 0.9)';
-        } else {
-          bgColor = 'rgba(220, 20, 60, 0.9)';
-        }
+        const bgColor = getAlertPointColor(type, currentState);
         
         alertPoint.textContent = '';
         
@@ -2125,10 +2138,7 @@ function autoGenerateAlertPoints(modelRoot) {
         const tagsHTML = components.map(c => `<span class="alert-tooltip-tag">${c}</span>`).join('');
         
         // Determine state label
-        const isOpenType = (type === 'door' || type === 'window');
-        const stateLabel = isOpenType
-          ? (currentState === 'open' ? 'Ouvert' : 'Fermé')
-          : (currentState === 'on' ? 'Actif' : 'Inactif');
+        const stateLabel = getAlertStateLabel(type, currentState);
         const stateClass = `state-${currentState}`;
         
         tooltip.innerHTML = `
@@ -2195,12 +2205,7 @@ function autoGenerateAlertPoints(modelRoot) {
             animateObject(stateObj.object, config, newState);
             
             // Mettre à jour le fond du bouton
-            let newBgColor = '';
-            if (alertType === 'door' || alertType === 'window') {
-              newBgColor = newState === 'closed' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(34, 139, 34, 0.9)';
-            } else if (alertType === 'ventilation' || alertType === 'radiator' || alertType === 'air_purifier') {
-              newBgColor = newState === 'off' ? 'rgba(220, 20, 60, 0.9)' : 'rgba(34, 139, 34, 0.9)';
-            }
+            const newBgColor = getAlertPointColor(alertType, newState);
             alertPoint.style.background = newBgColor;
             alertPoint.setAttribute('data-bg-color', newBgColor);
             alertPoint.setAttribute('data-state', newState);
@@ -2209,8 +2214,7 @@ function autoGenerateAlertPoints(modelRoot) {
             const stateBadge = alertPoint.querySelector('.alert-tooltip-state');
             if (stateBadge) {
               stateBadge.className = `alert-tooltip-state state-${newState}`;
-              const isOpenType = (alertType === 'door' || alertType === 'window');
-              stateBadge.innerHTML = `<span class="alert-tooltip-state-dot"></span>${isOpenType ? (newState === 'open' ? 'Ouvert' : 'Fermé') : (newState === 'on' ? 'Actif' : 'Inactif')}`;
+              stateBadge.innerHTML = `<span class="alert-tooltip-state-dot"></span>${getAlertStateLabel(alertType, newState)}`;
             }
             
             // Sync with Backend Config (this is the single source of truth now)

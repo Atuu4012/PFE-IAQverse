@@ -378,31 +378,40 @@
             }
         }, 1500);
     }
+
+    function resolveContext(roomId = null) {
+        const cfg =
+            typeof window.getConfig === "function"
+                ? window.getConfig()
+                : window.config || null;
+        const activeId =
+            typeof window.getActiveEnseigne === "function"
+                ? window.getActiveEnseigne()
+                : cfg && cfg.lieux && cfg.lieux.active;
+        const ens =
+            cfg && cfg.lieux && Array.isArray(cfg.lieux.enseignes)
+                ? cfg.lieux.enseignes.find((e) => e.id === activeId)
+                : null;
+
+        let resolvedRoomId = roomId;
+        if (!resolvedRoomId) {
+            const tab = document.querySelector("#room-tabs .room-tab.active");
+            resolvedRoomId = tab ? tab.getAttribute("data-room-id") : null;
+        }
+
+        const piece = ens && ens.pieces && resolvedRoomId
+            ? ens.pieces.find((p) => p.id === resolvedRoomId)
+            : (ens && ens.pieces && ens.pieces[0]);
+
+        return { ens, piece };
+    }
     
     function initActiveContext() {
         try {
-            const cfg =
-                typeof window.getConfig === "function"
-                    ? window.getConfig()
-                    : window.config || null;
-            const activeId =
-                typeof window.getActiveEnseigne === "function"
-                    ? window.getActiveEnseigne()
-                    : cfg && cfg.lieux && cfg.lieux.active;
-            const ens =
-                cfg && cfg.lieux && Array.isArray(cfg.lieux.enseignes)
-                    ? cfg.lieux.enseignes.find((e) => e.id === activeId)
-                    : null;
+            const { ens, piece } = resolveContext();
             
             activeEnseigneId = ens ? ens.id : null;
             activeEnseigneName = ens ? ens.nom || ens.id : null;
-            
-            // room: try selected tab with data-room-id
-            const tab = document.querySelector("#room-tabs .room-tab.active");
-            const roomId = tab ? tab.getAttribute("data-room-id") : null;
-            const piece = ens && ens.pieces && roomId 
-                ? ens.pieces.find(p => p.id === roomId)
-                : (ens && ens.pieces && ens.pieces[0]);
             
             activeRoomId = piece ? piece.id : null;
             activeRoomName = piece ? piece.nom || piece.id : null;
@@ -412,22 +421,7 @@
     }
     document.addEventListener("roomChanged", (ev) => {
         try {
-            const cfg =
-                typeof window.getConfig === "function"
-                    ? window.getConfig()
-                    : window.config || null;
-            const activeId =
-                typeof window.getActiveEnseigne === "function"
-                    ? window.getActiveEnseigne()
-                    : cfg && cfg.lieux && cfg.lieux.active;
-            const ens =
-                cfg && cfg.lieux && Array.isArray(cfg.lieux.enseignes)
-                    ? cfg.lieux.enseignes.find((e) => e.id === activeId)
-                    : null;
-            const piece =
-                ens && ens.pieces
-                    ? ens.pieces.find((p) => p.id === ev.detail.roomId)
-                    : null;
+            const { ens, piece } = resolveContext(ev.detail.roomId);
             
             activeEnseigneId = ens ? ens.id : activeEnseigneId;
             activeEnseigneName = ens ? ens.nom || ens.id : activeEnseigneName;

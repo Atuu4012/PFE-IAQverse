@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 venv/
 *.log
+.axon/
 
 # Environment variables
 .env
@@ -41,3 +42,5 @@ assets/config.json
 
 # ml flow
 backend/dl/mlflow_data/
+
+.mcp.json

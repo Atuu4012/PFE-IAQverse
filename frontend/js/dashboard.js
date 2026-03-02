@@ -2,6 +2,20 @@
  * Script spécifique pour la page Dashboard (index.html)
  */
 
+function resolveSelectedContext(config, enseigneId, salleId) {
+  const enseigne = config?.lieux?.enseignes?.find((e) => e.id === enseigneId);
+  const salle = enseigne?.pieces?.find((p) => p.id === salleId);
+
+  if (!enseigne || !salle) return null;
+
+  return {
+    enseigne,
+    salle,
+    enseigneNom: enseigne.nom,
+    salleNom: salle.nom,
+  };
+}
+
 /**
  * Met à jour les graphiques en fonction de l'enseigne et de la salle sélectionnées
  * @param {string} enseigneId - L'ID de l'enseigne
@@ -9,14 +23,11 @@
  */
 function updateCharts(enseigneId, salleId) {
   const config = getConfig();
-
-  // Cherche les objets correspondants dans la configuration
-  const enseigne = config.lieux.enseignes.find((e) => e.id === enseigneId);
-  const salle = enseigne?.pieces?.find((p) => p.id === salleId);
+  const ctx = resolveSelectedContext(config, enseigneId, salleId);
 
   // ⚙️ Utilise les noms (Maison, Salon) pour l'API
-  currentEnseigne = enseigne?.nom || enseigneId;
-  currentSalle = salle?.nom || salleId;
+  currentEnseigne = ctx?.enseigneNom || enseigneId;
+  currentSalle = ctx?.salleNom || salleId;
 
   // Recharge les données et met à jour les graphiques
   if (typeof window.resetCharts === "function") {
@@ -59,16 +70,13 @@ async function fetchAndDisplayPredictedScore(enseigneId, salleId) {
       return;
     }
 
-    const enseigne = config?.lieux?.enseignes?.find((e) => e.id === enseigneId);
-    const salle = enseigne?.pieces?.find((p) => p.id === salleId);
-
-    if (!enseigne || !salle) {
+    const ctx = resolveSelectedContext(config, enseigneId, salleId);
+    if (!ctx) {
       console.warn(`[dashboard] Could not find enseigne/salle for ${enseigneId}/${salleId}`);
       return;
     }
 
-    const enseigneNom = enseigne.nom;
-    const salleNom = salle.nom;
+    const { enseigneNom, salleNom } = ctx;
     const cacheKey = `${enseigneNom}|${salleNom}`;
 
     // --- Cache court-terme (15s) : évite les appels redondants sur tick rapide ---

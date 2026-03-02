@@ -246,79 +246,6 @@ function updateAlertCountLabel() {
 window.updateAlertCountLabel = updateAlertCountLabel;
 
 /**
- * Récupère et affiche le score prédit dans le panneau préventif
- */
-async function fetchAndDisplayPreventiveScore(params) {
-  const scoreElement = document.getElementById("preventive-score-value");
-  const trendElement = document.getElementById("preventive-score-trend");
-  const containerElement = document.getElementById(
-    "preventive-predicted-score",
-  );
-
-  if (!scoreElement || !trendElement || !containerElement) return;
-
-  try {
-    const response = await fetchWithRetry(
-      `${API_ENDPOINTS.preventiveActions}?${params}`,
-      {},
-      1,
-    );
-    const data = await response.json();
-
-    // Support both structures
-    const predictedScore =
-      data.status && data.status.predicted_score !== undefined
-        ? data.status.predicted_score
-        : data.predicted_score;
-
-    if (predictedScore !== undefined) {
-      const roundedScore = Math.round(predictedScore);
-      scoreElement.textContent = roundedScore;
-
-      containerElement.classList.remove(
-        "predicted-a",
-        "predicted-b",
-        "predicted-c",
-        "predicted-d",
-        "predicted-e",
-      );
-      if (roundedScore >= 81) {
-        containerElement.classList.add("predicted-a");
-      } else if (roundedScore >= 61) {
-        containerElement.classList.add("predicted-b");
-      } else if (roundedScore >= 41) {
-        containerElement.classList.add("predicted-c");
-      } else if (roundedScore >= 21) {
-        containerElement.classList.add("predicted-d");
-      } else {
-        containerElement.classList.add("predicted-e");
-      }
-
-      if (window.scoreHistory && window.scoreHistory.length > 0) {
-        const lastScore = window.scoreHistory[window.scoreHistory.length - 1];
-        const diff = roundedScore - lastScore;
-        if (diff > 2) {
-          trendElement.textContent = "↗";
-          trendElement.className = "predicted-trend up";
-        } else if (diff < -2) {
-          trendElement.textContent = "↘";
-          trendElement.className = "predicted-trend down";
-        } else {
-          trendElement.textContent = "→";
-          trendElement.className = "predicted-trend stable";
-        }
-      } else {
-        trendElement.textContent = "";
-        trendElement.className = "predicted-trend";
-      }
-    }
-  } catch (error) {
-    console.error("[preventive] Error fetching score:", error);
-    scoreElement.textContent = "—";
-  }
-}
-
-/**
  * Récupère et affiche les actions préventives depuis l'API
  */
 async function fetchAndDisplayPreventiveActions() {
@@ -951,11 +878,13 @@ window.addEventListener("language-changed", () => {
 // Rafraîchir les actions préventives lors du changement de pièce ou d'enseigne
 document.addEventListener("roomChanged", () => {
   try {
+    window._digitalTwinMeasurementTickCount = 0;
     fetchAndDisplayPreventiveActions();
   } catch (e) {}
 });
 document.addEventListener("enseigneChanged", () => {
   try {
+    window._digitalTwinMeasurementTickCount = 0;
     fetchAndDisplayPreventiveActions();
   } catch (e) {}
 });
@@ -964,6 +893,15 @@ document.addEventListener("enseigneChanged", () => {
 document.addEventListener("iaqDataUpdated", (event) => {
   const data = event.detail;
   if (!data) return;
+
+  if (typeof window._digitalTwinMeasurementTickCount !== "number") {
+    window._digitalTwinMeasurementTickCount = 0;
+  }
+  window._digitalTwinMeasurementTickCount += 1;
+  if (window._digitalTwinMeasurementTickCount >= 5) {
+    window._digitalTwinMeasurementTickCount = 0;
+    document.dispatchEvent(new CustomEvent("predictScoreTick"));
+  }
 
   const updateElement = (id, value) => {
     const el = document.getElementById(id);

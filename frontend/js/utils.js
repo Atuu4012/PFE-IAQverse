@@ -2,6 +2,13 @@
  * Utilitaires communs pour IAQverse
  */
 
+const PENDING_NOTIFICATION_KEY = 'iaq_pending_notification';
+const PENDING_NOTIFICATION_DURATION_MS = 3000;
+
+function clearPendingNotification() {
+    try { sessionStorage.removeItem(PENDING_NOTIFICATION_KEY); } catch (e) {}
+}
+
 /**
  * Échappe les caractères HTML pour éviter les injections XSS
  * @param {string} s - La chaîne à échapper
@@ -30,9 +37,12 @@ function showNotification(message, isError = false) {
     // reloads immediately after a change, the message can be restored and
     // shown again. This avoids the message being cut short by navigations.
     try {
-        const duration = 3000;
-        const pending = { message, isError: !!isError, expires: Date.now() + duration };
-        sessionStorage.setItem('iaq_pending_notification', JSON.stringify(pending));
+        const pending = {
+            message,
+            isError: !!isError,
+            expires: Date.now() + PENDING_NOTIFICATION_DURATION_MS,
+        };
+        sessionStorage.setItem(PENDING_NOTIFICATION_KEY, JSON.stringify(pending));
     } catch (e) {
         // ignore sessionStorage errors
     }
@@ -44,16 +54,21 @@ function showNotification(message, isError = false) {
     // Remove both the DOM visible message and the pending entry after duration
     setTimeout(() => {
         notification.style.display = 'none';
-        try { sessionStorage.removeItem('iaq_pending_notification'); } catch (e) {}
-    }, 3000);
+        clearPendingNotification();
+    }, PENDING_NOTIFICATION_DURATION_MS);
 }
 
+function attachLogoutHandler(button) {
+    if (!button) return;
+    button.style.cursor = 'pointer';
+    button.onclick = () => {
+        showLogoutConfirmation();
+    };
+}
 
 // -- Fonctionnalités liées au compte (Déconnexion, Changement, etc.) --
+// Affiche une modale de confirmation pour la déconnexion
 
-/**
- * Affiche une modale de confirmation pour la déconnexion
- */
 function showLogoutConfirmation() {
     // Vérifier si la modale existe déjà
     let modal = document.getElementById('logout-confirmation-modal');
@@ -133,10 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Bouton Déconnexion (Initiale, avant renderAccountList potentielle)
     const logoutBtns = document.querySelectorAll('.account-action.logout');
     logoutBtns.forEach(btn => {
-        btn.style.cursor = 'pointer';
-        btn.onclick = () => {
-             showLogoutConfirmation();
-        };
+        attachLogoutHandler(btn);
     });
 
     // 2. Bouton "Autre Compte" (Ajout d'un compte)
@@ -169,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Restauration de notification après reload
     try {
-        const pendingRaw = sessionStorage.getItem('iaq_pending_notification');
+        const pendingRaw = sessionStorage.getItem(PENDING_NOTIFICATION_KEY);
         if (pendingRaw) {
             const pending = JSON.parse(pendingRaw);
             if (pending && pending.expires && pending.expires > Date.now()) {
@@ -181,11 +193,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const remaining = Math.max(0, pending.expires - Date.now());
                     setTimeout(() => {
                         notification.style.display = 'none';
-                        try { sessionStorage.removeItem('iaq_pending_notification'); } catch (e) {}
+                        clearPendingNotification();
                     }, remaining || 1500);
                 }
             } else {
-                try { sessionStorage.removeItem('iaq_pending_notification'); } catch (e) {}
+                clearPendingNotification();
             }
         }
     } catch (e) {
@@ -242,7 +254,7 @@ window.showNotification = showNotification;
 window.ModalManager = ModalManager;
 
 /**
- * Met � jour l'avatar dans le header
+ * Met à jour l'avatar dans le header
  */
 async function updateHeaderAvatar() {
     const avatarImg = document.getElementById('header-avatar');
@@ -400,11 +412,7 @@ async function renderAccountList() {
 
     // Réattacher les event listeners pour le logout car on a écrasé le DOM
     const logoutBtn = listContainer.querySelector('.account-action.logout');
-    if (logoutBtn) {
-        logoutBtn.onclick = () => {
-             showLogoutConfirmation();
-        };
-    }
+    attachLogoutHandler(logoutBtn);
 }
 
 async function hydrateAccountAvatars(accounts) {
@@ -467,17 +475,5 @@ window.addNewAccount = async () => {
     // MAIS supabase par défaut écrase la session locale.
     // L'astuce est que handleLogin dans auth.js va SAUVEGARDER la NOUVELLE session.
     // Et notre système `iaq_accounts` a déjà sauvegardé l'ANCIENNE via onAuthStateChange ou initial load.
-    
-    // Donc on fait juste logout (qui ne clear PAS iaq_accounts grace à ma modif removeAccountFromStorage qui retire SEULEMENT l'actuel)
-    // AH ATTENTION: Mon logout() modifié appele removeAccountFromStorage(current).
-    // => Si je veux "Ajouter un compte", je ne veux PAS perdre le compte actuel de ma liste.
-    
-    // Modif: On va rediriger vers login.html sans appeler logout(), mais en s'assurant que login.html ne nous redirige pas auto.
-    // login.html a une verif "si deja connecté -> index.html".
-    // On doit passer un flag. "?force_login=true"
-    
     window.location.href = 'login.html?force_login=true';
 };
-
-
-

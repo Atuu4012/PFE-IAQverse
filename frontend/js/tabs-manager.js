@@ -13,6 +13,11 @@ const roomOccupants = new Map();
 // Global threshold for alerting tabs (rooms & enseignes). Change this to tune sensitivity.
 const ALERT_THRESHOLD = 81;
 
+function applyAlertClass(element, hasAlert) {
+    if (!element) return;
+    element.classList.toggle('has-alert', !!hasAlert);
+}
+
 function normalizeOccupants(value) {
     if (typeof value !== 'number' || Number.isNaN(value)) return null;
     return Math.max(0, Math.round(value));
@@ -182,13 +187,7 @@ function renderLocationTabs() {
             }
         }
         const enseigneTab = document.querySelector(`.location-tab[data-id="${ens.id}"]`);
-        if (enseigneTab) {
-            if (enseigneHasAlert) {
-                enseigneTab.classList.add('has-alert');
-            } else {
-                enseigneTab.classList.remove('has-alert');
-            }
-        }
+        applyAlertClass(enseigneTab, enseigneHasAlert);
     });
 
     refreshAllOccupantBadges();
@@ -228,13 +227,7 @@ function renderRoomTabs(enseigneId) {
         const pieceScore = roomScores.get(pieceKey);
         if (pieceScore !== undefined) {
             const roomTab = document.querySelector(`.room-tab[data-room-id="${piece.id}"]`);
-            if (roomTab) {
-                if (pieceScore < ALERT_THRESHOLD) {
-                    roomTab.classList.add('has-alert');
-                } else {
-                    roomTab.classList.remove('has-alert');
-                }
-            }
+            applyAlertClass(roomTab, pieceScore < ALERT_THRESHOLD);
         }
     });
 
@@ -368,6 +361,21 @@ function setupWsListeners() {
             console.error('[tabs-manager] Error handling WS measurement:', err);
         }
     });
+
+    window.wsManager.on('config_updated', async () => {
+        try {
+            if (typeof window.loadConfig === 'function') {
+                await window.loadConfig();
+            }
+            renderLocationTabs();
+            if (activeEnseigne) {
+                renderRoomTabs(activeEnseigne);
+            }
+            refreshAllOccupantBadges();
+        } catch (err) {
+            console.error('[tabs-manager] Error handling WS config_updated:', err);
+        }
+    });
 }
 
 // Initialiser au chargement de la page
@@ -418,7 +426,9 @@ async function fetchRoomMetrics(enseigneNom, roomNom) {
 }
 
 async function updateAllRoomScores() {
-    const config = getConfig();
+    const config = (typeof window.loadConfig === 'function')
+        ? await window.loadConfig()
+        : getConfig();
     if (!config || !config.lieux || !config.lieux.enseignes) return;
 
     const currentEnseigneId = activeEnseigne || config.lieux.active || null;
@@ -481,11 +491,7 @@ function refreshAllTabAlerts() {
         }
         
         if (roomScore !== null && roomScore !== undefined) {
-            if (roomScore < ALERT_THRESHOLD) {
-                roomTab.classList.add('has-alert');
-            } else {
-                roomTab.classList.remove('has-alert');
-            }
+            applyAlertClass(roomTab, roomScore < ALERT_THRESHOLD);
         }
     });
     
@@ -499,13 +505,7 @@ function refreshAllTabAlerts() {
             }
         }
         const enseigneTab = document.querySelector(`.location-tab[data-id="${ens.id}"]`);
-        if (enseigneTab) {
-            if (enseigneHasAlert) {
-                enseigneTab.classList.add('has-alert');
-            } else {
-                enseigneTab.classList.remove('has-alert');
-            }
-        }
+        applyAlertClass(enseigneTab, enseigneHasAlert);
     });
 }
 

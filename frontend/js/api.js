@@ -30,20 +30,8 @@ const API_ENDPOINTS = {
     websocketStats: `${API_BASE_URL}/ws/stats`,
 };
 
-// Helper function pour construire une URL avec paramètres
-function buildApiUrl(endpoint, params = {}) {
-    const url = new URL(endpoint);
-    Object.keys(params).forEach(key => {
-        if (params[key] !== null && params[key] !== undefined) {
-            url.searchParams.append(key, params[key]);
-        }
-    });
-    return url.toString();
-}
-
 // Note: IAQverse v2 utilise WebSocket pour les mises à jour temps réel
 // Connectez-vous à ws://localhost:8000/ws pour recevoir les événements
 
 // Export global
 window.API_ENDPOINTS = API_ENDPOINTS;
-window.buildApiUrl = buildApiUrl;

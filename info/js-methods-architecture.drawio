@@ -1,0 +1,83 @@
+<mxfile host="app.diagrams.net" modified="2026-03-02T12:00:00.000Z" agent="Copilot" version="24.7.17" type="device">
+  <diagram id="js-arch-1" name="JS Architecture">
+    <mxGraphModel dx="1560" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="2" value="Bootstrap HTML&#xa;(index / digital-twin / settings)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="3" value="Core Services&#xa;auth.js&#xa;config-loader.js&#xa;api.js / api-retry.js&#xa;utils.js / i18n.js / theme.js&#xa;websocket-manager.js" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366" vertex="1" parent="1">
+          <mxGeometry x="330" y="20" width="280" height="170" as="geometry" />
+        </mxCell>
+
+        <mxCell id="4" value="tabs-manager.js&#xa;Contexte actif&#xa;roomChanged / enseigneChanged" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656" vertex="1" parent="1">
+          <mxGeometry x="660" y="40" width="220" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="5" value="Event Bus (DOM CustomEvent)&#xa;roomChanged, enseigneChanged&#xa;measurementReceived, iaqDataUpdated&#xa;predictScoreTick, language-changed" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="920" y="30" width="300" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="6" value="charts-chartjs.js&#xa;Mesures + graphiques&#xa;emit: measurementReceived&#xa;emit: predictScoreTick" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6" vertex="1" parent="1">
+          <mxGeometry x="330" y="240" width="240" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="7" value="alerts-engine.js&#xa;Severities / actions&#xa;HTTP fallback + WS&#xa;emit: iaqDataUpdated" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6" vertex="1" parent="1">
+          <mxGeometry x="600" y="240" width="240" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="8" value="digital-twin.js&#xa;UI détails + overlay&#xa;sync table alertes&#xa;listen: iaqDataUpdated / roomChanged" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6" vertex="1" parent="1">
+          <mxGeometry x="870" y="240" width="260" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="9" value="three-scene.js&#xa;3D model + alert-points&#xa;module_state updates&#xa;listen/update via ws + globals" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6" vertex="1" parent="1">
+          <mxGeometry x="1160" y="240" width="260" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="10" value="dashboard.js&#xa;Score prédit&#xa;listen: roomChanged + predictScoreTick" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6" vertex="1" parent="1">
+          <mxGeometry x="330" y="390" width="240" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="11" value="occupants-display.js&#xa;listen: measurementReceived&#xa;updateRoomOccupants" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6" vertex="1" parent="1">
+          <mxGeometry x="600" y="390" width="240" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="12" value="preventive-global.js&#xa;listen: predictScoreTick&#xa;actions globales" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6" vertex="1" parent="1">
+          <mxGeometry x="870" y="390" width="260" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="13" value="settings.js + settings-modules.js&#xa;CRUD config utilisateur&#xa;listen: config_updated" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6" vertex="1" parent="1">
+          <mxGeometry x="1160" y="390" width="260" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="14" value="Backend FastAPI + WebSocket&#xa;/api/config, /api/iaq/data, /api/predict/*&#xa;/api/config/module_state, /ws" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="620" y="540" width="380" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" value="" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="2" target="3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2" value="" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="3" target="4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e3" value="" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="4" target="5"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="e4" value="events" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="6" target="5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e5" value="events" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="7" target="5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e6" value="listen" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="5" target="8"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e7" value="listen" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="5" target="10"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e8" value="listen" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="5" target="11"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e9" value="listen" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="5" target="12"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e10" value="listen" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="5" target="13"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="e11" value="API" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="3" target="14"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e12" value="WS" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="3" target="14"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="520" y="220"/></Array></mxGeometry></mxCell>
+        <mxCell id="e13" value="module_state" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="9" target="14"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="e14" value="syncAlertPointsToTable" style="endArrow=block;html=1;rounded=0;dashed=1;" edge="1" parent="1" source="9" target="8"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e15" value="ctx + tabs" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="4" target="6"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e16" value="ctx + tabs" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="4" target="7"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e17" value="ctx + tabs" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="4" target="8"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

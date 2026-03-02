@@ -246,16 +246,6 @@ function displayGlobalPreventiveActions(allRoomActions) {
 }
 
 /**
- * Toggle l'état d'une carte de pièce (expand/collapse)
- */
-function toggleRoomCard(index) {
-    const card = document.getElementById(`room-card-${index}`);
-    if (card) {
-        card.classList.toggle('expanded');
-    }
-}
-
-/**
  * Toggle l'état d'une action individuelle (expand/collapse)
  */
 function toggleAction(actionId) {
@@ -280,7 +270,6 @@ function toggleAction(actionId) {
 }
 
 // Rendre les fonctions accessibles globalement
-window.toggleRoomCard = toggleRoomCard;
 window.toggleAction = toggleAction;
 
 // Cache des dernières données récupérées pour re-render sans re-fetch

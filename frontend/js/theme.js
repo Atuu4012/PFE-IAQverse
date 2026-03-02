@@ -16,7 +16,9 @@ function applyTheme(mode) {
 async function initTheme() {
     let applied = false;
     try {
-        const config = window.configReady ? await window.configReady : (typeof window.getConfig === 'function' ? window.getConfig() : null);
+        const config = (typeof window.loadConfig === 'function')
+            ? await window.loadConfig()
+            : (typeof window.getConfig === 'function' ? window.getConfig() : null);
         if (config?.affichage?.mode) {
             applyTheme(config.affichage.mode);
             applied = true;

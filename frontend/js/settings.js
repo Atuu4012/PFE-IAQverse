@@ -9,7 +9,6 @@ let currentSection = "";
 let wsManager = null;
 
 // Initialize WebSocket connection
-// Initialize WebSocket connection
 document.addEventListener("DOMContentLoaded", () => {
   // Use global instance if available
   if (window.wsManager) {
@@ -30,34 +29,33 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function applyRemoteConfig(config, notify = false) {
+    if (!config) return;
+    settingsConfig = config;
+    loadConfigToUI();
+    renderEnseignes();
+
+    if (notify) {
+      showNotification(
+        window.i18n && window.i18n.t
+          ? window.i18n.t("notifications.config_synced") ||
+              "Configuration synchronisée"
+          : "Configuration synchronisée",
+      );
+    }
+  }
+
   function setupListeners() {
     // Listen for config updates
     wsManager.listeners.set("config_updated", (data) => {
-      console.log("🔄 Config updated remotely:", data);
-      if (data && data.config) {
-        settingsConfig = data.config;
-
-        // Refresh UI based on current section
-        // We re-render everything to be safe
-        loadConfigToUI();
-        renderEnseignes();
-
-        showNotification(
-          window.i18n && window.i18n.t
-            ? window.i18n.t("notifications.config_synced") ||
-                "Configuration synchronisée"
-            : "Configuration synchronisée",
-        );
-      }
+      console.log("Config updated remotely:", data);
+      if (data && data.config) applyRemoteConfig(data.config, true);
     });
 
     // Also listen for generic 'all' topic if needed
     wsManager.listeners.set("all", (data) => {
-      if (data.type === "config_updated" && data.config) {
-        settingsConfig = data.config;
-        loadConfigToUI();
-        renderEnseignes();
-      }
+      if (data.type === "config_updated" && data.config)
+        applyRemoteConfig(data.config, false);
     });
   }
 });
@@ -104,21 +102,6 @@ function setByPath(obj, path, value) {
   }
   current[parts[parts.length - 1]] = value;
   return obj;
-}
-
-// Sanitize a string for use in filenames: remove diacritics, spaces -> _, keep a-z0-9_-
-function sanitizeForFilename(s) {
-  if (!s) return "file";
-  try {
-    // normalize and remove diacritics
-    s = s.normalize("NFD").replace(/[\u0000-\u036f]/g, "");
-  } catch (e) {}
-  const res = String(s)
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "_")
-    .replace(/[^a-z0-9_\-]/g, "");
-  return res || "file";
 }
 
 // Groupe de champs dynamique pour la modale d'édition
@@ -1103,67 +1086,6 @@ async function saveConfigAll() {
   }
 }
 
-// Édition par section (modale multi-champs)
-function editSection(sectionId) {
-  currentSection = sectionId;
-  const modal = document.getElementById("editModal");
-  const form = document.getElementById("editForm");
-  form.innerHTML = "";
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    await saveConfigSection();
-  };
-
-  const sectionConfig = {
-    vous: [
-      ["settings.fields.nom", "vous.nom"],
-      ["settings.fields.prenom", "vous.prenom"],
-      ["settings.fields.date_naissance", "vous.date_naissance"],
-      ["settings.fields.email", "vous.email"],
-      ["settings.fields.telephone", "vous.telephone"],
-      ["settings.fields.adresse", "vous.adresse"],
-    ],
-    assurance: [
-      ["settings.fields.nom", "assurance.nom"],
-      ["settings.fields.email", "assurance.email"],
-      ["settings.fields.telephone", "assurance.telephone"],
-      ["settings.fields.adresse", "assurance.adresse"],
-    ],
-    syndicat: [
-      ["settings.fields.nom", "syndicat.nom"],
-      ["settings.fields.email", "syndicat.email"],
-      ["settings.fields.telephone", "syndicat.telephone"],
-      ["settings.fields.adresse", "syndicat.adresse"],
-    ],
-    mode: [["settings.fields.mode_affichage", "affichage.mode"]],
-    "langue & localisation": [
-      ["settings.fields.langue", "affichage.langue"],
-      ["settings.fields.localisation", "affichage.localisation"],
-    ],
-    technologies: [
-      ["settings.fields.email", "notifications.technologies.email"],
-      ["settings.fields.sms", "notifications.technologies.sms"],
-      ["settings.fields.push", "notifications.technologies.push"],
-    ],
-    type: [
-      ["settings.fields.alertes", "notifications.types.alertes"],
-      ["settings.fields.rappels", "notifications.types.rappels"],
-      ["settings.fields.newsletters", "notifications.types.newsletters"],
-    ],
-    enseigne: [
-      ["settings.fields.nom", "lieux.enseigne"],
-      ["settings.fields.pieces", "lieux.pieces"],
-    ],
-  };
-
-  const fields = sectionConfig[sectionId] || [];
-  fields.forEach(([label, path]) => {
-    const value = getByPath(settingsConfig, path);
-    form.appendChild(createFormGroup(label, path, value));
-  });
-  modal.style.display = "block";
-}
-
 async function saveConfigSection() {
   const form = document.getElementById("editForm");
   const formData = new FormData(form);
@@ -1624,8 +1546,7 @@ async function saveCard(sectionId) {
 // Chargement config et initialisation UI
 async function loadConfigToUI() {
   try {
-    await loadConfig();
-    settingsConfig = getConfig();
+    settingsConfig = await loadConfig();
     if (!settingsConfig) {
       showNotification(
         window.i18n && window.i18n.t
@@ -1765,7 +1686,6 @@ window.addPiece = addPiece;
 window.editEnseigne = editEnseigne;
 window.removeEnseigne = removeEnseigne;
 window.removePiece = removePiece;
-window.editSection = editSection;
 
 // Gestion de la sélection de plan d'abonnement
 document.addEventListener("DOMContentLoaded", function () {

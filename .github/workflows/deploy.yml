@@ -64,24 +64,9 @@ jobs:
             git checkout main
             git reset --hard origin/main
 
-            # 3. Vérifier le fichier d'environnement de prod
-            if [ ! -f .env.prod ]; then
-              echo "[WARN] .env.prod introuvable."
-              if [ -f .env ]; then
-                echo "[INFO] Fallback: copie de .env vers .env.prod"
-                cp .env .env.prod
-              else
-                echo "[ERROR] Aucun fichier .env.prod ni .env disponible dans /home/ubuntu/prod/PFE-IAQverse"
-                exit 1
-              fi
-            fi
-
-            # 4. Copier le .env racine vers docker/.env (compat docker-compose)
-            cp .env.prod docker/.env
-
-            # 5. Lancer la production avec le bon fichier
+            # 3. Lancer la production avec le bon fichier
             # On utilise explicitement le fichier de PROD
             docker compose -f docker/docker-compose.prod.yml --env-file .env.prod up -d --build --remove-orphans
 
-            # 6. Nettoyer les vieilles images
+            # 4. Nettoyer les vieilles images
             docker image prune -f

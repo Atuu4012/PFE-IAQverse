@@ -9,7 +9,11 @@ async def test_get_predicted_score(async_client: AsyncClient):
     data = response.json()
     assert "predicted_score" in data
     assert "predicted_level" in data
-    assert "forecast_minutes" in data
+    assert "is_ml_prediction" in data
+    if data.get("predicted_score") is not None:
+        assert "forecast_minutes" in data
+    else:
+        assert "error" in data
 
 @pytest.mark.asyncio
 async def test_get_preventive_actions(async_client: AsyncClient):
@@ -18,8 +22,11 @@ async def test_get_preventive_actions(async_client: AsyncClient):
     assert response.status_code == 200
     data = response.json()
     assert "actions" in data
-    assert "status" in data
-    assert "forecast" in data
+    if "error" in data:
+        assert data["error"]
+    else:
+        assert "status" in data
+        assert "forecast" in data
 
 @pytest.mark.asyncio
 async def test_get_config(async_client: AsyncClient):

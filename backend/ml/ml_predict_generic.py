@@ -97,6 +97,24 @@ class RealtimeGenericPredictor:
         
         self.load_models()
     
+    def reload(self):
+        """Recharge les modèles depuis le disque (appelé après réentraînement)."""
+        logger.info("♻️  Rechargement des modèles ML...")
+        self.models.clear()
+        self.scaler = None
+        self.config = None
+        self.model_type = None
+        # Libérer la mémoire GPU/RAM du modèle Keras précédent
+        try:
+            import gc
+            import tensorflow as tf
+            tf.keras.backend.clear_session()
+            gc.collect()
+        except Exception:
+            pass
+        self.load_models()
+        logger.info(f"✅ Modèle rechargé : type={getattr(self, 'model_type', 'unknown')}")
+
     def load_models(self):
         """Charge le modèle générique et les encoders."""
         logger.info("Chargement du modèle...")

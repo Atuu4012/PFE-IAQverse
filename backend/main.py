@@ -92,6 +92,26 @@ def get_ml_predictor():
 # ENDPOINTS ML PREDICTION
 # ============================================================================
 
+@app.post("/api/reload-model")
+def reload_model():
+    """
+    Recharge le modèle ML depuis le disque.
+    Appelé automatiquement par le scheduler après réentraînement.
+    """
+    global ml_predictor
+    try:
+        predictor = get_ml_predictor()
+        if predictor:
+            predictor.reload()
+            logger.info("♻️  Modèle ML rechargé via /api/reload-model")
+            return {"status": "ok", "model_type": getattr(predictor, 'model_type', 'unknown')}
+        else:
+            return {"status": "error", "detail": "Predictor not available"}
+    except Exception as e:
+        logger.error(f"Erreur rechargement modèle: {e}")
+        return {"status": "error", "detail": str(e)}
+
+
 @app.get("/api/predict/score")
 def get_predicted_score(
     enseigne: Optional[str] = None,

@@ -52,8 +52,9 @@ def run_training(with_influxdb=True):
             return False
         
         # Commande d'exécution
-        # Utilisation de 'python' directement car il est dans le PATH
-        cmd = ["python", "/app/backend/dl/ml_train_lstm.py", "--trials", "2", "--epochs", "20"]
+        # --trials 2 : ajoute 2 essais Optuna par jour (cumulatifs grâce à SQLite)
+        # --epochs 30 : epochs du modèle final (si réentraînement déclenché)
+        cmd = ["python", "/app/backend/dl/ml_train_lstm.py", "--trials", "2", "--epochs", "30"]
         
         # Le nouveau script LSTM utilise des variables d'env, pas d'arguments
         if with_influxdb and "ml_train_lstm.py" not in str(script_path):

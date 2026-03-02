@@ -577,35 +577,39 @@ async def _auto_apply_iot_actions_for_user(
             summary["skipped"] += 1
             continue
 
-        target_module = None
+        matched_modules = []
         for module in modules:
             if not isinstance(module, dict):
                 continue
             if not module.get("is_iot", False):
                 continue
             if _matches_module(module, candidates):
-                target_module = module
-                break
+                matched_modules.append(module)
 
-        if not target_module:
+        if not matched_modules:
             action["auto_executed"] = False
             action["auto_skip_reason"] = "no_matching_iot_module"
             summary["skipped"] += 1
             continue
 
-        current_state = _normalize_token(target_module.get("state"))
-
-        if current_state != desired_state:
-            target_module["state"] = desired_state
-            has_changed = True
-            changed_modules.append({
-                "module_id": target_module.get("id"),
-                "module_type": target_module.get("type") or action.get("device"),
-                "state": desired_state,
-            })
+        matched_ids = []
+        for target_module in matched_modules:
+            current_state = _normalize_token(target_module.get("state"))
+            if current_state != desired_state:
+                target_module["state"] = desired_state
+                has_changed = True
+                changed_modules.append({
+                    "module_id": target_module.get("id"),
+                    "module_type": target_module.get("type") or action.get("device"),
+                    "state": desired_state,
+                })
+            matched_ids.append(target_module.get("id"))
 
         action["auto_executed"] = True
-        action["auto_module_id"] = target_module.get("id")
+        action["auto_module_ids"] = matched_ids
+        action["auto_matched_count"] = len(matched_ids)
+        if matched_ids:
+            action["auto_module_id"] = matched_ids[0]
         summary["applied"] += 1
 
     panel_corrections = 0

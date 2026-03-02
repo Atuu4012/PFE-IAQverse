@@ -503,7 +503,7 @@ def get_auth_config():
     supabase_public_key = (
         settings.SUPABASE_PUBLISHABLE_KEY
         or os.getenv("SUPABASE_PUBLISHABLE_KEY")
-        settings.SUPABASE_ANON_KEY
+        or settings.SUPABASE_ANON_KEY
         or os.getenv("SUPABASE_ANON_KEY")
         or settings.SUPABASE_KEY
         or os.getenv("SUPABASE_KEY")

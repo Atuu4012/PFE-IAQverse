@@ -2,10 +2,10 @@
 API FastAPI pour le système IAQverse - Version 2.0
 Architecture modulaire et microservices
 """
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import asyncio
 import logging
 import pandas as pd
@@ -24,7 +24,8 @@ from .api import (
 )
 
 # Import des utilitaires
-from .utils import load_dataset_df
+from .utils import load_dataset_df, load_user_config, save_user_config
+from .api.config_api import get_current_user
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -234,7 +235,8 @@ def _calculate_fallback_prediction(enseigne: Optional[str], salle: Optional[str]
 async def get_preventive_actions(
     enseigne: Optional[str] = None,
     salle: Optional[str] = None,
-    sensor_id: Optional[str] = None
+    sensor_id: Optional[str] = None,
+    authorization: Optional[str] = Header(None)
 ):
     """
     Analyse les prédictions ML et retourne les actions préventives à prendre.
@@ -300,6 +302,13 @@ async def get_preventive_actions(
                 forecast_minutes=prediction_result.get("forecast_minutes", 30)
             )
 
+            auto_apply_result = await _auto_apply_iot_actions(
+                enseigne=enseigne,
+                salle=salle,
+                actions=actions,
+                authorization=authorization,
+            )
+
             logger.info(f"ML prediction generated {len(actions)} actions for {enseigne}/{salle}")
 
             # Calcul du score IAQ si manquant
@@ -326,7 +335,8 @@ async def get_preventive_actions(
                     "model_used": "LSTM" if prediction_result.get("model") == "LSTM" else "Generic"
                 },
                 "metrics": risk_analysis.get("metrics", {}),
-                "actions": actions
+                "actions": actions,
+                "auto_execution": auto_apply_result,
             }
 
         except Exception as e:
@@ -342,6 +352,172 @@ async def get_preventive_actions(
     except Exception as e:
         logger.error(f"Error in preventive actions endpoint: {e}")
         return {"actions": [], "error": str(e)}
+
+
+def _normalize_token(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    return str(value).strip().lower().replace("-", "_").replace(" ", "_")
+
+
+def _device_module_candidates(device: str) -> List[str]:
+    mapping = {
+        "window": ["window", "fenetre", "fenêtre"],
+        "door": ["door", "porte"],
+        "ventilation": ["ventilation", "hvac", "clim", "climatisation", "air_conditioner", "ac"],
+        "air_purifier": ["air_purifier", "purifier", "purificateur"],
+        "radiator": ["radiator", "radiateur", "heater", "chauffage"],
+    }
+    return mapping.get(_normalize_token(device), [_normalize_token(device)])
+
+
+def _desired_state_from_action(action_name: Optional[str]) -> Optional[str]:
+    action = _normalize_token(action_name)
+    desired_state_map = {
+        "open": "open",
+        "close": "closed",
+        "turn_on": "on",
+        "turn_off": "off",
+        "increase": "on",
+        "decrease": "low",
+    }
+    return desired_state_map.get(action)
+
+
+def _matches_module(module: Dict[str, Any], candidates: List[str]) -> bool:
+    values = [
+        _normalize_token(module.get("id")),
+        _normalize_token(module.get("type")),
+        _normalize_token(module.get("name")),
+    ]
+
+    for value in values:
+        if not value:
+            continue
+        for candidate in candidates:
+            if not candidate:
+                continue
+            if value == candidate or value.startswith(f"{candidate}_") or candidate in value:
+                return True
+    return False
+
+
+def _find_room_modules(config: Dict[str, Any], enseigne: Optional[str], salle: Optional[str]) -> List[Dict[str, Any]]:
+    lieux = (config or {}).get("lieux", {})
+    enseignes = lieux.get("enseignes", []) if isinstance(lieux, dict) else []
+
+    enseigne_norm = _normalize_token(enseigne)
+    salle_norm = _normalize_token(salle)
+
+    for ens in enseignes:
+        ens_id = _normalize_token((ens or {}).get("id"))
+        ens_nom = _normalize_token((ens or {}).get("nom"))
+        if enseigne_norm and enseigne_norm not in {ens_id, ens_nom}:
+            continue
+
+        for piece in (ens or {}).get("pieces", []) or []:
+            piece_id = _normalize_token((piece or {}).get("id"))
+            piece_nom = _normalize_token((piece or {}).get("nom"))
+            if salle_norm and salle_norm not in {piece_id, piece_nom}:
+                continue
+
+            modules = piece.get("modules", [])
+            return modules if isinstance(modules, list) else []
+
+    return []
+
+
+async def _auto_apply_iot_actions(
+    enseigne: Optional[str],
+    salle: Optional[str],
+    actions: List[Dict[str, Any]],
+    authorization: Optional[str],
+) -> Dict[str, Any]:
+    summary: Dict[str, Any] = {
+        "enabled": True,
+        "considered": len(actions or []),
+        "applied": 0,
+        "skipped": 0,
+        "saved": False,
+    }
+
+    if not actions:
+        return summary
+
+    if not authorization:
+        summary["enabled"] = False
+        summary["reason"] = "missing_authorization"
+        return summary
+
+    if not supabase:
+        summary["enabled"] = False
+        summary["reason"] = "supabase_unavailable"
+        return summary
+
+    try:
+        user = await get_current_user(credentials=None, authorization=authorization)
+        user_id = user.get("id")
+    except Exception as e:
+        logger.debug(f"Auto-apply IoT skipped (auth error): {e}")
+        summary["enabled"] = False
+        summary["reason"] = "auth_failed"
+        return summary
+
+    if not user_id:
+        summary["enabled"] = False
+        summary["reason"] = "missing_user_id"
+        return summary
+
+    config = load_user_config(user_id)
+    if not config:
+        summary["enabled"] = False
+        summary["reason"] = "config_not_found"
+        return summary
+
+    modules = _find_room_modules(config, enseigne, salle)
+    if not modules:
+        summary["enabled"] = False
+        summary["reason"] = "room_or_modules_not_found"
+        return summary
+
+    has_changed = False
+
+    for action in actions:
+        candidates = _device_module_candidates(action.get("device", ""))
+        desired_state = _desired_state_from_action(action.get("action"))
+        if not desired_state:
+            action["auto_executed"] = False
+            summary["skipped"] += 1
+            continue
+
+        target_module = None
+        for module in modules:
+            if not isinstance(module, dict):
+                continue
+            if not module.get("is_iot", False):
+                continue
+            if _matches_module(module, candidates):
+                target_module = module
+                break
+
+        if not target_module:
+            action["auto_executed"] = False
+            summary["skipped"] += 1
+            continue
+
+        current_state = _normalize_token(target_module.get("state"))
+        if current_state != desired_state:
+            target_module["state"] = desired_state
+            has_changed = True
+
+        action["auto_executed"] = True
+        action["auto_module_id"] = target_module.get("id")
+        summary["applied"] += 1
+
+    if has_changed:
+        summary["saved"] = bool(save_user_config(user_id, config))
+
+    return summary
 
 
 def _generate_actions_from_ml_risk_analysis(
@@ -595,18 +771,44 @@ def _generate_actions_from_current_data(enseigne: str, salle: Optional[str], sen
 
 def _find_current_data(enseigne: str, salle: Optional[str], sensor_id: Optional[str]):
     """Retrouve la dernière mesure correspondant aux filtres donnés."""
-    current_data = None
-    if iaq_database:
-        for item in reversed(iaq_database):
+    try:
+        from .api.query import get_iaq_data
+        
+        # Récupérer les données récentes (dernière heure)
+        data_response = get_iaq_data(
+            enseigne=enseigne,
+            salle=salle,
+            hours=1,
+            raw=False
+        )
+        
+        # Extraire les données de la réponse
+        if isinstance(data_response, dict) and "Data" in data_response:
+            recent_data = data_response["Data"]
+        elif isinstance(data_response, list):
+            recent_data = data_response
+        else:
+            recent_data = []
+        
+        # Filtrer et trouver la dernière mesure
+        filtered_data = []
+        for item in recent_data:
+            if not isinstance(item, dict):
+                continue
             if item.get("enseigne") != enseigne:
                 continue
             if salle is not None and item.get("salle") != salle:
                 continue
             if sensor_id is not None and item.get("sensor_id") != sensor_id:
                 continue
-            current_data = item
-            break
-    return current_data
+            filtered_data.append(item)
+        
+        # Retourner la dernière mesure si disponible
+        return filtered_data[-1] if filtered_data else None
+        
+    except Exception as e:
+        logger.debug(f"Error finding current data: {e}")
+        return None
 
 
 def _evaluate_co2_actions(current_data: dict, thresholds: dict) -> list:

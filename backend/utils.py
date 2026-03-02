@@ -3,7 +3,7 @@ Fonctions utilitaires pour l'API FastAPI
 """
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Iterable, Dict, Any
 import pandas as pd
 import numpy as np
 import math
@@ -150,7 +150,76 @@ def extract_sensors_from_config(config):
     return sensors
 
 
-def load_user_config(user_id: str):
+CONFIG_SECTION_TO_COLUMN = {
+    "vous": "profile",
+    "lieux": "lieux",
+    "affichage": "preferences",
+    "notifications": "preferences",
+    "digital_twin": "preferences",
+    "abonnement": "abonnement",
+    "assurance": "assurance",
+}
+
+PREFERENCES_SECTIONS = {"affichage", "notifications", "digital_twin"}
+DEFAULT_CONFIG_COLUMNS = ["profile", "lieux", "preferences", "abonnement", "assurance"]
+
+
+def _deep_merge_dict(base: Dict[str, Any], updates: Dict[str, Any]) -> Dict[str, Any]:
+    merged = dict(base or {})
+    for key, value in (updates or {}).items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge_dict(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _columns_for_sections(sections: Optional[Iterable[str]]) -> list[str]:
+    if not sections:
+        return list(DEFAULT_CONFIG_COLUMNS)
+
+    columns = []
+    for section in sections:
+        col = CONFIG_SECTION_TO_COLUMN.get(section)
+        if col and col not in columns:
+            columns.append(col)
+    return columns or list(DEFAULT_CONFIG_COLUMNS)
+
+
+def _write_user_config_columns(user_id: str, column_values: Dict[str, Any]) -> bool:
+    if not supabase:
+        return False
+
+    if not column_values:
+        return True
+
+    try:
+        exists_resp = (
+            supabase.table("user_configs")
+            .select("user_id")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        exists = bool(exists_resp.data)
+
+        if exists:
+            (
+                supabase.table("user_configs")
+                .update(column_values)
+                .eq("user_id", user_id)
+                .execute()
+            )
+        else:
+            payload = {"user_id": user_id, **column_values}
+            supabase.table("user_configs").insert(payload).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Erreur écriture Supabase pour {user_id}: {e}")
+        return False
+
+
+def load_user_config(user_id: str, sections: Optional[Iterable[str]] = None):
     """Charge la configuration depuis Supabase pour un utilisateur spécifique.
     
     Lit les colonnes dédiées (profile, lieux, preferences, abonnement, assurance)
@@ -159,9 +228,11 @@ def load_user_config(user_id: str):
     if not supabase:
         return None  # Pas de supabase, pas de config user
 
+    columns = _columns_for_sections(sections)
+
     response = (
         supabase.table("user_configs")
-        .select("profile, lieux, preferences, abonnement, assurance")
+        .select(", ".join(columns))
         .eq("user_id", user_id)
         .execute()
     )
@@ -173,16 +244,78 @@ def load_user_config(user_id: str):
     row = response.data[0]
     prefs = row.get("preferences") or {}
 
-    # Reconstruction du dict unifié (format identique à l'ancien config_data)
-    return {
-        "vous":          row.get("profile") or {},
-        "lieux":         row.get("lieux") or {"enseignes": []},
-        "affichage":     prefs.get("affichage") or {},
-        "notifications": prefs.get("notifications") or {},
-        "digital_twin":  prefs.get("digital_twin") or {},
-        "abonnement":    row.get("abonnement") or {},
-        "assurance":     row.get("assurance") or {},
+    section_set = set(sections) if sections else None
+
+    config = {}
+    if section_set is None or "vous" in section_set:
+        config["vous"] = row.get("profile") or {}
+    if section_set is None or "lieux" in section_set:
+        config["lieux"] = row.get("lieux") or {"enseignes": []}
+    if section_set is None or "affichage" in section_set:
+        config["affichage"] = prefs.get("affichage") or {}
+    if section_set is None or "notifications" in section_set:
+        config["notifications"] = prefs.get("notifications") or {}
+    if section_set is None or "digital_twin" in section_set:
+        config["digital_twin"] = prefs.get("digital_twin") or {}
+    if section_set is None or "abonnement" in section_set:
+        config["abonnement"] = row.get("abonnement") or {}
+    if section_set is None or "assurance" in section_set:
+        config["assurance"] = row.get("assurance") or {}
+
+    return config
+
+
+def update_user_config_partial(user_id: str, updates: dict):
+    """Met à jour uniquement les colonnes impactées par les sections modifiées."""
+    if not supabase:
+        logger.error(f"Supabase non configuré. Échec sauvegarde partielle pour user {user_id}")
+        return False, None
+
+    updates = updates or {}
+    column_patches: Dict[str, Any] = {}
+
+    if "vous" in updates:
+        column_patches["profile"] = updates.get("vous") or {}
+    if "lieux" in updates:
+        column_patches["lieux"] = updates.get("lieux") or {}
+    if "abonnement" in updates:
+        column_patches["abonnement"] = updates.get("abonnement") or {}
+    if "assurance" in updates:
+        column_patches["assurance"] = updates.get("assurance") or {}
+
+    preferences_patch = {
+        key: updates[key]
+        for key in PREFERENCES_SECTIONS
+        if key in updates
     }
+    if preferences_patch:
+        column_patches["preferences"] = preferences_patch
+
+    if not column_patches:
+        return True, load_user_config(user_id)
+
+    existing_resp = (
+        supabase.table("user_configs")
+        .select(", ".join(column_patches.keys()))
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    existing_row = existing_resp.data[0] if existing_resp.data else {}
+
+    column_values: Dict[str, Any] = {}
+    for column, patch in column_patches.items():
+        current_value = existing_row.get(column)
+        if isinstance(current_value, dict) and isinstance(patch, dict):
+            column_values[column] = _deep_merge_dict(current_value, patch)
+        else:
+            column_values[column] = patch
+
+    ok = _write_user_config_columns(user_id, column_values)
+    if not ok:
+        return False, None
+
+    return True, load_user_config(user_id)
 
 def save_user_config(user_id: str, new_config: dict):
     """Sauvegarde la configuration d'un utilisateur dans les colonnes dédiées.
@@ -199,24 +332,26 @@ def save_user_config(user_id: str, new_config: dict):
         return False
 
     try:
-        # Regroupement des préférences UI dans une seule colonne
+        data = {}
+        if "vous" in new_config:
+            data["profile"] = new_config.get("vous") or {}
+        if "lieux" in new_config:
+            data["lieux"] = new_config.get("lieux") or {}
+        if "abonnement" in new_config:
+            data["abonnement"] = new_config.get("abonnement") or {}
+        if "assurance" in new_config:
+            data["assurance"] = new_config.get("assurance") or {}
+
         preferences = {
             k: new_config[k]
-            for k in ("affichage", "notifications", "digital_twin")
+            for k in PREFERENCES_SECTIONS
             if k in new_config
         }
+        if preferences:
+            data["preferences"] = preferences
 
-        data = {
-            "user_id":    user_id,
-            "profile":    new_config.get("vous"),
-            "lieux":      new_config.get("lieux"),
-            "preferences": preferences if preferences else None,
-            "abonnement": new_config.get("abonnement"),
-            "assurance":  new_config.get("assurance"),
-        }
-
-        # Upsert : service_role passe la RLS ; user_id correspond à la policy
-        supabase.table("user_configs").upsert(data).execute()
+        if not _write_user_config_columns(user_id, data):
+            return False
         return True
     except Exception as e:
         logger.error(f"Erreur sauvegarde Supabase pour {user_id}: {e}")

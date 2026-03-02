@@ -12,7 +12,12 @@ import json
 
 import os
 import httpx
-from ..utils import load_user_config, save_user_config, extract_sensors_from_config
+from ..utils import (
+    load_user_config,
+    save_user_config,
+    update_user_config_partial,
+    extract_sensors_from_config,
+)
 from ..core.supabase import supabase
 from ..core import get_websocket_manager, settings
 
@@ -471,29 +476,18 @@ async def update_config(payload: ConfigUpdatePayload, user: dict = Depends(get_c
             detail="Service de stockage indisponible. Veuillez configurer Supabase."
         )
 
-    current_config = load_user_config(user_id)
-    if not current_config:
-         # Initialisation avec une config vierge si inexistante
-        current_config = {
-            "vous": {},
-            "lieux": {"enseignes": []},
-            "assurance": {},
-            "syndicat": {},
-            "notifications": {},
-            "affichage": {"mode": "auto"}
-        }
-
-    # Appliquer les mises à jour (fonction existante)
-    def update_recursive(base, upd):
-        for k, v in upd.items():
-            if isinstance(v, dict) and k in base and isinstance(base[k], dict):
-                update_recursive(base[k], v)
-            else:
-                base[k] = v
-    update_recursive(current_config, updates)
-    
-    # --- FIX RLS: On passe explicitement par save_user_config qui ajoute user_id ---
-    if save_user_config(user_id, current_config):
+    ok, current_config = update_user_config_partial(user_id, updates)
+    if ok:
+        if not current_config:
+            current_config = {
+                "vous": {},
+                "lieux": {"enseignes": []},
+                "assurance": {},
+                "notifications": {},
+                "affichage": {"mode": "auto"},
+                "digital_twin": {},
+                "abonnement": {},
+            }
         # On broadcast uniquement à cet utilisateur idéalement, 
         # mais pour l'instant un broadcast global fonctionnera pour la démo
         await _broadcast_config_update(current_config)
@@ -519,9 +513,9 @@ def get_sensors_config(user: dict = Depends(get_current_user)):
     """
     user_id = user["id"]
     try:
-        config = load_user_config(user_id)
+        config = load_user_config(user_id, sections={"lieux"})
         if config is None:
-             config = {} # Config vide
+            config = {"lieux": {"enseignes": []}} # Config vide
         
         sensors = extract_sensors_from_config(config)
         
@@ -659,7 +653,7 @@ async def update_module_state(update_data: Dict, user: dict = Depends(get_curren
     user_id = user["id"]
     try:
         # Utilisez load_user_config au lieu de load_config
-        config = load_user_config(user_id) 
+        config = load_user_config(user_id, sections={"lieux"}) 
         if not config:
             raise HTTPException(status_code=404, detail="Configuration utilisateur non trouvée")
 
@@ -701,8 +695,10 @@ async def update_module_state(update_data: Dict, user: dict = Depends(get_curren
                                 logger.info(f"Created new module {module_id} in room {piece_id}")
         
         if updated:
-            # Utilisez save_user_config
-            save_user_config(user_id, config) 
+            # Écrit uniquement la colonne lieux
+            ok, _ = update_user_config_partial(user_id, {"lieux": config.get("lieux", {})})
+            if not ok:
+                raise HTTPException(status_code=500, detail="Erreur lors de la sauvegarde des modules")
             
             # Notifier via WebSocket
             # ...

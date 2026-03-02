@@ -37,6 +37,16 @@ async function initSupabase() {
     return initPromise;
 }
 
+async function ensureSupabaseClient() {
+    if (!supabaseClient) {
+        await initSupabase();
+    }
+    if (!supabaseClient) {
+        throw new Error("Service d'authentification indisponible. Vérifiez la configuration Supabase.");
+    }
+    return supabaseClient;
+}
+
 // Gestion du formulaire de login
 document.addEventListener('DOMContentLoaded', async () => {
     await initSupabase();
@@ -85,7 +95,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Exposed logic for custom signup page
 async function handleSignupLogic(email, password) {
-    if (!supabaseClient) await initSupabase();
+    await ensureSupabaseClient();
     try {
         const { data, error } = await supabaseClient.auth.signUp({
             email,
@@ -120,7 +130,7 @@ async function handleSignupLogic(email, password) {
 window.handleSignupLogic = handleSignupLogic; // Export global
 
 async function updateUserPassword(newPassword) {
-    if (!supabaseClient) await initSupabase();
+    await ensureSupabaseClient();
     try {
         const { data, error } = await supabaseClient.auth.updateUser({
             password: newPassword
@@ -136,7 +146,7 @@ async function updateUserPassword(newPassword) {
 window.updateUserPassword = updateUserPassword;
 
 async function verifyPassword(password) {
-    if (!supabaseClient) await initSupabase();
+    await ensureSupabaseClient();
     // Get current user email
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user || !user.email) return { success: false, error: "Utilisateur non connecté" };
@@ -153,8 +163,8 @@ async function verifyPassword(password) {
 window.verifyPassword = verifyPassword;
 
 async function handleGoogleLogin() {
-    if (!supabaseClient) await initSupabase();
     try {
+        await ensureSupabaseClient();
         const { data, error } = await supabaseClient.auth.signInWithOAuth({
             provider: 'google',
             options: {
@@ -176,9 +186,8 @@ async function handlePasswordReset(e) {
         return;
     }
 
-    if (!supabaseClient) await initSupabase();
-
     try {
+        await ensureSupabaseClient();
         const { data, error } = await supabaseClient.auth.resetPasswordForEmail(email, {
             redirectTo: window.location.origin + '/reset-password.html',
         });
@@ -192,8 +201,6 @@ async function handlePasswordReset(e) {
 
 async function handleLogin(e) {
     e.preventDefault();
-    
-    if (!supabaseClient) await initSupabase();
 
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
@@ -206,6 +213,7 @@ async function handleLogin(e) {
     btn.textContent = 'Connexion...';
 
     try {
+        await ensureSupabaseClient();
         const { data, error } = await supabaseClient.auth.signInWithPassword({
             email,
             password

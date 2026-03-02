@@ -60,7 +60,10 @@ class WebSocketManager {
                         this.notifyListeners('measurements', data);
                     } else if (data.type === 'module_update') {
                         this.notifyListeners('modules', data);
+                    } else if (data.type === 'module_state') {
+                        this.notifyListeners('modules', data);
                     } else if (data.type === 'config_updated') {
+                        this.notifyListeners('config_updated', data);
                         this.notifyListeners('config', data);
                     }
                 } catch (error) {

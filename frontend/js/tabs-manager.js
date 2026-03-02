@@ -362,9 +362,11 @@ function setupWsListeners() {
         }
     });
 
-    window.wsManager.on('config_updated', async () => {
+    window.wsManager.on('config_updated', async (data) => {
         try {
-            if (typeof window.loadConfig === 'function') {
+            if (data && data.config && typeof window.setConfig === 'function') {
+                window.setConfig(data.config);
+            } else if (typeof window.loadConfig === 'function') {
                 await window.loadConfig();
             }
             renderLocationTabs();

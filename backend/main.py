@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 import asyncio
 import logging
+import re
+import unicodedata
 import pandas as pd
 import numpy as np
 from datetime import datetime, timezone
@@ -59,6 +61,10 @@ DATA_DF = load_dataset_df()
 # Tâche de posting périodique
 posting_task: Optional[asyncio.Task] = None
 INTERVAL_SECONDS = 5  # Post toutes les 5 secondes (mode debug)
+
+# Tâche d'automatisation préventive (backend-only, fonctionne même sans page ouverte)
+automation_task: Optional[asyncio.Task] = None
+AUTOMATION_INTERVAL_SECONDS = 20
 
 # Prédicteur ML (initialisé paresseusement)
 ml_predictor = None
@@ -357,7 +363,12 @@ async def get_preventive_actions(
 def _normalize_token(value: Optional[str]) -> str:
     if not value:
         return ""
-    return str(value).strip().lower().replace("-", "_").replace(" ", "_")
+    text = str(value).strip().lower()
+    text = unicodedata.normalize("NFD", text)
+    text = "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
+    text = text.replace("-", "_").replace(" ", "_")
+    text = re.sub(r"[^a-z0-9_]", "", text)
+    return text
 
 
 def _device_module_candidates(device: str) -> List[str]:
@@ -379,9 +390,31 @@ def _desired_state_from_action(action_name: Optional[str]) -> Optional[str]:
         "turn_on": "on",
         "turn_off": "off",
         "increase": "on",
-        "decrease": "low",
+        "decrease": "off",
     }
     return desired_state_map.get(action)
+
+
+def _panel_default_target_state_for_module(module_type: Optional[str]) -> Optional[str]:
+    normalized_type = _normalize_token(module_type)
+    if normalized_type in {"window", "fenetre", "door", "porte"}:
+        return "closed"
+    if normalized_type in {
+        "ventilation",
+        "hvac",
+        "clim",
+        "climatisation",
+        "air_conditioning",
+        "air_conditioner",
+        "ac",
+        "air_purifier",
+        "purifier",
+        "purificateur",
+    }:
+        return "on"
+    if normalized_type in {"radiator", "radiateur", "heater", "chauffage"}:
+        return "off"
+    return None
 
 
 def _matches_module(module: Dict[str, Any], candidates: List[str]) -> bool:
@@ -402,29 +435,49 @@ def _matches_module(module: Dict[str, Any], candidates: List[str]) -> bool:
     return False
 
 
-def _find_room_modules(config: Dict[str, Any], enseigne: Optional[str], salle: Optional[str]) -> List[Dict[str, Any]]:
+def _token_matches(query: Optional[str], *values: Optional[str]) -> bool:
+    normalized_query = _normalize_token(query)
+    if not normalized_query:
+        return True
+
+    for value in values:
+        normalized_value = _normalize_token(value)
+        if not normalized_value:
+            continue
+        if (
+            normalized_query == normalized_value
+            or normalized_query in normalized_value
+            or normalized_value in normalized_query
+        ):
+            return True
+
+    return False
+
+
+def _find_room_modules(config: Dict[str, Any], enseigne: Optional[str], salle: Optional[str]):
     lieux = (config or {}).get("lieux", {})
     enseignes = lieux.get("enseignes", []) if isinstance(lieux, dict) else []
 
-    enseigne_norm = _normalize_token(enseigne)
-    salle_norm = _normalize_token(salle)
-
     for ens in enseignes:
-        ens_id = _normalize_token((ens or {}).get("id"))
-        ens_nom = _normalize_token((ens or {}).get("nom"))
-        if enseigne_norm and enseigne_norm not in {ens_id, ens_nom}:
+        ens_id = (ens or {}).get("id")
+        ens_nom = (ens or {}).get("nom")
+        if not _token_matches(enseigne, ens_id, ens_nom):
             continue
 
         for piece in (ens or {}).get("pieces", []) or []:
-            piece_id = _normalize_token((piece or {}).get("id"))
-            piece_nom = _normalize_token((piece or {}).get("nom"))
-            if salle_norm and salle_norm not in {piece_id, piece_nom}:
+            piece_id = (piece or {}).get("id")
+            piece_nom = (piece or {}).get("nom")
+            if not _token_matches(salle, piece_id, piece_nom):
                 continue
 
             modules = piece.get("modules", [])
-            return modules if isinstance(modules, list) else []
+            return {
+                "enseigne_id": (ens or {}).get("id") or (ens or {}).get("nom"),
+                "piece_id": (piece or {}).get("id") or (piece or {}).get("nom"),
+                "modules": modules if isinstance(modules, list) else [],
+            }
 
-    return []
+    return None
 
 
 async def _auto_apply_iot_actions(
@@ -468,25 +521,59 @@ async def _auto_apply_iot_actions(
         summary["reason"] = "missing_user_id"
         return summary
 
+    return await _auto_apply_iot_actions_for_user(user_id, enseigne, salle, actions)
+
+
+async def _auto_apply_iot_actions_for_user(
+    user_id: str,
+    enseigne: Optional[str],
+    salle: Optional[str],
+    actions: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    summary: Dict[str, Any] = {
+        "enabled": True,
+        "considered": len(actions or []),
+        "applied": 0,
+        "skipped": 0,
+        "saved": False,
+        "panel_corrections": 0,
+    }
+
+    if not actions:
+        return summary
+
+    if not user_id:
+        summary["enabled"] = False
+        summary["reason"] = "missing_user_id"
+        return summary
+
     config = load_user_config(user_id)
     if not config:
         summary["enabled"] = False
         summary["reason"] = "config_not_found"
         return summary
 
-    modules = _find_room_modules(config, enseigne, salle)
-    if not modules:
+    room_context = _find_room_modules(config, enseigne, salle)
+    if not room_context or not room_context.get("modules"):
         summary["enabled"] = False
         summary["reason"] = "room_or_modules_not_found"
         return summary
 
+    modules = room_context.get("modules", [])
+    enseigne_id = room_context.get("enseigne_id")
+    piece_id = room_context.get("piece_id")
+
     has_changed = False
+    changed_modules: List[Dict[str, Any]] = []
+    preventive_candidate_groups: List[List[str]] = []
 
     for action in actions:
         candidates = _device_module_candidates(action.get("device", ""))
+        preventive_candidate_groups.append(candidates)
         desired_state = _desired_state_from_action(action.get("action"))
         if not desired_state:
             action["auto_executed"] = False
+            action["auto_skip_reason"] = "unsupported_action"
             summary["skipped"] += 1
             continue
 
@@ -502,22 +589,201 @@ async def _auto_apply_iot_actions(
 
         if not target_module:
             action["auto_executed"] = False
+            action["auto_skip_reason"] = "no_matching_iot_module"
             summary["skipped"] += 1
             continue
 
         current_state = _normalize_token(target_module.get("state"))
+
         if current_state != desired_state:
             target_module["state"] = desired_state
             has_changed = True
+            changed_modules.append({
+                "module_id": target_module.get("id"),
+                "module_type": target_module.get("type") or action.get("device"),
+                "state": desired_state,
+            })
 
         action["auto_executed"] = True
         action["auto_module_id"] = target_module.get("id")
         summary["applied"] += 1
 
+    panel_corrections = 0
+    for module in modules:
+        if not isinstance(module, dict):
+            continue
+        if not module.get("is_iot", False):
+            continue
+
+        if any(_matches_module(module, candidates) for candidates in preventive_candidate_groups):
+            continue
+
+        current_state = _normalize_token(module.get("state"))
+        target_state = _panel_default_target_state_for_module(module.get("type"))
+        if not target_state or current_state == target_state:
+            continue
+
+        module["state"] = target_state
+        has_changed = True
+        panel_corrections += 1
+        changed_modules.append(
+            {
+                "module_id": module.get("id"),
+                "module_type": module.get("type"),
+                "state": target_state,
+            }
+        )
+
+    summary["panel_corrections"] = panel_corrections
+
     if has_changed:
         summary["saved"] = bool(save_user_config(user_id, config))
+        if summary["saved"]:
+            try:
+                ws_manager = get_websocket_manager()
+                for changed in changed_modules:
+                    await ws_manager.broadcast(
+                        {
+                            "type": "module_update",
+                            "enseigne_id": enseigne_id,
+                            "piece_id": piece_id,
+                            "module_id": changed.get("module_id"),
+                            "module_type": changed.get("module_type"),
+                            "state": changed.get("state"),
+                        },
+                        topic="modules",
+                    )
+
+                await ws_manager.broadcast(
+                    {
+                        "type": "config_updated",
+                        "config": config,
+                        "user_id": user_id,
+                    },
+                    topic="all",
+                )
+            except Exception as ws_err:
+                logger.warning(f"Auto-apply WS broadcast failed: {ws_err}")
 
     return summary
+
+
+def _list_user_rooms_for_automation() -> List[Dict[str, str]]:
+    if not supabase:
+        return []
+
+    try:
+        response = supabase.table("user_configs").select("user_id, lieux").execute()
+        rows = response.data or []
+        jobs: List[Dict[str, str]] = []
+
+        for row in rows:
+            user_id = row.get("user_id")
+            lieux = row.get("lieux") or {}
+            enseignes = lieux.get("enseignes", []) if isinstance(lieux, dict) else []
+
+            if not user_id or not isinstance(enseignes, list):
+                continue
+
+            for ens in enseignes:
+                ens_name = (ens or {}).get("nom") or (ens or {}).get("id")
+                for piece in ((ens or {}).get("pieces") or []):
+                    piece_name = (piece or {}).get("nom") or (piece or {}).get("id")
+                    modules = (piece or {}).get("modules") or []
+                    has_iot_module = any(
+                        isinstance(module, dict) and module.get("is_iot", False)
+                        for module in modules
+                    )
+                    if not has_iot_module:
+                        continue
+                    if ens_name and piece_name:
+                        jobs.append(
+                            {
+                                "user_id": user_id,
+                                "enseigne": str(ens_name),
+                                "salle": str(piece_name),
+                            }
+                        )
+
+        return jobs
+    except Exception as e:
+        logger.error(f"Automation: unable to list user rooms: {e}")
+        return []
+
+
+async def _run_preventive_automation_cycle() -> None:
+    predictor = get_ml_predictor()
+    if not predictor:
+        logger.debug("Automation: predictor unavailable, cycle skipped")
+        return
+
+    jobs = _list_user_rooms_for_automation()
+    if not jobs:
+        logger.debug("Automation: no user rooms found")
+        return
+
+    loop = asyncio.get_event_loop()
+    applied_total = 0
+
+    for job in jobs:
+        enseigne = job["enseigne"]
+        salle = job["salle"]
+        user_id = job["user_id"]
+
+        try:
+            prediction_result = await loop.run_in_executor(
+                None,
+                lambda e=enseigne, s=salle: predictor.predict(
+                    enseigne=e,
+                    salle=s,
+                    sensor_id=None,
+                ),
+            )
+            if not prediction_result or "error" in prediction_result:
+                continue
+
+            actions = _generate_actions_from_ml_risk_analysis(
+                current_values=prediction_result.get("current_values", {}),
+                predicted_values=prediction_result.get("predicted_values", {}),
+                risk_analysis=prediction_result.get("risk_analysis", {}),
+                forecast_minutes=prediction_result.get("forecast_minutes", 30),
+            )
+            if not actions:
+                continue
+
+            result = await _auto_apply_iot_actions_for_user(
+                user_id=user_id,
+                enseigne=enseigne,
+                salle=salle,
+                actions=actions,
+            )
+            applied_total += int(result.get("applied") or 0)
+        except Exception as room_err:
+            logger.debug(
+                f"Automation: room cycle failed user={user_id} enseigne={enseigne} salle={salle}: {room_err}"
+            )
+
+    logger.info(
+        f"Automation cycle done: rooms={len(jobs)}, applied_actions={applied_total}"
+    )
+
+
+async def run_preventive_automation_loop(interval: int = AUTOMATION_INTERVAL_SECONDS):
+    try:
+        while True:
+            try:
+                await _run_preventive_automation_cycle()
+            except Exception as cycle_err:
+                logger.error(f"Automation cycle error: {cycle_err}")
+
+            try:
+                await asyncio.sleep(interval)
+            except asyncio.CancelledError:
+                logger.info("Automation loop cancelled during sleep")
+                raise
+    except asyncio.CancelledError:
+        logger.info("Automation loop cancelled")
+        raise
 
 
 def _generate_actions_from_ml_risk_analysis(
@@ -1231,7 +1497,7 @@ async def post_rows_periodically(interval: int = INTERVAL_SECONDS, loop_forever:
 @app.on_event("startup")
 async def startup_event():
     """Initialisation au démarrage de l'application"""
-    global posting_task
+    global posting_task, automation_task
     
     logger.info("="*60)
     logger.info(f"🚀 Démarrage de {settings.APP_NAME} v{settings.APP_VERSION}")
@@ -1263,6 +1529,15 @@ async def startup_event():
         logger.info(f"✅ Tâche de simulation démarrée (interval={INTERVAL_SECONDS}s)")
     except Exception as e:
         logger.exception(f"Erreur lors du démarrage de la tâche périodique: {e}")
+
+    # Démarrer la tâche d'automatisation préventive backend (24/7)
+    try:
+        automation_task = asyncio.create_task(run_preventive_automation_loop())
+        logger.info(
+            f"✅ Tâche d'automatisation préventive démarrée (interval={AUTOMATION_INTERVAL_SECONDS}s)"
+        )
+    except Exception as e:
+        logger.exception(f"Erreur lors du démarrage de la tâche d'automatisation: {e}")
     
     logger.info("="*60)
 
@@ -1270,7 +1545,7 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Nettoyage à l'arrêt de l'application"""
-    global posting_task
+    global posting_task, automation_task
     
     logger.info("🛑 Arrêt de l'application...")
     
@@ -1283,6 +1558,15 @@ async def shutdown_event():
             logger.info("✅ Tâche de simulation arrêtée")
         except Exception as e:
             logger.exception(f"Erreur lors de l'arrêt de la tâche: {e}")
+
+    if automation_task is not None:
+        try:
+            automation_task.cancel()
+            await automation_task
+        except asyncio.CancelledError:
+            logger.info("✅ Tâche d'automatisation préventive arrêtée")
+        except Exception as e:
+            logger.exception(f"Erreur lors de l'arrêt de la tâche d'automatisation: {e}")
     
     # Fermer InfluxDB
     influx = get_influx_client()

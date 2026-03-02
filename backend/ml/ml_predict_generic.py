@@ -346,7 +346,7 @@ class RealtimeGenericPredictor:
                         df[col] = df[col].rolling(window=6, min_periods=1).mean()
 
                 # 4. Remplir les derniers NaNs potentiels pour ne pas casser la prédiction
-                df = df.fillna(method='ffill').fillna(method='bfill')
+                df = df.ffill().bfill()
 
                 # Vérification
                 if len(df) < lookback:

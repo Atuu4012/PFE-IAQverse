@@ -26,6 +26,7 @@
             "title": "Puntuación de calidad del aire",
             "label": "Puntuación global",
             "roomLabel": "Puntuación de la sala",
+            "historyTitle": "Calidad del aire interior",
             "predicted": "En 30 min",
             "legend": "Leyenda",
             "excellent": "Excelente",
@@ -48,7 +49,12 @@
         "temperatureY": "Temperatura (°C)",
         "humidityY": "Humedad (%)",
         "tvocY": "mg/m³",
-        "timeX": "Hora"
+        "timeX": "Hora",
+        "lastMeasures": "Últimas 60 mediciones",
+        "legend": {
+            "temp": "Temp.",
+            "humidity": "Hum."
+        }
     },
     "settings": {
         "title": "Ajustes",
@@ -92,6 +98,10 @@
             "email": "Correo electrónico",
             "telephone": "Teléfono",
             "adresse": "Dirección",
+            "type": "Tipo",
+            "old_password": "Contraseña actual",
+            "new_password": "Nueva contraseña",
+            "confirm_password": "Confirmar contraseña",
             "mode_affichage": "Modo de visualización",
             "langue": "Idioma",
             "localisation": "Localización",
@@ -151,6 +161,18 @@
             "title": "Contacto para Plan Empresa",
             "message": "Para el plan Empresa, por favor contáctenos directamente:\n\nEmail: {email}\nTeléfono: {phone}\nDirección: {address}\n\nNuestro equipo le ayudará a configurar la solución perfecta para su organización.",
             "close": "Cerrar"
+        },
+        "danger_zone": {
+            "title": "Zona de peligro",
+            "description": "Eliminar su cuenta es irreversible.",
+            "button": "Eliminar mi cuenta"
+        },
+        "delete_modal": {
+            "title": "Eliminar cuenta",
+            "confirmation": "Esta acción eliminará permanentemente su cuenta y todos sus datos.",
+            "warning": "Esta acción no se puede deshacer.",
+            "password_label": "Confirme su contraseña:",
+            "error_empty": "Ingrese su contraseña para confirmar."
         }
     },
     "digitalTwin": {
@@ -314,6 +336,43 @@
             "Situation critique avec amélioration prévue": "Situación crítica con mejora prevista"
         }
     },
+    "tutorial": {
+        "common": {
+            "done": "Finalizar",
+            "next": "Siguiente",
+            "prev": "Anterior",
+            "progress": "Paso {{current}} de {{total}}",
+            "skip": "Omitir tutorial"
+        },
+        "dashboard": {
+            "welcome": {"title": "¡Bienvenido a IAQverse!", "p1": "Hagamos un recorrido rápido para configurar su cuenta.", "p2": "Siga las flechas para descubrir las funciones esenciales."},
+            "settings": {"title": "Configuración (Importante)", "desc": "¡Empiece aquí! Hemos preparado un tutorial dedicado en esta pestaña para ayudarle a configurar sus edificios."},
+            "twin": {"title": "Gemelo Digital", "desc": "Una vez configurado, visualice sus datos en 3D en esta pestaña."},
+            "account": {"title": "Su Cuenta", "desc": "Gestione su perfil, cambie su contraseña o cierre sesión aquí."},
+            "help": {"title": "Ayuda e Info", "desc": "¿Necesita ayuda sobre lo que ve? Haga clic aquí para más información contextual."},
+            "end": {"title": "¡Le toca a usted!", "desc": "Ahora vaya a Ajustes para finalizar su instalación."}
+        },
+        "settings": {
+            "general": {"title": "Ajustes Generales", "p1": "Bienvenido al panel de configuración.", "p2": "Aquí puede gestionar todos los aspectos de su cuenta y edificios."},
+            "account": {"title": "Su Información", "desc": "Actualice su perfil, contraseña y preferencias personales aquí."},
+            "locations": {"title": "Gestión de Lugares (Salas)", "desc": "<strong>¡Este es el paso más importante!</strong><br>Defina aquí la estructura de su edificio (pisos, salas) para comenzar a recibir datos."},
+            "notifications": {"title": "Alertas y Notificaciones", "desc": "Configure cómo y cuándo desea ser avisado en caso de problemas de calidad del aire."},
+            "subscription": {"title": "Suscripción", "desc": "Gestione su plan y sus facturas aquí."},
+            "end": {"title": "¿Listo para configurar?", "desc": "Una vez configurados sus lugares, vaya a la pestaña \"Gemelo Digital\" (al centro) para ver el resultado en 3D."}
+        },
+        "twin": {
+            "viewer": {"title": "Visualización 3D", "p1": "Aquí está el núcleo de IAQverse: su edificio en tiempo real.", "p2": "Use el ratón o la pantalla táctil para navegar, girar y hacer zoom en la sala."},
+            "rooms": {"title": "Navegación por Sala", "desc": "Cambie de vista rápidamente seleccionando otra sala aquí."},
+            "realtime": {"title": "Datos en Tiempo Real", "desc": "Supervise indicadores clave (CO2, Temperatura, etc.) superpuestos directamente en la vista 3D."},
+            "prediction": {"title": "Predicciones IA", "desc": "Nuestra IA analiza tendencias para advertirle de problemas antes de que ocurran."},
+            "actions": {"title": "Plan de Acción", "desc": "En caso de alerta, consulte esta tabla para saber exactamente qué hacer."},
+            "end": {"title": "Volver al Panel", "desc": "¡Ha terminado el recorrido! Vuelva al inicio para una vista general."}
+        }
+    },
+    "occupantsTooltip": {
+        "one": "{{count}} persona detectada en la sala",
+        "many": "{{count}} personas detectadas en la sala"
+    },
     "buttons": {
         "toggleTheme": "Cambiar tema",
         "frame": "Enfocar"
@@ -342,6 +401,8 @@
         "no": "No",
         "cancel": "Cancelar",
         "save": "Guardar",
+        "changePassword": "Cambiar contraseña",
+        "confirm_delete": "Confirmar eliminación",
         "select": "Seleccionar",
         "selected": "Seleccionado"
     },
@@ -350,6 +411,7 @@
         "add_room": "Agregar sala",
         "edit_brand": "Editar ubicación",
         "edit_title": "Editar ajustes",
+        "password_title": "Cambiar contraseña",
         "glb_label": "Modelo 3D (.glb)",
         "glb_drop": "Arrastre y suelte un archivo .glb aquí"
     },
@@ -373,6 +435,8 @@
         "delete_file_error": "Error al eliminar archivo 3D",
         "piece_deleted": "Sala eliminada con éxito",
         "config_saved": "Configuración guardada con éxito",
+        "config_synced": "Configuración sincronizada",
+        "avatar_updated": "Foto de perfil actualizada",
         "location_not_found": "Ubicación no encontrada",
         "confirm_delete_message": "¿Está seguro de que desea eliminarlo?",
         "mode_updated": "Modo actualizado",

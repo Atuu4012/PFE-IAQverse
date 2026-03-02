@@ -7,6 +7,15 @@ let lastOccupantsCount = null;
 const isDigitalTwinPage = typeof window !== 'undefined' && /digital-twin\.html$/i.test(window.location.pathname);
 const isIndexPage = typeof window !== 'undefined' && (/index\.html$/i.test(window.location.pathname) || window.location.pathname === '/');
 
+function t(key, fallback, params) {
+    try {
+        if (window.i18n && typeof window.i18n.t === 'function') {
+            return window.i18n.t(key, params) || fallback;
+        }
+    } catch (e) {}
+    return fallback;
+}
+
 // Fonction pour mettre à jour l'affichage du nombre d'occupants
 function updateOccupantsDisplay(occupantsCount) {
     // Convertir en nombre entier
@@ -38,7 +47,9 @@ function updateOccupantsDisplay(occupantsCount) {
         if (count !== null && count >= 0) {
             roomBadge.textContent = count;
             roomBadge.style.display = 'flex';
-            roomBadge.title = `${count} personne${count > 1 ? 's' : ''} détectée${count > 1 ? 's' : ''} dans la salle`;
+            roomBadge.title = count > 1
+                ? t('occupantsTooltip.many', `${count} personnes détectées dans la salle`, { count })
+                : t('occupantsTooltip.one', `${count} personne détectée dans la salle`, { count });
             
             
 

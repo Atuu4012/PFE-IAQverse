@@ -10,12 +10,44 @@ const API_URL_DATA =
 const REFRESH_MS = 30000;
 const SPARKLINE_POINTS = 60;
 
+function t(key, fallback) {
+  try {
+    if (window.i18n && typeof window.i18n.t === "function") {
+      return window.i18n.t(key) || fallback;
+    }
+  } catch (e) {}
+  return fallback;
+}
+
+function getActiveLocale() {
+  try {
+    const lang =
+      (window.i18n && typeof window.i18n.getLanguage === "function"
+        ? window.i18n.getLanguage()
+        : null) ||
+      (navigator.language ? navigator.language.split("-")[0] : null) ||
+      "fr";
+    const map = {
+      fr: "fr-FR",
+      en: "en-GB",
+      es: "es-ES",
+      de: "de-DE",
+      it: "it-IT",
+    };
+    return map[lang] || lang;
+  } catch (e) {
+    return "fr-FR";
+  }
+}
+
 const METRICS = [
   {
     id: "co2",
     containerId: "co2-chart",
     label: "CO₂",
+    labelKey: "dashboard.co2",
     unit: "ppm",
+    unitKey: "charts.co2Y",
     key: "co2",
     threshold: 1000,
     decimals: 0,
@@ -24,7 +56,9 @@ const METRICS = [
     id: "pm25",
     containerId: "pm25-chart",
     label: "PM2.5",
+    labelKey: "dashboard.pm25",
     unit: "µg/m³",
+    unitKey: "charts.pm25Y",
     key: "pm25",
     threshold: 15,
     decimals: 0,
@@ -33,12 +67,14 @@ const METRICS = [
     id: "comfort",
     containerId: "comfort-chart",
     label: "Température & Humidité",
+    labelKey: "dashboard.comfort",
     unit: "°C & %",
     key: "temperature",
     threshold: 26,
     decimals: 1,
     secondary: {
       label: "Humidité",
+      labelKey: "charts.legend.humidity",
       unit: "%",
       key: "humidity",
       threshold: 60,
@@ -49,7 +85,9 @@ const METRICS = [
     id: "tvoc",
     containerId: "tvoc-chart",
     label: "TVOC",
+    labelKey: "dashboard.tvoc",
     unit: "mg/m³",
+    unitKey: "charts.tvocY",
     key: "tvoc",
     threshold: 1000,
     decimals: 0,
@@ -130,7 +168,7 @@ async function ensureConfigLoaded() {
 function formatLabel(ts) {
   const d = new Date(ts);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString("fr-FR", {
+  return d.toLocaleTimeString(getActiveLocale(), {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -150,6 +188,11 @@ function getRecentSlice(data, count) {
 function buildMetricCard(metric) {
   const container = document.getElementById(metric.containerId);
   if (!container) return null;
+  const metricLabel = t(metric.labelKey, metric.label);
+  const metricUnit = t(metric.unitKey, metric.unit);
+  const tempLegend = t("charts.legend.temp", "Temp.");
+  const humLegend = t("charts.legend.humidity", "Hum.");
+  const subtitle = t("charts.lastMeasures", "60 dernières mesures");
   container.classList.toggle("metric-dual", !!metric.secondary);
   const valuesRow = metric.secondary
     ? `
@@ -165,11 +208,11 @@ function buildMetricCard(metric) {
       <div class="metric-legend">
         <span class="metric-legend-item">
           <span class="metric-legend-line"></span>
-          <span>Temp.</span>
+          <span>${tempLegend}</span>
         </span>
         <span class="metric-legend-item">
           <span class="metric-legend-line metric-legend-line--dashed"></span>
-          <span>Hum.</span>
+          <span>${humLegend}</span>
         </span>
       </div>
     `
@@ -184,11 +227,11 @@ function buildMetricCard(metric) {
 
   container.innerHTML = `
     <div class="metric-header">
-      <div class="metric-title">${metric.label}</div>
-      <div class="metric-unit">${metric.unit}</div>
+      <div class="metric-title">${metricLabel}</div>
+      <div class="metric-unit">${metricUnit}</div>
     </div>
     ${valuesRow}
-    <div class="metric-subtitle">60 dernières mesures</div>
+    <div class="metric-subtitle">${subtitle}</div>
     ${legend}
     ${sparkline}
   `;
@@ -827,4 +870,9 @@ document.addEventListener("DOMContentLoaded", () => {
 // Note: fetchAndUpdate() is called by dashboard.js via updateCharts()
 document.addEventListener("roomChanged", () => {
   resetCharts();
+});
+
+window.addEventListener("language-changed", () => {
+  resetCharts();
+  fetchAndUpdate();
 });

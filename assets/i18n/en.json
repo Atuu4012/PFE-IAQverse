@@ -27,6 +27,7 @@
       "title": "Air Quality Score",
       "label": "Global Score",
       "roomLabel": "Room Score",
+      "historyTitle": "Indoor air quality",
       "predicted": "In 30 min",
       "legend": "Legend",
       "excellent": "Excellent",
@@ -49,7 +50,12 @@
     "temperatureY": "Temperature (°C)",
     "humidityY": "Humidity (%)",
     "tvocY": "mg/m³",
-    "timeX": "Time"
+    "timeX": "Time",
+    "lastMeasures": "Last 60 measurements",
+    "legend": {
+      "temp": "Temp.",
+      "humidity": "Hum."
+    }
   },
   "settings": {
     "title": "Settings",
@@ -93,6 +99,10 @@
       "email": "Email",
       "telephone": "Phone",
       "adresse": "Address",
+      "type": "Type",
+      "old_password": "Current password",
+      "new_password": "New password",
+      "confirm_password": "Confirm password",
       "mode_affichage": "Display mode",
       "langue": "Language",
       "localisation": "Localization",
@@ -120,6 +130,7 @@
         "features": {
           "monitoring": "Basic monitoring",
           "alerts": "Simple alerts",
+          "reports": "Monthly reports",
           "users": "Number of users: 3"
         }
       },
@@ -129,6 +140,8 @@
         "features": {
           "advanced": "Advanced monitoring",
           "custom": "Custom alerts",
+          "realtime": "Real-time reports",
+          "api": "API access",
           "users": "Number of users: 10"
         }
       },
@@ -149,6 +162,18 @@
       "title": "Contact for Enterprise Plan",
       "message": "For the Enterprise plan, please contact us directly:\n\nEmail: {email}\nPhone: {phone}\nAddress: {address}\n\nOur team will help you configure the perfect solution for your organization.",
       "close": "Close"
+    },
+    "danger_zone": {
+      "title": "Danger zone",
+      "description": "Deleting your account is irreversible.",
+      "button": "Delete my account"
+    },
+    "delete_modal": {
+      "title": "Delete account",
+      "confirmation": "This action will permanently delete your account and all your data.",
+      "warning": "This action cannot be undone.",
+      "password_label": "Confirm your password:",
+      "error_empty": "Please enter your password to confirm."
     }
   },
   "digitalTwin": {
@@ -312,6 +337,47 @@
       "Situation critique avec amélioration prévue": "Critical situation with expected improvement"
     }
   },
+  "tutorial": {
+    "common": {
+      "done": "Done",
+      "next": "Next",
+      "prev": "Previous",
+      "progress": "Step {{current}} of {{total}}",
+      "skip": "Skip tutorial"
+    },
+    "dashboard": {
+      "welcome": {
+        "title": "Welcome to IAQverse!",
+        "p1": "Let's take a quick tour to set up your account.",
+        "p2": "Follow the arrows to discover the essential features."
+      },
+      "settings": {"title": "Configuration (Important)", "desc": "Start here! We prepared a dedicated tutorial in this tab to help you configure your buildings."},
+      "twin": {"title": "Digital Twin", "desc": "Once configured, visualize your data in 3D in this tab."},
+      "account": {"title": "Your Account", "desc": "Manage your profile, change your password, or log out here."},
+      "help": {"title": "Help & Info", "desc": "Need help understanding what you see? Click here for contextual information."},
+      "end": {"title": "You're ready!", "desc": "Now go to Settings to finalize your setup."}
+    },
+    "settings": {
+      "general": {"title": "General Settings", "p1": "Welcome to the configuration panel.", "p2": "Here, you can manage all aspects of your account and buildings."},
+      "account": {"title": "Your Information", "desc": "Update your profile, password, and personal preferences here."},
+      "locations": {"title": "Location Management (Rooms)", "desc": "<strong>This is the most important step!</strong><br>Define your building structure here (floors, rooms) to start receiving data."},
+      "notifications": {"title": "Alerts & Notifications", "desc": "Configure how and when you want to be notified in case of air quality issues."},
+      "subscription": {"title": "Subscription", "desc": "Manage your plan and invoices here."},
+      "end": {"title": "Ready to configure?", "desc": "Once your locations are configured, go to the \"Digital Twin\" tab (center) to see the 3D result!"}
+    },
+    "twin": {
+      "viewer": {"title": "3D Visualization", "p1": "Here is the core of IAQverse: your building in real time.", "p2": "Use mouse or touch to navigate, rotate, and zoom in the room."},
+      "rooms": {"title": "Room Navigation", "desc": "Quickly switch view by selecting another room here."},
+      "realtime": {"title": "Real-Time Data", "desc": "Monitor key indicators (CO2, Temperature, etc.) directly overlaid on the 3D view."},
+      "prediction": {"title": "AI Predictions", "desc": "Our AI analyzes trends to warn you about issues before they happen."},
+      "actions": {"title": "Action Plan", "desc": "In case of alert, check this table to know exactly what to do."},
+      "end": {"title": "Back to Dashboard", "desc": "You've completed the tour! Go back home for an overview."}
+    }
+  },
+  "occupantsTooltip": {
+    "one": "{{count}} person detected in the room",
+    "many": "{{count}} people detected in the room"
+  },
   "buttons": {
     "toggleTheme": "Toggle theme",
     "frame": "Center"
@@ -340,6 +406,8 @@
     "no": "No",
     "cancel": "Cancel",
     "save": "Save",
+    "changePassword": "Change password",
+    "confirm_delete": "Confirm deletion",
     "select": "Select",
     "selected": "Selected"
   },
@@ -348,6 +416,7 @@
     "add_room": "Add room",
     "edit_brand": "Edit location",
     "edit_title": "Edit settings",
+    "password_title": "Change password",
     "glb_label": "3D model (.glb)",
     "glb_drop": "Drag & drop a .glb file here"
   },
@@ -371,6 +440,8 @@
     "delete_file_error": "Error deleting 3D file",
     "piece_deleted": "Room removed successfully",
     "config_saved": "Configuration saved successfully",
+    "config_synced": "Configuration synchronized",
+    "avatar_updated": "Profile photo updated",
     "location_not_found": "Location not found",
     "confirm_delete_message": "Are you sure you want to delete?",
     "mode_updated": "Mode updated",

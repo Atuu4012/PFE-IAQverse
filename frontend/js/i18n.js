@@ -66,6 +66,11 @@
       const txt = safeGet(translations, key);
       if (txt != null) el.setAttribute("placeholder", txt);
     });
+    root.querySelectorAll("[data-i18n-title]").forEach((el) => {
+      const key = el.getAttribute("data-i18n-title");
+      const txt = safeGet(translations, key);
+      if (txt != null) el.setAttribute("title", txt);
+    });
   }
 
   function setUISelect(lang) {
@@ -202,6 +207,7 @@
     t: (key, params) => {
       const raw = safeGet(translations, key);
       if (raw == null) return null;
+      if (typeof raw === "object") return raw;
       let txt = String(raw);
       if (params && typeof params === 'object') {
         for (const k of Object.keys(params)) {

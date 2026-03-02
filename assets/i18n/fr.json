@@ -27,6 +27,7 @@
       "title": "Score de qualité de l'air",
       "label": "Score global",
       "roomLabel": "Score de la salle",
+      "historyTitle": "Qualité de l'air intérieur",
       "predicted": "Dans 30 min",
       "legend": "Légende",
       "excellent": "Excellent",
@@ -49,7 +50,12 @@
     "temperatureY": "Température (°C)",
     "humidityY": "Humidité (%)",
     "tvocY": "mg/m³",
-    "timeX": "Heure"
+    "timeX": "Heure",
+    "lastMeasures": "60 dernières mesures",
+    "legend": {
+      "temp": "Temp.",
+      "humidity": "Hum."
+    }
   },
   "settings": {
     "title": "Paramètres",
@@ -93,6 +99,10 @@
       "email": "Email",
       "telephone": "Téléphone",
       "adresse": "Adresse",
+      "type": "Type",
+      "old_password": "Ancien mot de passe",
+      "new_password": "Nouveau mot de passe",
+      "confirm_password": "Confirmer le mot de passe",
       "mode_affichage": "Mode d'affichage",
       "langue": "Langue",
       "localisation": "Localisation",
@@ -120,6 +130,7 @@
         "features": {
           "monitoring": "Monitoring de base",
           "alerts": "Alertes simples",
+          "reports": "Rapports mensuels",
           "users": "Nombre d'utilisateur : 3"
         }
       },
@@ -129,6 +140,8 @@
         "features": {
           "advanced": "Monitoring avancé",
           "custom": "Alertes personnalisées",
+          "realtime": "Rapports en temps réel",
+          "api": "Accès API",
           "users": "Nombre d'utilisateur : 10"
         }
       },
@@ -149,6 +162,18 @@
       "title": "Contact pour Plan Entreprise",
       "message": "Pour le plan Entreprise, veuillez nous contacter directement :\n\nEmail : {email}\nTéléphone : {phone}\nAdresse : {address}\n\nNotre équipe vous aidera à configurer la solution parfaite pour votre organisation.",
       "close": "Fermer"
+    },
+    "danger_zone": {
+      "title": "Zone de danger",
+      "description": "La suppression de votre compte est irréversible.",
+      "button": "Supprimer mon compte"
+    },
+    "delete_modal": {
+      "title": "Supprimer le compte",
+      "confirmation": "Cette action supprimera définitivement votre compte et toutes vos données.",
+      "warning": "Cette action est irréversible.",
+      "password_label": "Confirmez votre mot de passe :",
+      "error_empty": "Veuillez saisir votre mot de passe pour confirmer."
     }
   },
   "digitalTwin": {
@@ -312,6 +337,100 @@
       "Situation critique avec amélioration prévue": "Situation critique avec amélioration prévue"
     }
   },
+  "tutorial": {
+    "common": {
+      "done": "Terminer",
+      "next": "Suivant",
+      "prev": "Précédent",
+      "progress": "Étape {{current}} sur {{total}}",
+      "skip": "Passer le tutoriel"
+    },
+    "dashboard": {
+      "welcome": {
+        "title": "Bienvenue sur IAQverse !",
+        "p1": "Faisons un tour rapide pour bien paramétrer votre compte.",
+        "p2": "Suivez les flèches pour découvrir les fonctionnalités essentielles."
+      },
+      "settings": {
+        "title": "Configuration (Important)",
+        "desc": "Commencez ici ! Nous avons prévu un tutoriel dédié dans cet onglet pour vous aider à configurer vos bâtiments."
+      },
+      "twin": {
+        "title": "Jumeau Numérique",
+        "desc": "Une fois configuré, visualisez vos données en 3D dans cet onglet."
+      },
+      "account": {
+        "title": "Votre Compte",
+        "desc": "Gérez votre profil, changez de mot de passe ou déconnectez-vous ici."
+      },
+      "help": {
+        "title": "Aide & Info",
+        "desc": "Besoin d'aide sur ce que vous voyez ? Cliquez ici pour plus d'informations contextuelles."
+      },
+      "end": {
+        "title": "À vous de jouer !",
+        "desc": "Rendez-vous maintenant dans les Paramètres pour finaliser votre installation."
+      }
+    },
+    "settings": {
+      "general": {
+        "title": "Paramètres Généraux",
+        "p1": "Bienvenue dans le panneau de configuration.",
+        "p2": "Ici, vous pouvez gérer tous les aspects de votre compte et de vos bâtiments."
+      },
+      "account": {
+        "title": "Vos Informations",
+        "desc": "Mettez à jour votre profil, mot de passe et préférences personnelles ici."
+      },
+      "locations": {
+        "title": "Gestion des Lieux (Salles)",
+        "desc": "<strong>C'est l'étape la plus importante !</strong><br>Définissez ici la structure de votre bâtiment (étages, salles) pour commencer à recevoir des données."
+      },
+      "notifications": {
+        "title": "Alertes & Notifications",
+        "desc": "Configurez comment et quand vous souhaitez être averti en cas de problème de qualité d'air."
+      },
+      "subscription": {
+        "title": "Abonnement",
+        "desc": "Gérez votre plan et vos factures ici."
+      },
+      "end": {
+        "title": "Prêt à configurer ?",
+        "desc": "Une fois vos lieux configurés, rendez-vous dans l'onglet \"Jumeau Numérique\" (au centre) pour voir le résultat en 3D !"
+      }
+    },
+    "twin": {
+      "viewer": {
+        "title": "Visualisation 3D",
+        "p1": "Voici le cœur de IAQverse : votre bâtiment en temps réel.",
+        "p2": "Utilisez la souris ou le tactile pour naviguer, tourner et zoomer dans la pièce."
+      },
+      "rooms": {
+        "title": "Navigation par Pièce",
+        "desc": "Changez de vue rapidement en sélectionnant une autre salle ici."
+      },
+      "realtime": {
+        "title": "Données en Temps Réel",
+        "desc": "Surveillez les indicateurs clés (CO2, Température, etc.) directement superposés à la vue 3D."
+      },
+      "prediction": {
+        "title": "Prédictions IA",
+        "desc": "Notre IA analyse les tendances pour vous avertir des problèmes avant qu'ils n'arrivent."
+      },
+      "actions": {
+        "title": "Plan d'Action",
+        "desc": "En cas d'alerte, consultez ce tableau pour savoir exactement quoi faire."
+      },
+      "end": {
+        "title": "Retour au Tableau de Bord",
+        "desc": "Vous avez fait le tour ! Retournez à l'accueil pour une vue d'ensemble."
+      }
+    }
+  },
+  "occupantsTooltip": {
+    "one": "{{count}} personne détectée dans la salle",
+    "many": "{{count}} personnes détectées dans la salle"
+  },
   "buttons": {
     "toggleTheme": "Changer le thème",
     "frame": "Centrer"
@@ -340,6 +459,8 @@
     "no": "Non",
     "cancel": "Annuler",
     "save": "Enregistrer",
+    "changePassword": "Changer le mot de passe",
+    "confirm_delete": "Confirmer la suppression",
     "select": "Sélectionner",
     "selected": "Sélectionné"
   },
@@ -348,6 +469,7 @@
     "add_room": "Ajouter une pièce",
     "edit_brand": "Modifier l'enseigne",
     "edit_title": "Modifier les paramètres",
+    "password_title": "Changer le mot de passe",
     "glb_label": "Modèle 3D (.glb)",
     "glb_drop": "Glissez-déposez un fichier .glb ici"
   },
@@ -371,6 +493,8 @@
     "delete_file_error": "Erreur lors de la suppression du fichier 3D",
     "piece_deleted": "Pièce supprimée avec succès",
     "config_saved": "Configuration sauvegardée avec succès",
+    "config_synced": "Configuration synchronisée",
+    "avatar_updated": "Photo de profil mise à jour",
     "location_not_found": "Enseigne non trouvée",
     "confirm_delete_message": "Voulez-vous vraiment supprimer ?",
     "mode_updated": "Mode mis à jour",

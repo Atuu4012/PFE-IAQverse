@@ -1,4 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const t = (key, fallback) => {
+        try {
+            return (window.i18n && typeof window.i18n.t === 'function' && window.i18n.t(key)) || fallback;
+        } catch (e) {
+            return fallback;
+        }
+    };
     // Vérifier si le tutoriel du jumeau numérique doit être affiché
     const urlParams = new URLSearchParams(window.location.search);
     const showTwinTutorial = localStorage.getItem('show_digital_twin_tutorial') === 'true' || urlParams.get('tutorial') === 'twin';
@@ -16,19 +23,19 @@ document.addEventListener('DOMContentLoaded', () => {
             showProgress: true,
             animate: true,
             allowClose: true,
-            doneBtnText: 'Terminer',
-            nextBtnText: 'Suivant',
-            prevBtnText: 'Précédent',
-            progressText: 'Étape {{current}} sur {{total}}',
+            doneBtnText: t('tutorial.common.done', 'Terminer'),
+            nextBtnText: t('tutorial.common.next', 'Suivant'),
+            prevBtnText: t('tutorial.common.prev', 'Précédent'),
+            progressText: t('tutorial.common.progress', 'Étape {{current}} sur {{total}}'),
             steps: [
                 {
                     element: '#blender-viewer',
                     popover: {
-                        title: 'Visualisation 3D',
+                        title: t('tutorial.twin.viewer.title', 'Visualisation 3D'),
                         description: `
-                            <p>Voici le cœur de IAQverse : votre bâtiment en temps réel.</p>
-                            <p>Utilisez la souris ou le tactile pour naviguer, tourner et zoomer dans la pièce.</p>
-                            <button onclick="window.cancelTwinTutorial()" class="tutorial-skip-btn">Passer le tutoriel</button>
+                            <p>${t('tutorial.twin.viewer.p1', 'Voici le cœur de IAQverse : votre bâtiment en temps réel.')}</p>
+                            <p>${t('tutorial.twin.viewer.p2', 'Utilisez la souris ou le tactile pour naviguer, tourner et zoomer dans la pièce.')}</p>
+                            <button onclick="window.cancelTwinTutorial()" class="tutorial-skip-btn">${t('tutorial.common.skip', 'Passer le tutoriel')}</button>
                         `,
                         side: "left",
                         align: 'center'
@@ -37,40 +44,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 {
                     element: '.room-tabs', // Peut être vide au chargement, attention
                     popover: {
-                        title: 'Navigation par Pièce',
-                        description: 'Changez de vue rapidement en sélectionnant une autre salle ici.',
+                        title: t('tutorial.twin.rooms.title', 'Navigation par Pièce'),
+                        description: t('tutorial.twin.rooms.desc', 'Changez de vue rapidement en sélectionnant une autre salle ici.'),
                         side: "bottom"
                     }
                 },
                 {
                     element: '#iaq-overlay',
                     popover: {
-                        title: 'Données en Temps Réel',
-                        description: 'Surveillez les indicateurs clés (CO2, Température, etc.) directement superposés à la vue 3D.',
+                        title: t('tutorial.twin.realtime.title', 'Données en Temps Réel'),
+                        description: t('tutorial.twin.realtime.desc', 'Surveillez les indicateurs clés (CO2, Température, etc.) directement superposés à la vue 3D.'),
                         side: "left"
                     }
                 },
                 {
                     element: '.preventive-panel-global',
                     popover: {
-                        title: 'Prédictions IA',
-                        description: 'Notre IA analyse les tendances pour vous avertir des problèmes avant qu\'ils n\'arrivent.',
+                        title: t('tutorial.twin.prediction.title', 'Prédictions IA'),
+                        description: t('tutorial.twin.prediction.desc', 'Notre IA analyse les tendances pour vous avertir des problèmes avant qu\'ils n\'arrivent.'),
                         side: "bottom"
                     }
                 },
                 {
                     element: '.actions-panel',
                     popover: {
-                        title: 'Plan d\'Action',
-                        description: 'En cas d\'alerte, consultez ce tableau pour savoir exactement quoi faire.',
+                        title: t('tutorial.twin.actions.title', 'Plan d\'Action'),
+                        description: t('tutorial.twin.actions.desc', 'En cas d\'alerte, consultez ce tableau pour savoir exactement quoi faire.'),
                         side: "top"
                     }
                 },
                 {
                     element: 'header .header-nav a[href="index.html"]',
                     popover: {
-                        title: 'Retour au Tableau de Bord',
-                        description: 'Vous avez fait le tour ! Retournez à l\'accueil pour une vue d\'ensemble.',
+                        title: t('tutorial.twin.end.title', 'Retour au Tableau de Bord'),
+                        description: t('tutorial.twin.end.desc', 'Vous avez fait le tour ! Retournez à l\'accueil pour une vue d\'ensemble.'),
                         side: "bottom"
                     }
                 }

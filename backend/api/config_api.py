@@ -499,9 +499,25 @@ async def update_config(payload: ConfigUpdatePayload, user: dict = Depends(get_c
 @router.get("/api/auth/config")
 def get_auth_config():
     """Returns the public Supabase configuration for the frontend."""
+    supabase_url = settings.SUPABASE_URL or os.getenv("SUPABASE_URL")
+    supabase_public_key = (
+        settings.SUPABASE_PUBLISHABLE_KEY
+        or os.getenv("SUPABASE_PUBLISHABLE_KEY")
+        settings.SUPABASE_ANON_KEY
+        or os.getenv("SUPABASE_ANON_KEY")
+        or settings.SUPABASE_KEY
+        or os.getenv("SUPABASE_KEY")
+    )
+
+    if not supabase_url or not supabase_public_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Supabase auth configuration is missing (SUPABASE_URL and/or SUPABASE_ANON_KEY/SUPABASE_KEY)."
+        )
+
     return {
-        "supabaseUrl": settings.SUPABASE_URL,
-        "supabaseKey": settings.SUPABASE_KEY
+        "supabaseUrl": supabase_url,
+        "supabaseKey": supabase_public_key
     }
 
 

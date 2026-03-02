@@ -61,6 +61,8 @@ class Settings:
 
     # Supabase
     SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL")
+    SUPABASE_PUBLISHABLE_KEY: Optional[str] = os.getenv("SUPABASE_PUBLISHABLE_KEY")
+    SUPABASE_ANON_KEY: Optional[str] = os.getenv("SUPABASE_ANON_KEY")
     SUPABASE_KEY: Optional[str] = os.getenv("SUPABASE_KEY")
 
 

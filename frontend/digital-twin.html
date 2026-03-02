@@ -51,7 +51,7 @@
 
 </head>
 
-<body>
+<body class="has-bottom-nav">
   <!-- Header -->
   <header>
     <nav class="header-nav">
@@ -130,6 +130,23 @@
 
   </header>
 
+  <nav class="bottom-nav" aria-label="Navigation principale">
+    <a href="index.html" aria-label="Dashboard">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"></rect>
+        <rect x="14" y="3" width="7" height="7"></rect>
+        <rect x="14" y="14" width="7" height="7"></rect>
+        <rect x="3" y="14" width="7" height="7"></rect>
+      </svg>
+    </a>
+    <a href="digital-twin.html" class="active-page" aria-label="Digital Twin">
+      <img src="/assets/icons/digital-twin.png" alt="Digital Twin" class="nav-icon">
+    </a>
+    <a href="settings.html" aria-label="Settings">
+      <img src="/assets/icons/settings.png" alt="Settings" class="nav-icon">
+    </a>
+  </nav>
+
   <!-- Info Modal (outside header to avoid backdrop-filter containing block) -->
   <div id="infoModal" class="modal">
     <div class="modal-content">
@@ -187,6 +204,7 @@
     <div class="preventive-global-header">
       <h2 data-i18n="digitalTwin.preventive.title">Actions Préventives</h2>
       <span class="preventive-global-subtitle" data-i18n="digitalTwin.preventive.subtitle">Basées sur les prédictions (30 min)</span>
+      <span class="preventive-global-subtitle preventive-global-subtitle--short">(30 min)</span>
     </div>
     <div id="preventive-global-container" class="preventive-global-content">
       <div class="preventive-loading">
@@ -224,6 +242,50 @@
             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
           </svg>
         </button>
+
+        <!-- Mobile Controls Toggle -->
+        <button id="toggle-controls-btn" class="mobile-controls-toggle" aria-label="Afficher les controles">
+          <img src="/assets/icons/play.png" alt="Controles" class="mobile-controls-icon">
+        </button>
+
+        <!-- Mobile Controls Panel -->
+        <div id="mobile-joystick-zone" class="mobile-controls" aria-label="Controles de mouvement">
+          <div class="mobile-controls-pad">
+            <button id="ctrl-fwd" class="mobile-control-btn" aria-label="Avancer">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5l-6 6h12l-6-6z"/>
+              </svg>
+            </button>
+            <button id="ctrl-left" class="mobile-control-btn" aria-label="Gauche">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12l6-6v12l-6-6z"/>
+              </svg>
+            </button>
+            <div class="mobile-controls-center"></div>
+            <button id="ctrl-right" class="mobile-control-btn" aria-label="Droite">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 12l-6 6V6l6 6z"/>
+              </svg>
+            </button>
+            <button id="ctrl-back" class="mobile-control-btn" aria-label="Reculer">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19l6-6H6l6 6z"/>
+              </svg>
+            </button>
+          </div>
+          <div class="mobile-controls-actions">
+            <button id="ctrl-jump" class="mobile-control-chip" aria-label="Sauter">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5l-6 6h12l-6-6z"/>
+              </svg>
+            </button>
+            <button id="ctrl-crouch" class="mobile-control-chip" aria-label="Accroupir">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19l6-6H6l6 6z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
 
         <!-- Alert Points -->
         <div id="alert-points-container"></div>

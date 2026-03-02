@@ -3,6 +3,7 @@
  */
 
 let currentDetailsSubject = null;
+let currentDetailsTargetId = null;
 /**
  * Affiche les détails d'une alerte
  * @param {string} sujet - Le sujet de l'alerte (ex. Fenêtre, Ventilation, etc.)
@@ -22,6 +23,7 @@ async function showDetails(sujet, detail, forceRefresh = false) {
     panel.classList.add("hidden");
     list.innerHTML = "";
     currentDetailsSubject = null;
+    currentDetailsTargetId = null;
 
     // Forcer le resize du canvas 3D et du container après fermeture du panel
     setTimeout(() => {
@@ -177,6 +179,7 @@ function closeDetailsPanel() {
     const list = document.getElementById("details-list");
     if (list) list.innerHTML = "";
     currentDetailsSubject = null;
+    currentDetailsTargetId = null;
   }
 }
 window.closeDetailsPanel = closeDetailsPanel;
@@ -190,18 +193,12 @@ document.addEventListener("roomChanged", (event) => {
   try {
     syncAlertPointsToTable();
   } catch (e) {}
-
-  // Fermer le panneau de détails lors du changement de pièce
-  closeDetailsPanel();
 });
 
 document.addEventListener("enseigneChanged", () => {
   try {
     syncAlertPointsToTable();
   } catch (e) {}
-
-  // Fermer le panneau de détails lors du changement d'enseigne
-  closeDetailsPanel();
 });
 
 // Export des fonctions
@@ -729,6 +726,7 @@ window.syncAlertPointsToTable = function syncAlertPointsToTable() {
       // Add handler once
       tr.addEventListener("click", function () {
         const subj = this.querySelector(".col-subj").textContent.trim();
+        currentDetailsTargetId = this.getAttribute("data-target-id");
         showDetails(subj, this._detailsData);
       });
     }
@@ -836,15 +834,20 @@ window.syncAlertPointsToTable = function syncAlertPointsToTable() {
 
   // --- DETAILS PANEL SYNC ---
   if (isPanelOpen && previousSubject) {
-    // Find if row for this subject still exists and get new details
-    const found = builtRows.find((item) => {
+    const foundById = currentDetailsTargetId
+      ? builtRows.find(
+          (item) =>
+            item.tr.getAttribute("data-target-id") === currentDetailsTargetId,
+        )
+      : null;
+    const foundBySubject = builtRows.find((item) => {
       const sub = item.tr.querySelector(".col-subj");
       return sub && sub.textContent.trim() === previousSubject;
     });
+    const found = foundById || foundBySubject;
 
-    if (!found) {
-      closeDetailsPanel();
-    } else {
+    if (found) {
+      currentDetailsTargetId = found.tr.getAttribute("data-target-id");
       // Update details content in real-time
       // Use forceRefresh=true to update even if subject is same
       showDetails(previousSubject, found.tr._detailsData, true);

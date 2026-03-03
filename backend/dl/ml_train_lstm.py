@@ -533,7 +533,7 @@ def train_best_model(
         model.summary(print_fn=logger.info)
 
         early_stop = EarlyStopping(
-            monitor="val_loss", patience=15, restore_best_weights=True
+            monitor="val_loss", patience=10, restore_best_weights=True
         )
         reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(
             monitor="val_loss", factor=0.5, patience=7, min_lr=1e-6

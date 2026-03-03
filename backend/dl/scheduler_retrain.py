@@ -53,8 +53,8 @@ def run_training(with_influxdb=True):
         
         # Commande d'exécution
         # --trials 2 : ajoute 2 essais Optuna par jour (cumulatifs grâce à SQLite)
-        # --epochs 30 : epochs du modèle final (si réentraînement déclenché)
-        cmd = ["python", "/app/backend/dl/ml_train_lstm.py", "--trials", "2", "--epochs", "30"]
+        # --epochs 50 : epochs du modèle final (si réentraînement déclenché)
+        cmd = ["python", "/app/backend/dl/ml_train_lstm.py", "--trials", "2", "--epochs", "50"]
         
         # Le nouveau script LSTM utilise des variables d'env, pas d'arguments
         if with_influxdb and "ml_train_lstm.py" not in str(script_path):
@@ -108,7 +108,7 @@ def job_wrapper(with_influxdb=True):
     logger.info("="*70 + "\n")
 
 
-def main():
+def create_arg_parser():
     parser = argparse.ArgumentParser(
         description="Scheduler de réentraînement périodique du modèle ML IAQ"
     )
@@ -134,6 +134,11 @@ def main():
         help='Ne pas utiliser les données InfluxDB (CSV seulement)'
     )
     
+    return parser
+
+
+def main():
+    parser = create_arg_parser()
     args = parser.parse_args()
     
     use_influxdb = not args.no_influxdb

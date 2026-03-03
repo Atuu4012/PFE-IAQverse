@@ -30,6 +30,9 @@ services:
       - ml_models:/app/assets/ml_models
       # Accès aux artifacts MLflow
       - mlflow_data:/mlflow
+    ports:
+      # Port API (à protéger via Firewall/VPN idéalement)
+      - "8000:8000"
     environment:
       - INFLUXDB_ENABLED=true
       - INFLUXDB_URL=http://influxdb:8086

@@ -76,6 +76,7 @@
       "notifications": "Notifications",
       "locations": "Locations",
       "subscription": "Subscription",
+      "model": "AI Model",
       "contact": "Contact"
     },
     "aboutTitle": "About this page",
@@ -94,6 +95,14 @@
       "digital_twin": "Digital Twin",
       "subscription": "Your subscription",
       "contact": "Contact"
+    },
+    "model": {
+      "info_title": "Model information",
+      "metrics_title": "Accuracy metrics",
+      "log_title": "Recent evaluations",
+      "total_predictions": "Total predictions",
+      "evaluated": "Evaluated",
+      "pending": "Pending"
     },
     "infoList": {
       "account": "Account information management",

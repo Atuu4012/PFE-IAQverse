@@ -33,17 +33,11 @@ services:
       - ../backend:/app/backend
       - ../assets:/app/assets
       - ../database:/app/database
+    env_file:
+      - .env.dev
     environment:
-      - INFLUXDB_ENABLED=${INFLUXDB_ENABLED}
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
-      - INFLUXDB_ORG=${INFLUXDB_ORG}
-      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
-      - WEBSOCKET_ENABLED=${WEBSOCKET_ENABLED}
       - MLFLOW_TRACKING_URI=http://mlflow:5000
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
     depends_on:
       - influxdb
       - mlflow

@@ -12,11 +12,12 @@ import re
 import unicodedata
 import pandas as pd
 import numpy as np
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 # Import des modules core
 from .core import settings, get_influx_client, get_websocket_manager
 from .core.supabase import supabase, log_supabase_status
+from .core.model_tracker import init_db as init_tracker_db, evaluate_pending, get_performance, cleanup_old
 
 # Import des routers API
 from .api import (
@@ -66,6 +67,10 @@ INTERVAL_SECONDS = 5  # Post toutes les 5 secondes (mode debug)
 automation_task: Optional[asyncio.Task] = None
 AUTOMATION_INTERVAL_SECONDS = 20
 
+# Tâche d'auto-évaluation des prédictions ML
+model_eval_task: Optional[asyncio.Task] = None
+MODEL_EVAL_INTERVAL_SECONDS = 120  # évaluer toutes les 2min (prédictions à horizon 30min)
+
 # Prédicteur ML (initialisé paresseusement)
 ml_predictor = None
 
@@ -92,8 +97,28 @@ def get_ml_predictor():
 # ENDPOINTS ML PREDICTION
 # ============================================================================
 
+@app.post("/api/reload-model")
+def reload_model():
+    """
+    Recharge le modèle ML depuis le disque.
+    Appelé automatiquement par le scheduler après réentraînement.
+    """
+    global ml_predictor
+    try:
+        predictor = get_ml_predictor()
+        if predictor:
+            predictor.reload()
+            logger.info("♻️  Modèle ML rechargé via /api/reload-model")
+            return {"status": "ok", "model_type": getattr(predictor, 'model_type', 'unknown')}
+        else:
+            return {"status": "error", "detail": "Predictor not available"}
+    except Exception as e:
+        logger.error(f"Erreur rechargement modèle: {e}")
+        return {"status": "error", "detail": str(e)}
+
+
 @app.get("/api/predict/score")
-def get_predicted_score(
+async def get_predicted_score(
     enseigne: Optional[str] = None,
     salle: Optional[str] = None,
     sensor_id: Optional[str] = None
@@ -101,7 +126,9 @@ def get_predicted_score(
     """
     Retourne le score IAQ prédit dans 30 minutes par le modèle ML.
     Si le modèle n'est pas disponible, utilise un fallback basé sur les tendances.
+    Utilise le cache partagé pour éviter les doublons de log_prediction.
     """
+    import time
     try:
         predictor = get_ml_predictor()
         
@@ -109,12 +136,24 @@ def get_predicted_score(
         if predictor:
             if not enseigne:
                 enseigne = "Maison"
-            
-            prediction_result = predictor.predict(
-                enseigne=enseigne,
-                salle=salle,
-                sensor_id=sensor_id
-            )
+
+            # Utiliser le cache partagé pour éviter les appels ML doublons
+            cache_key = f"{enseigne}|{salle}|{sensor_id}"
+            now = time.monotonic()
+            cached = _prediction_cache.get(cache_key)
+            if cached and (now - cached["ts"]) < PREDICTION_CACHE_TTL:
+                prediction_result = cached["data"]
+            else:
+                loop = asyncio.get_event_loop()
+                prediction_result = await loop.run_in_executor(
+                    None,
+                    lambda: predictor.predict(
+                        enseigne=enseigne,
+                        salle=salle,
+                        sensor_id=sensor_id
+                    )
+                )
+                _prediction_cache[cache_key] = {"data": prediction_result, "ts": now}
             
             if "error" not in prediction_result:
                 predicted_values = prediction_result.get("predicted_values", {})
@@ -235,6 +274,42 @@ def _calculate_fallback_prediction(enseigne: Optional[str], salle: Optional[str]
             "predicted_level": None,
             "is_ml_prediction": False
         }
+
+
+# ============================================================================
+# ENDPOINTS SUIVI PERFORMANCE MODÈLE
+# ============================================================================
+
+@app.get("/api/model/performance")
+def get_model_performance(hours: Optional[int] = None):
+    """
+    Retourne les métriques de performance du modèle ML.
+    ?hours=24 pour les dernières 24h, sans paramètre = tout l'historique.
+    """
+    try:
+        return get_performance(hours=hours)
+    except Exception as e:
+        logger.error(f"Erreur récupération performance modèle: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/api/model/predictions-log")
+def get_predictions_log(hours: int = 24):
+    """
+    Retourne le journal détaillé des prédictions récentes avec valeurs réelles.
+    """
+    try:
+        perf = get_performance(hours=hours)
+        return {
+            "total": perf.get("total_predictions", 0),
+            "evaluated": perf.get("evaluated", 0),
+            "pending": perf.get("pending", 0),
+            "entries": perf.get("recent_evaluations", []),
+            "period_hours": hours,
+        }
+    except Exception as e:
+        logger.error(f"Erreur journal prédictions: {e}")
+        return {"error": str(e)}
 
 
 @app.get("/api/predict/preventive-actions")
@@ -1495,6 +1570,101 @@ async def post_rows_periodically(interval: int = INTERVAL_SECONDS, loop_forever:
 
 
 # ============================================================================
+# BOUCLE D'AUTO-ÉVALUATION DES PRÉDICTIONS ML
+# ============================================================================
+
+def _fetch_actual_values(enseigne: str, salle: str, sensor_id: str, target_at: str):
+    """
+    Récupère la MOYENNE des valeurs réelles autour de target_at depuis InfluxDB.
+
+    Le modèle LSTM a été entraîné sur des moyennes 5 minutes.
+    Comparer sa prédiction à un seul point brut (tick 5s du simulateur)
+    ajoute une variance artificielle énorme.
+    → On agrège avec aggregateWindow(5m, mean) pour une comparaison juste.
+    """
+    try:
+        target_dt = datetime.fromisoformat(target_at)
+
+        if not settings.INFLUXDB_ENABLED:
+            return None
+
+        influx = get_influx_client(
+            url=settings.INFLUXDB_URL,
+            token=settings.INFLUXDB_TOKEN,
+            org=settings.INFLUXDB_ORG,
+            bucket=settings.INFLUXDB_BUCKET,
+        )
+        if not influx or not influx.available:
+            return None
+
+        # Fenêtre de ±2.5 min autour du target, agrégée en 1 fenêtre de 5 min
+        start_iso = (target_dt - timedelta(minutes=2, seconds=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        stop_iso  = (target_dt + timedelta(minutes=2, seconds=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        flux_query = f'''
+            from(bucket: "{settings.INFLUXDB_BUCKET}")
+                |> range(start: {start_iso}, stop: {stop_iso})
+                |> filter(fn: (r) => r._measurement == "iaq_raw")
+                |> filter(fn: (r) => r.salle == "{salle}" and r.sensor_id == "{sensor_id}")
+                |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)
+                |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+                |> limit(n: 1)
+        '''
+
+        rows = influx.query_data(flux_query)
+        if rows:
+            best = rows[0]
+            result = {}
+            for key in ("co2", "pm25", "tvoc", "temperature", "humidity"):
+                val = best.get(key)
+                # Filtrer les valeurs nulles / aberrantes (0 pour température = donnée manquante)
+                if val is not None:
+                    fval = float(val)
+                    if key == "temperature" and fval < 1:
+                        result[key] = None  # donnée manquante
+                    else:
+                        result[key] = fval
+                else:
+                    result[key] = None
+            # Ne retourner que si on a au moins 2 métriques valides
+            valid_count = sum(1 for v in result.values() if v is not None)
+            if valid_count >= 2:
+                return result
+
+        return None
+    except Exception as e:
+        logger.debug(f"Erreur fetch actual values: {e}")
+        return None
+
+
+async def run_model_evaluation_loop():
+    """
+    Tâche de fond : évalue les prédictions passées toutes les MODEL_EVAL_INTERVAL_SECONDS.
+    Nettoie les vieilles entrées une fois par jour.
+    """
+    last_cleanup = datetime.utcnow()
+    await asyncio.sleep(60)  # attendre que le système se stabilise
+
+    while True:
+        try:
+            count = evaluate_pending(_fetch_actual_values)
+            if count:
+                logger.info(f"📊 Auto-évaluation : {count} prédictions évaluées")
+
+            # Nettoyage quotidien
+            if (datetime.utcnow() - last_cleanup).total_seconds() > 86400:
+                cleanup_old(days=30)
+                last_cleanup = datetime.utcnow()
+
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.error(f"Erreur boucle évaluation ML: {e}")
+
+        await asyncio.sleep(MODEL_EVAL_INTERVAL_SECONDS)
+
+
+# ============================================================================
 # ÉVÉNEMENTS DE DÉMARRAGE ET ARRÊT
 # ============================================================================
 
@@ -1542,7 +1712,15 @@ async def startup_event():
         )
     except Exception as e:
         logger.exception(f"Erreur lors du démarrage de la tâche d'automatisation: {e}")
-    
+
+    # Initialiser le tracker de performance + tâche d'évaluation
+    try:
+        init_tracker_db()
+        model_eval_task = asyncio.create_task(run_model_evaluation_loop())
+        logger.info(f"✅ Auto-évaluation ML démarrée (interval={MODEL_EVAL_INTERVAL_SECONDS}s)")
+    except Exception as e:
+        logger.exception(f"Erreur démarrage auto-évaluation ML: {e}")
+
     logger.info("="*60)
 
 

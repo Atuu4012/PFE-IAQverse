@@ -97,6 +97,24 @@ class RealtimeGenericPredictor:
         
         self.load_models()
     
+    def reload(self):
+        """Recharge les modèles depuis le disque (appelé après réentraînement)."""
+        logger.info("♻️  Rechargement des modèles ML...")
+        self.models.clear()
+        self.scaler = None
+        self.config = None
+        self.model_type = None
+        # Libérer la mémoire GPU/RAM du modèle Keras précédent
+        try:
+            import gc
+            import tensorflow as tf
+            tf.keras.backend.clear_session()
+            gc.collect()
+        except Exception:
+            pass
+        self.load_models()
+        logger.info(f"✅ Modèle rechargé : type={getattr(self, 'model_type', 'unknown')}")
+
     def load_models(self):
         """Charge le modèle générique et les encoders."""
         logger.info("Chargement du modèle...")
@@ -242,6 +260,76 @@ class RealtimeGenericPredictor:
             return pd.DataFrame()
 
     
+    def fetch_lstm_data(self, enseigne: str, salle: str, sensor_id: str, hours: int = 8) -> pd.DataFrame:
+        """
+        Récupère les données depuis InfluxDB pré-agrégées à l'intervalle d'entraînement.
+        Le modèle LSTM a été entraîné sur des données à résolution 5min.
+        Alimenter le modèle en données brutes 5s fausse complètement les prédictions
+        car le lookback temporel et les features (hour_sin, rolling) sont incohérents.
+        """
+        try:
+            from ..core.influx_client import get_influx_client
+            from ..core.settings import settings
+
+            data_interval = self.config.get('data_interval_minutes', 5)
+
+            if not settings.INFLUXDB_ENABLED:
+                logger.warning("[LSTM] InfluxDB désactivé, impossible de récupérer données agrégées")
+                return pd.DataFrame()
+
+            influx = get_influx_client(
+                url=settings.INFLUXDB_URL,
+                token=settings.INFLUXDB_TOKEN,
+                org=settings.INFLUXDB_ORG,
+                bucket=settings.INFLUXDB_BUCKET,
+            )
+            if not influx or not influx.available:
+                logger.warning("[LSTM] InfluxDB indisponible")
+                return pd.DataFrame()
+
+            flux_query = f'''
+                from(bucket: "{settings.INFLUXDB_BUCKET}")
+                    |> range(start: -{hours}h)
+                    |> filter(fn: (r) => r._measurement == "iaq_raw")
+                    |> filter(fn: (r) => r.salle == "{salle}" and r.sensor_id == "{sensor_id}")
+                    |> aggregateWindow(every: {data_interval}m, fn: mean, createEmpty: false)
+                    |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+                    |> sort(columns: ["_time"])
+            '''
+
+            rows = influx.query_data(flux_query)
+            if not rows:
+                logger.warning(f"[LSTM] Aucune donnée InfluxDB agrégée pour {sensor_id} sur {hours}h")
+                return pd.DataFrame()
+
+            df = pd.DataFrame(rows)
+            df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed', utc=True)
+            df['timestamp'] = df['timestamp'].dt.tz_localize(None)
+            df = df.sort_values('timestamp').reset_index(drop=True)
+
+            for col in ['co2', 'pm25', 'tvoc', 'temperature', 'humidity']:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+            # Remplir les tags
+            df['enseigne'] = enseigne
+            df['salle'] = salle
+            df['sensor_id'] = sensor_id
+
+            # Occupants
+            if 'people' in df.columns:
+                df['occupants'] = pd.to_numeric(df['people'], errors='coerce').fillna(0)
+            elif 'occupants' not in df.columns:
+                df['occupants'] = 0.0
+
+            logger.info(f"[LSTM] Données agrégées {data_interval}min: {len(df)} points "
+                        f"(besoin lookback={self.config.get('lookback', 72)})")
+            return df
+
+        except Exception as e:
+            logger.error(f"[LSTM] Erreur fetch données agrégées InfluxDB: {e}")
+            return pd.DataFrame()
+
     def create_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Crée les mêmes features que lors de l'entraînement (aligné avec ml_train.py)."""
         df = df.copy()
@@ -278,7 +366,133 @@ class RealtimeGenericPredictor:
         df = df.bfill().ffill()
         
         return df
-    
+
+    # ------------------------------------------------------------------
+    # BRANCHE LSTM — Prédiction avec données agrégées 5min InfluxDB
+    # ------------------------------------------------------------------
+    def _predict_lstm(self, enseigne: str, salle: str, sensor_id: str) -> Dict:
+        """
+        Prédiction LSTM avec données InfluxDB agrégées à data_interval minutes.
+        Le modèle a été entraîné sur des pas de 5min ; lui donner des ticks
+        bruts à 5s fausse complètement le lookback, hour_sin et le smoothing.
+        """
+        try:
+            lookback = self.config.get('lookback', 72)
+            horizon = self.config.get('horizon', 6)
+            data_interval = self.config.get('data_interval_minutes', 5)
+            features = self.config.get('features',
+                                       ['co2', 'pm25', 'tvoc', 'temperature', 'humidity'])
+            targets = self.config.get('targets',
+                                      ['co2', 'pm25', 'tvoc', 'temperature', 'humidity'])
+
+            # 1. Données agrégées depuis InfluxDB
+            #    Marge x2 pour compenser les trous (restarts Docker, etc.)
+            hours_needed = max(12, (lookback * data_interval) // 60 * 2)
+            df = self.fetch_lstm_data(enseigne, salle, sensor_id, hours=hours_needed)
+
+            if df.empty or len(df) < lookback:
+                available = len(df) if not df.empty else 0
+                return {
+                    "error": (f"Pas assez de données agrégées {data_interval}min pour LSTM "
+                              f"({available} < {lookback}). "
+                              f"Besoin d'~{lookback * data_interval // 60}h d'historique."),
+                    "enseigne": enseigne, "salle": salle, "sensor_id": sensor_id,
+                }
+
+            # 2. Feature engineering identique à l'entraînement
+            df['hour_sin'] = np.sin(2 * np.pi * df['timestamp'].dt.hour / 24)
+            df['hour_cos'] = np.cos(2 * np.pi * df['timestamp'].dt.hour / 24)
+            df['day_sin']  = np.sin(2 * np.pi * df['timestamp'].dt.dayofweek / 7)
+            df['day_cos']  = np.cos(2 * np.pi * df['timestamp'].dt.dayofweek / 7)
+
+            if 'occupants' not in df.columns:
+                df['occupants'] = 0.0
+            else:
+                df['occupants'] = df['occupants'].fillna(0)
+
+            # 3. Smoothing identique (rolling 6 sur pas 5min = 30min)
+            for col in ["co2", "pm25", "tvoc", "temperature", "humidity"]:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+                    df[col] = df[col].rolling(window=6, min_periods=1).mean()
+
+            df = df.ffill().bfill()
+
+            # 4. Extraction + Scaling
+            X_df = df.tail(lookback)[features].copy()
+            X_values = X_df.values
+
+            if self.scaler:
+                X_scaled = self.scaler.transform(X_values)
+            else:
+                X_scaled = X_values
+
+            X_input = X_scaled.reshape(1, lookback, len(features))
+
+            # 5. Prédiction
+            model = self.models.get("lstm")
+            preds_scaled = model.predict(X_input, verbose=0)
+            preds_seq = preds_scaled[0]
+
+            # 6. Inverse transform via dummy matrix
+            dummy = np.zeros((horizon, len(features)))
+            for i, tgt in enumerate(targets):
+                if tgt in features:
+                    dummy[:, features.index(tgt)] = preds_seq[:, i]
+
+            inverse_dummy = self.scaler.inverse_transform(dummy) if self.scaler else dummy
+
+            final_preds = {}
+            for i, tgt in enumerate(targets):
+                if tgt in features:
+                    idx = features.index(tgt)
+                    # Prendre le DERNIER pas d'horizon (t+30min) — pas le max !
+                    # np.max mélangeait les horizons et ne correspondait pas à target_at
+                    final_preds[tgt] = float(inverse_dummy[-1, idx])
+
+            for t in ['temperature', 'humidity']:
+                if t not in final_preds:
+                    final_preds[t] = float(df[t].iloc[-1]) if t in df.columns else None
+
+            # 7. Valeurs courantes + risques
+            current_vals = {
+                k: float(df[k].iloc[-1]) if k in df.columns else None
+                for k in ['co2', 'pm25', 'tvoc', 'humidity']
+            }
+            risk_analysis = self.analyze_risks(current_vals, final_preds)
+
+            # 8. Auto-évaluation : target_at = now + horizon × data_interval MINUTES
+            try:
+                from ..core.model_tracker import log_prediction
+                now_utc = datetime.utcnow()
+                predicted_at = now_utc.isoformat()
+                target_at = (now_utc + timedelta(minutes=horizon * data_interval)).isoformat()
+                log_prediction(
+                    predicted_at=predicted_at,
+                    target_at=target_at,
+                    enseigne=enseigne,
+                    salle=salle,
+                    sensor_id=sensor_id,
+                    predicted_values=final_preds,
+                    model_type="lstm",
+                )
+            except Exception as track_err:
+                logger.debug(f"Tracking prédiction échoué (non bloquant): {track_err}")
+
+            return {
+                "timestamp": datetime.now().isoformat(),
+                "enseigne": enseigne, "salle": salle, "capteur_id": sensor_id,
+                "model": "LSTM",
+                "current_values": current_vals,
+                "predicted_values": final_preds,
+                "forecast_minutes": horizon * data_interval,
+                "risk_analysis": risk_analysis,
+            }
+
+        except Exception as e:
+            logger.error(f"Erreur prédiction LSTM: {e}")
+            return {"error": f"LSTM prediction failed: {str(e)}"}
+
     def predict(self, enseigne: str = "Maison", salle: Optional[str] = None, 
                 sensor_id: Optional[str] = None) -> Dict:
         """
@@ -292,6 +506,12 @@ class RealtimeGenericPredictor:
         Returns:
             Dict avec les prédictions et recommandations
         """
+        # --- BRANCHE LSTM : utilise directement InfluxDB (données agrégées 5min) ---
+        # Doit être AVANT fetch_recent_data_direct car iaq_database n'existe plus
+        if hasattr(self, 'model_type') and self.model_type == 'lstm':
+            return self._predict_lstm(enseigne, salle or "Bureau", sensor_id or "Bureau1")
+
+        # --- BRANCHE CLASSIQUE (modèle générique) ---
         # Récupérer les données récentes directement de iaq_database
         # Limit augmenté à 300 pour supporter les lookbacks larges du LSTM (ex: 144 steps = 12h)
         df = self.fetch_recent_data_direct(enseigne, salle, sensor_id, limit=300)
@@ -315,110 +535,6 @@ class RealtimeGenericPredictor:
         
         if df.empty:
             return {"error": f"No data for capteur {sensor_id} in room {salle}"}
-        
-        # --- BRANCHE LSTM ---
-        if hasattr(self, 'model_type') and self.model_type == 'lstm':
-            try:
-                # 1. Préparation des données LSTM
-                lookback = self.config.get('lookback', 12)
-                horizon = self.config.get('horizon', 6)
-                features = self.config.get('features', ['co2', 'pm25', 'tvoc', 'temperature', 'humidity'])
-                targets = self.config.get('targets', ['co2', 'pm25', 'tvoc'])
-                
-                # --- Feature Engineering STRICTEMENT IDENTIQUE à l'entraînement ---
-                # 1. Features Temporelles
-                df['hour_sin'] = np.sin(2 * np.pi * df['timestamp'].dt.hour / 24)
-                df['hour_cos'] = np.cos(2 * np.pi * df['timestamp'].dt.hour / 24)
-                df['day_sin'] = np.sin(2 * np.pi * df['timestamp'].dt.dayofweek / 7)
-                df['day_cos'] = np.cos(2 * np.pi * df['timestamp'].dt.dayofweek / 7)
-
-                # 2. Gestion Occupants
-                if 'occupants' not in df.columns:
-                    df['occupants'] = 0.0
-                else:
-                    df['occupants'] = df['occupants'].fillna(0)
-
-                # 3. Smoothing (Lissage) - CRUCIAL car le modèle a appris sur données lissées (window=6)
-                cols_to_smooth = ["co2", "pm25", "tvoc", "temperature", "humidity"]
-                for col in cols_to_smooth:
-                    if col in df.columns:
-                        df[col] = pd.to_numeric(df[col], errors='coerce')
-                        df[col] = df[col].rolling(window=6, min_periods=1).mean()
-
-                # 4. Remplir les derniers NaNs potentiels pour ne pas casser la prédiction
-                df = df.ffill().bfill()
-
-                # Vérification
-                if len(df) < lookback:
-                    return {"error": f"Not enough data for LSTM (adj. {len(df)} < {lookback})"}
-                
-                # Extraction des features (Dataframe recent)
-                X_df = df.tail(lookback)[features].copy()
-                X_values = X_df.values # (lookback, features)
-                
-                # 2. Scaling
-                if self.scaler:
-                   X_scaled = self.scaler.transform(X_values)
-                else:
-                   X_scaled = X_values
-                   
-                # 3. Reshape (1, lookback, features)
-                X_input = X_scaled.reshape(1, lookback, len(features))
-                
-                # 4. Prédiction
-                model = self.models.get("lstm")
-                preds_scaled = model.predict(X_input, verbose=0) # (1, horizon, targets)
-                
-                # 5. Inverse Transformation (Complexe car le scaler est sur Features, pas Targets sauf si targets == features)
-                # On recrée une matrice factice pour inverser
-                # preds_scaled shape: (1, horizon, 3) -> On veut (horizon, 3)
-                preds_seq = preds_scaled[0] 
-                
-                # On doit créer une matrice (horizon, n_features) remplie avec les prédictions aux bons endroits
-                dummy = np.zeros((horizon, len(features)))
-                for i, target_name in enumerate(targets):
-                    # Trouver l'index de la target dans les features
-                    if target_name in features:
-                        idx = features.index(target_name)
-                        dummy[:, idx] = preds_seq[:, i]
-                        
-                # Inverse transform
-                if self.scaler:
-                    inverse_dummy = self.scaler.inverse_transform(dummy)
-                else:
-                    inverse_dummy = dummy
-                    
-                # Extraire les colonnes cibles
-                final_preds = {}
-                for i, target_name in enumerate(targets):
-                    if target_name in features:
-                        idx = features.index(target_name)
-                        # On prend le MAX sur l'horizon pour être préventif (ou la dernière valeur)
-                        # Pour la sécurité, prendre le max prédit est mieux
-                        final_preds[target_name] = float(np.max(inverse_dummy[:, idx]))
-                
-                # Remplir targets manquants (humidity etc)
-                for t in ['temperature', 'humidity']:
-                    if t not in final_preds:
-                        final_preds[t] = float(df[t].iloc[-1]) if t in df.columns else None
-
-                # 6. Analyser les risques
-                current_vals = {k: float(df[k].iloc[-1]) if k in df.columns else None for k in ['co2', 'pm25', 'tvoc', 'humidity']}
-                risk_analysis = self.analyze_risks(current_vals, final_preds)
-                
-                return {
-                    "timestamp": datetime.now().isoformat(),
-                    "enseigne": enseigne, "salle": salle, "capteur_id": sensor_id,
-                    "model": "LSTM",
-                    "current_values": current_vals,
-                    "predicted_values": final_preds,
-                    "forecast_minutes": horizon * 5,
-                    "risk_analysis": risk_analysis
-                }
-
-            except Exception as e:
-                logger.error(f"Erreur prédiction LSTM: {e}")
-                return {"error": f"LSTM prediction failed: {str(e)}"}
 
         # --- FIN BRANCHE LSTM ---
         

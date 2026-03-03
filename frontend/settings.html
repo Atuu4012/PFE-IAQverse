@@ -194,6 +194,7 @@
         <li onclick="showSection('notifications')" data-section="notifications" data-i18n="settings.menu.notifications">Notifications</li>
         <li onclick="showSection('lieux')" data-section="lieux" data-i18n="settings.menu.locations">Lieux</li>
         <li onclick="showSection('abonnement')" data-section="abonnement" data-i18n="settings.menu.subscription">Abonnement</li>
+        <li onclick="showSection('modele')" data-section="modele" data-i18n="settings.menu.model">Modèle IA</li>
         <li onclick="showSection('contact')" data-section="contact" data-i18n="settings.menu.contact">Contact</li>
       </ul>
     </aside>
@@ -539,6 +540,101 @@
                 </ul>
                 <button class="plan-btn" data-i18n="actions.select">Sélectionner</button>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modèle IA Section -->
+      <div id="modele" class="section">
+        <h1 data-i18n="settings.menu.model">Modèle IA</h1>
+
+        <!-- Infos modèle -->
+        <div class="settings-card" id="card-model-info">
+          <div class="card-header">
+            <h3 data-i18n="settings.model.info_title">Informations du modèle</h3>
+            <button class="btn-secondary btn-sm" onclick="loadModelPerformance()" title="Rafraîchir">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="card-body">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px;">
+              <div class="form-group">
+                <label data-i18n="settings.model.total_predictions">Prédictions totales</label>
+                <div class="form-control-static" id="model-total" style="font-size:1.5rem;font-weight:700;">--</div>
+              </div>
+              <div class="form-group">
+                <label data-i18n="settings.model.evaluated">Evaluées</label>
+                <div class="form-control-static" id="model-evaluated" style="font-size:1.5rem;font-weight:700;color:var(--success,#22c55e);">--</div>
+              </div>
+              <div class="form-group">
+                <label data-i18n="settings.model.pending">En attente</label>
+                <div class="form-control-static" id="model-pending" style="font-size:1.5rem;font-weight:700;color:var(--warning,#f59e0b);">--</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filtre période -->
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+          <button class="btn-secondary btn-sm model-period-btn active" data-hours="24" onclick="loadModelPerformance(24)">24h</button>
+          <button class="btn-secondary btn-sm model-period-btn" data-hours="168" onclick="loadModelPerformance(168)">7 jours</button>
+          <button class="btn-secondary btn-sm model-period-btn" data-hours="720" onclick="loadModelPerformance(720)">30 jours</button>
+          <button class="btn-secondary btn-sm model-period-btn" data-hours="0" onclick="loadModelPerformance(null)">Tout</button>
+        </div>
+
+        <!-- Métriques par cible -->
+        <div class="settings-card" id="card-model-metrics">
+          <div class="card-header">
+            <h3 data-i18n="settings.model.metrics_title">Métriques de précision</h3>
+          </div>
+          <div class="card-body">
+            <div id="model-metrics-grid" style="overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+                <thead>
+                  <tr style="border-bottom:2px solid var(--border-color,#e2e8f0);text-align:left;">
+                    <th style="padding:8px;">Cible</th>
+                    <th style="padding:8px;" title="Mean Absolute Error">MAE</th>
+                    <th style="padding:8px;" title="Root Mean Square Error">RMSE</th>
+                    <th style="padding:8px;" title="Mean Absolute % Error">MAPE %</th>
+                    <th style="padding:8px;" title="% prédictions à moins de 10% d'écart">Précision (±10%)</th>
+                    <th style="padding:8px;">Echantillons</th>
+                  </tr>
+                </thead>
+                <tbody id="model-metrics-body">
+                  <tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">Chargement...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dernières évaluations -->
+        <div class="settings-card" id="card-model-log">
+          <div class="card-header">
+            <h3 data-i18n="settings.model.log_title">Dernières évaluations</h3>
+          </div>
+          <div class="card-body">
+            <div id="model-log-container" style="overflow-x:auto;max-height:400px;overflow-y:auto;">
+              <table style="width:100%;border-collapse:collapse;font-size:0.8125rem;">
+                <thead>
+                  <tr style="border-bottom:2px solid var(--border-color,#e2e8f0);text-align:left;position:sticky;top:0;background:var(--card-bg,#fff);">
+                    <th style="padding:6px 8px;">Heure cible</th>
+                    <th style="padding:6px 8px;">Salle</th>
+                    <th style="padding:6px 8px;">CO₂</th>
+                    <th style="padding:6px 8px;">PM2.5</th>
+                    <th style="padding:6px 8px;">TVOC</th>
+                    <th style="padding:6px 8px;">Temp</th>
+                    <th style="padding:6px 8px;">Humid.</th>
+                  </tr>
+                </thead>
+                <tbody id="model-log-body">
+                  <tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">Chargement...</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

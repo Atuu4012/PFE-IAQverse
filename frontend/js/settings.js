@@ -49,7 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Listen for config updates
     wsManager.on("config_updated", (data) => {
       console.log("Config updated remotely:", data);
-      if (data && data.config) applyRemoteConfig(data.config, true);
+      if (data && data.config) applyRemoteConfig(data.config, false);
     });
 
     // Also listen for generic 'all' topic if needed
@@ -67,6 +67,15 @@ function showSection(id) {
   });
   const target = document.getElementById(id);
   if (target) target.classList.add("active");
+
+  // Reset scroll position when switching sections
+  try {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  } catch (e) {
+    window.scrollTo(0, 0);
+  }
+  const contentEl = document.querySelector(".settings-content");
+  if (contentEl) contentEl.scrollTop = 0;
 
   document.body.classList.toggle(
     "settings-no-scroll",
@@ -1897,6 +1906,9 @@ function showEnterpriseContactModal() {
   const footerText =
     (t && t("settings.enterprise_modal.footer")) ||
     "Notre équipe vous aidera à configurer la solution parfaite pour votre organisation.";
+  const emailLabel = (t && t("settings.fields.email")) || "Email";
+  const phoneLabel = (t && t("settings.fields.telephone")) || "Téléphone";
+  const addressLabel = (t && t("settings.fields.adresse")) || "Adresse";
 
   modal.innerHTML = `
     <div class="modal-content enterprise-contact">
@@ -1913,7 +1925,7 @@ function showEnterpriseContactModal() {
               </svg>
             </div>
             <div class="enterprise-info-content">
-              <span class="enterprise-info-label">Email</span>
+              <span class="enterprise-info-label">${emailLabel}</span>
               <a href="mailto:${email}" class="enterprise-info-value">${email}</a>
             </div>
           </div>
@@ -1924,7 +1936,7 @@ function showEnterpriseContactModal() {
               </svg>
             </div>
             <div class="enterprise-info-content">
-              <span class="enterprise-info-label">Téléphone</span>
+              <span class="enterprise-info-label">${phoneLabel}</span>
               <a href="tel:${telephone.replace(/\s/g, "")}" class="enterprise-info-value">${telephone}</a>
             </div>
           </div>
@@ -1936,7 +1948,7 @@ function showEnterpriseContactModal() {
               </svg>
             </div>
             <div class="enterprise-info-content">
-              <span class="enterprise-info-label">Adresse</span>
+              <span class="enterprise-info-label">${addressLabel}</span>
               <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adresse)}" target="_blank" rel="noopener noreferrer" class="enterprise-info-value">${adresse}</a>
             </div>
           </div>

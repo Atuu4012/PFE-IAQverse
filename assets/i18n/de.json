@@ -4,7 +4,11 @@
         "switch": "Konto wechseln",
         "currentUser": "Aktueller Benutzer",
         "otherAccount": "Anderes Konto",
-        "logout": "Abmelden"
+        "logout": "Abmelden",
+        "status": {
+            "active": "Aktiv",
+            "connected": "Verbunden"
+        }
     },
     "nav": {
         "home": "Panel",
@@ -58,6 +62,7 @@
     },
     "settings": {
         "title": "Einstellungen",
+        "page_title": "IAQverse - Einstellungen",
         "menu": {
             "account": "Konto",
             "display": "Anzeige",
@@ -91,6 +96,11 @@
             "subscription": "Wählen Sie Ihr Abonnement",
             "contact": "Kontaktieren Sie uns"
         },
+        "contact_actions": {
+            "send_email": "E-Mail senden",
+            "call": "Anrufen",
+            "open_maps": "In Maps öffnen"
+        },
         "fields": {
             "nom": "Name",
             "prenom": "Vorname",
@@ -123,6 +133,8 @@
             }
         },
         "plans": {
+            "per_month": "/Monat",
+            "quote": "Individuelles Angebot",
             "basic": {
                 "title": "Basic",
                 "description": "Basisplan mit grundlegenden Funktionen",
@@ -159,7 +171,9 @@
         },
         "enterprise_modal": {
             "title": "Kontakt für Enterprise-Plan",
+            "intro": "Für den Enterprise-Plan kontaktieren Sie uns bitte direkt:",
             "message": "Für den Enterprise-Plan kontaktieren Sie uns bitte direkt:\n\nE-Mail: {email}\nTelefon: {phone}\nAdresse: {address}\n\nUnser Team hilft Ihnen bei der Einrichtung der perfekten Lösung für Ihre Organisation.",
+            "footer": "Unser Team hilft Ihnen bei der Einrichtung der perfekten Lösung für Ihre Organisation.",
             "close": "Schließen"
         },
         "danger_zone": {
@@ -172,6 +186,7 @@
             "confirmation": "Diese Aktion löscht Ihr Konto und alle Ihre Daten dauerhaft.",
             "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
             "password_label": "Bestätigen Sie Ihr Passwort:",
+            "password_placeholder": "Ihr Passwort",
             "error_empty": "Bitte geben Sie Ihr Passwort zur Bestätigung ein."
         }
     },
@@ -411,6 +426,7 @@
         "add_room": "Raum hinzufügen",
         "edit_brand": "Standort bearbeiten",
         "edit_title": "Einstellungen bearbeiten",
+        "modules_title": "Module",
         "password_title": "Passwort ändern",
         "glb_label": "3D-Modell (.glb)",
         "glb_drop": "Ziehen Sie eine .glb-Datei hierher"

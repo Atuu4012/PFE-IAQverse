@@ -371,7 +371,7 @@ async function renderAccountList() {
             <img src="${avatarSrc}?t=${Date.now()}" class="account-avatar-small">
           <div style="display:flex; flex-direction:column; justify-content:center;">
              <span data-i18n="account.currentUser" style="font-weight:bold;">${currentUser.email || 'Utilisateur Actuel'}</span>
-             <span style="font-size: 0.8em; color: var(--text-secondary);">Actif</span>
+             <span data-i18n="account.status.active" style="font-size: 0.8em; color: var(--text-secondary);">${window.i18n && typeof window.i18n.t === "function" ? window.i18n.t("account.status.active") || "Actif" : "Actif"}</span>
           </div>
         </li>`;
     }
@@ -384,7 +384,7 @@ async function renderAccountList() {
                     <img src="${avatarSrc}?t=${Date.now()}" class="account-avatar-small" style="filter: grayscale(1);">
           <div style="display:flex; flex-direction:column; justify-content:center;">
              <span>${acc.user.email}</span>
-             <span style="font-size: 0.8em; color: var(--text-secondary);">Connecté</span>
+             <span data-i18n="account.status.connected" style="font-size: 0.8em; color: var(--text-secondary);">${window.i18n && typeof window.i18n.t === "function" ? window.i18n.t("account.status.connected") || "Connecté" : "Connecté"}</span>
           </div>
         </li>`;
     });

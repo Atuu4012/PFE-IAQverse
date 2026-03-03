@@ -4,7 +4,11 @@
     "switch": "Changer de compte",
     "currentUser": "Utilisateur Actuel",
     "otherAccount": "Autre Compte",
-    "logout": "Déconnexion"
+    "logout": "Déconnexion",
+    "status": {
+      "active": "Actif",
+      "connected": "Connecté"
+    }
   },
   "nav": {
     "home": "Accueil",
@@ -36,6 +40,12 @@
       "poor": "Mauvais"
     }
   },
+  "airQualityStates": {
+    "excellent": "Excellent",
+    "good": "Bon",
+    "moderate": "Moyen",
+    "poor": "Mauvais"
+  },
   "charts": {
     "no_data": "Pas de données",
     "trace": {
@@ -59,6 +69,7 @@
   },
   "settings": {
     "title": "Paramètres",
+    "page_title": "IAQverse - Paramètres",
     "menu": {
       "account": "Compte",
       "display": "Affichage",
@@ -92,6 +103,11 @@
       "subscription": "Choix de votre abonnement",
       "contact": "Contactez nous"
     },
+    "contact_actions": {
+      "send_email": "Envoyer un email",
+      "call": "Appeler",
+      "open_maps": "Ouvrir dans Maps"
+    },
     "fields": {
       "nom": "Nom",
       "prenom": "Prénom",
@@ -124,6 +140,8 @@
       }
     },
     "plans": {
+      "per_month": "/mois",
+      "quote": "Sur devis",
       "basic": {
         "title": "Basic",
         "description": "Plan de base avec fonctionnalités essentielles",
@@ -160,7 +178,9 @@
     },
     "enterprise_modal": {
       "title": "Contact pour Plan Entreprise",
+      "intro": "Pour le plan Entreprise, veuillez nous contacter directement :",
       "message": "Pour le plan Entreprise, veuillez nous contacter directement :\n\nEmail : {email}\nTéléphone : {phone}\nAdresse : {address}\n\nNotre équipe vous aidera à configurer la solution parfaite pour votre organisation.",
+      "footer": "Notre équipe vous aidera à configurer la solution parfaite pour votre organisation.",
       "close": "Fermer"
     },
     "danger_zone": {
@@ -173,6 +193,7 @@
       "confirmation": "Cette action supprimera définitivement votre compte et toutes vos données.",
       "warning": "Cette action est irréversible.",
       "password_label": "Confirmez votre mot de passe :",
+      "password_placeholder": "Votre mot de passe",
       "error_empty": "Veuillez saisir votre mot de passe pour confirmer."
     }
   },
@@ -469,6 +490,7 @@
     "add_room": "Ajouter une pièce",
     "edit_brand": "Modifier l'enseigne",
     "edit_title": "Modifier les paramètres",
+    "modules_title": "Modules",
     "password_title": "Changer le mot de passe",
     "glb_label": "Modèle 3D (.glb)",
     "glb_drop": "Glissez-déposez un fichier .glb ici"

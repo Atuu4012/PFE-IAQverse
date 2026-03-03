@@ -4,7 +4,11 @@
     "switch": "Switch Account",
     "currentUser": "Current User",
     "otherAccount": "Other Account",
-    "logout": "Logout"
+    "logout": "Logout",
+    "status": {
+      "active": "Active",
+      "connected": "Connected"
+    }
   },
   "nav": {
     "home": "Home",
@@ -36,6 +40,12 @@
       "poor": "Poor"
     }
   },
+  "airQualityStates": {
+    "excellent": "Excellent",
+    "good": "Good",
+    "moderate": "Moderate",
+    "poor": "Poor"
+  },
   "charts": {
     "no_data": "No data",
     "trace": {
@@ -59,6 +69,7 @@
   },
   "settings": {
     "title": "Settings",
+    "page_title": "IAQverse - Settings",
     "menu": {
       "account": "Account",
       "display": "Display",
@@ -92,6 +103,11 @@
       "subscription": "Choose your subscription",
       "contact": "Contact us"
     },
+    "contact_actions": {
+      "send_email": "Send an email",
+      "call": "Call",
+      "open_maps": "Open in Maps"
+    },
     "fields": {
       "nom": "Name",
       "prenom": "First name",
@@ -124,6 +140,8 @@
       }
     },
     "plans": {
+      "per_month": "/month",
+      "quote": "Custom quote",
       "basic": {
         "title": "Basic",
         "description": "Basic plan with essential features",
@@ -160,7 +178,9 @@
     },
     "enterprise_modal": {
       "title": "Contact for Enterprise Plan",
+      "intro": "For the Enterprise plan, please contact us directly:",
       "message": "For the Enterprise plan, please contact us directly:\n\nEmail: {email}\nPhone: {phone}\nAddress: {address}\n\nOur team will help you configure the perfect solution for your organization.",
+      "footer": "Our team will help you configure the perfect solution for your organization.",
       "close": "Close"
     },
     "danger_zone": {
@@ -173,6 +193,7 @@
       "confirmation": "This action will permanently delete your account and all your data.",
       "warning": "This action cannot be undone.",
       "password_label": "Confirm your password:",
+      "password_placeholder": "Your password",
       "error_empty": "Please enter your password to confirm."
     }
   },
@@ -416,6 +437,7 @@
     "add_room": "Add room",
     "edit_brand": "Edit location",
     "edit_title": "Edit settings",
+    "modules_title": "Modules",
     "password_title": "Change password",
     "glb_label": "3D model (.glb)",
     "glb_drop": "Drag & drop a .glb file here"

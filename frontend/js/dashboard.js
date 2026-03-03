@@ -2,6 +2,13 @@
  * Script spécifique pour la page Dashboard (index.html)
  */
 
+function t(key) {
+  if (window.i18n && typeof window.i18n.t === "function") {
+    return window.i18n.t(key);
+  }
+  return null;
+}
+
 function resolveSelectedContext(config, enseigneId, salleId) {
   const enseigne = config?.lieux?.enseignes?.find((e) => e.id === enseigneId);
   const salle = enseigne?.pieces?.find((p) => p.id === salleId);
@@ -169,7 +176,19 @@ function _applyScoreToDOM(scoreElement, trendElement, predictedScore, trendValue
       roundedScore >= 61 ? "#84cc16" :
       roundedScore >= 41 ? "#f59e0b" :
       roundedScore >= 21 ? "#f97316" : "#ef4444";
-    if (trendElement) trendElement.textContent = trendValue || "";
+    if (trendElement) {
+      let label = trendValue || "";
+      if (typeof label === "string" && label.trim()) {
+        const levelKey = label.trim().toLowerCase();
+        const translated =
+          t(`airQualityStates.${levelKey}`) ||
+          t(`dashboard.score.${levelKey}`);
+        if (translated) {
+          label = translated;
+        }
+      }
+      trendElement.textContent = label;
+    }
   } else {
     scoreElement.textContent = "—";
     scoreElement.style.color = "";

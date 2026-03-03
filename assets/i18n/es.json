@@ -4,7 +4,11 @@
         "switch": "Cambiar de cuenta",
         "currentUser": "Usuario Actual",
         "otherAccount": "Otra Cuenta",
-        "logout": "Cerrar sesión"
+        "logout": "Cerrar sesión",
+        "status": {
+            "active": "Activo",
+            "connected": "Conectado"
+        }
     },
     "nav": {
         "home": "Panel",
@@ -35,6 +39,12 @@
             "poor": "Malo"
         }
     },
+    "airQualityStates": {
+        "excellent": "Excelente",
+        "good": "Bueno",
+        "moderate": "Moderado",
+        "poor": "Malo"
+    },
     "charts": {
         "no_data": "Sin datos",
         "trace": {
@@ -58,6 +68,7 @@
     },
     "settings": {
         "title": "Ajustes",
+        "page_title": "IAQverse - Ajustes",
         "menu": {
             "account": "Cuenta",
             "display": "Pantalla",
@@ -91,6 +102,11 @@
             "subscription": "Elija su suscripción",
             "contact": "Contáctenos"
         },
+        "contact_actions": {
+            "send_email": "Enviar un correo",
+            "call": "Llamar",
+            "open_maps": "Abrir en Maps"
+        },
         "fields": {
             "nom": "Nombre",
             "prenom": "Nombre",
@@ -123,6 +139,8 @@
             }
         },
         "plans": {
+            "per_month": "/mes",
+            "quote": "Presupuesto personalizado",
             "basic": {
                 "title": "Básico",
                 "description": "Plan básico con funciones esenciales",
@@ -159,7 +177,9 @@
         },
         "enterprise_modal": {
             "title": "Contacto para Plan Empresa",
+            "intro": "Para el plan Empresa, por favor contáctenos directamente:",
             "message": "Para el plan Empresa, por favor contáctenos directamente:\n\nEmail: {email}\nTeléfono: {phone}\nDirección: {address}\n\nNuestro equipo le ayudará a configurar la solución perfecta para su organización.",
+            "footer": "Nuestro equipo le ayudará a configurar la solución perfecta para su organización.",
             "close": "Cerrar"
         },
         "danger_zone": {
@@ -172,6 +192,7 @@
             "confirmation": "Esta acción eliminará permanentemente su cuenta y todos sus datos.",
             "warning": "Esta acción no se puede deshacer.",
             "password_label": "Confirme su contraseña:",
+            "password_placeholder": "Su contraseña",
             "error_empty": "Ingrese su contraseña para confirmar."
         }
     },
@@ -411,6 +432,7 @@
         "add_room": "Agregar sala",
         "edit_brand": "Editar ubicación",
         "edit_title": "Editar ajustes",
+        "modules_title": "Módulos",
         "password_title": "Cambiar contraseña",
         "glb_label": "Modelo 3D (.glb)",
         "glb_drop": "Arrastre y suelte un archivo .glb aquí"

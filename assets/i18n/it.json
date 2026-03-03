@@ -4,7 +4,11 @@
         "switch": "Cambia account",
         "currentUser": "Utente Attuale",
         "otherAccount": "Altro Account",
-        "logout": "Disconnetti"
+        "logout": "Disconnetti",
+        "status": {
+            "active": "Attivo",
+            "connected": "Connesso"
+        }
     },
     "nav": {
         "home": "Home",
@@ -35,6 +39,12 @@
             "poor": "Scadente"
         }
     },
+    "airQualityStates": {
+        "excellent": "Eccellente",
+        "good": "Buono",
+        "moderate": "Moderato",
+        "poor": "Scadente"
+    },
     "charts": {
         "no_data": "Nessun dato",
         "trace": {
@@ -58,6 +68,7 @@
     },
     "settings": {
         "title": "Impostazioni",
+        "page_title": "IAQverse - Impostazioni",
         "menu": {
             "account": "Account",
             "display": "Schermo",
@@ -91,6 +102,11 @@
             "subscription": "Scegli il tuo abbonamento",
             "contact": "Contattaci"
         },
+        "contact_actions": {
+            "send_email": "Invia un'email",
+            "call": "Chiama",
+            "open_maps": "Apri in Maps"
+        },
         "fields": {
             "nom": "Nome",
             "prenom": "Cognome",
@@ -123,6 +139,8 @@
             }
         },
         "plans": {
+            "per_month": "/mese",
+            "quote": "Preventivo personalizzato",
             "basic": {
                 "title": "Base",
                 "description": "Piano base con funzionalità essenziali",
@@ -159,7 +177,9 @@
         },
         "enterprise_modal": {
             "title": "Contatto per Piano Enterprise",
+            "intro": "Per il piano Enterprise, contattateci direttamente:",
             "message": "Per il piano Enterprise, contattateci direttamente:\n\nEmail: {email}\nTelefono: {phone}\nIndirizzo: {address}\n\nIl nostro team vi aiuterà a configurare la soluzione perfetta per la vostra organizzazione.",
+            "footer": "Il nostro team vi aiuterà a configurare la soluzione perfetta per la vostra organizzazione.",
             "close": "Chiudi"
         },
         "danger_zone": {
@@ -172,6 +192,7 @@
             "confirmation": "Questa azione eliminerà definitivamente il tuo account e tutti i tuoi dati.",
             "warning": "Questa azione non può essere annullata.",
             "password_label": "Conferma la tua password:",
+            "password_placeholder": "La tua password",
             "error_empty": "Inserisci la tua password per confermare."
         }
     },
@@ -410,6 +431,7 @@
         "add_room": "Aggiungi stanza",
         "edit_brand": "Modifica sede",
         "edit_title": "Modifica impostazioni",
+        "modules_title": "Moduli",
         "password_title": "Cambia password",
         "glb_label": "Modello 3D (.glb)",
         "glb_drop": "Trascina qui un file .glb"

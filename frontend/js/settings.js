@@ -2137,3 +2137,153 @@ async function confirmDeleteAccount() {
 window.openDeleteAccountModal = openDeleteAccountModal;
 window.closeDeleteAccountModal = closeDeleteAccountModal;
 window.confirmDeleteAccount = confirmDeleteAccount;
+
+// ============================================================================
+// SECTION MODÈLE IA — Auto-évaluation des prédictions
+// ============================================================================
+
+const MODEL_TARGET_LABELS = {
+  co2: "CO₂ (ppm)",
+  pm25: "PM2.5 (µg/m³)",
+  tvoc: "TVOC (ppb)",
+  temperature: "Temp (°C)",
+  humidity: "Humidité (%)",
+};
+
+const MODEL_TARGET_UNITS = {
+  co2: "ppm",
+  pm25: "µg/m³",
+  tvoc: "ppb",
+  temperature: "°C",
+  humidity: "%",
+};
+
+/**
+ * Charge et affiche les performances du modèle ML.
+ * @param {number|null} hours - Fenêtre temporelle (null = tout)
+ */
+async function loadModelPerformance(hours = 24) {
+  // Update active button
+  document.querySelectorAll(".model-period-btn").forEach((btn) => {
+    const h = btn.dataset.hours;
+    btn.classList.toggle(
+      "active",
+      (hours === null && h === "0") || String(hours) === h,
+    );
+  });
+
+  try {
+    const url =
+      hours != null
+        ? `/api/model/performance?hours=${hours}`
+        : `/api/model/performance`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    // --- Compteurs ---
+    const elTotal = document.getElementById("model-total");
+    const elEval = document.getElementById("model-evaluated");
+    const elPending = document.getElementById("model-pending");
+    if (elTotal) elTotal.textContent = data.total_predictions ?? "--";
+    if (elEval) elEval.textContent = data.evaluated ?? "--";
+    if (elPending) elPending.textContent = data.pending ?? "--";
+
+    // --- Tableau métriques ---
+    const metricsBody = document.getElementById("model-metrics-body");
+    if (metricsBody && data.metrics) {
+      const targets = ["co2", "pm25", "tvoc", "temperature", "humidity"];
+      let html = "";
+      for (const t of targets) {
+        const m = data.metrics[t];
+        if (!m) continue;
+        const noData = m.n_samples < 2;
+        const accuracyColor =
+          m.accuracy_10pct != null
+            ? m.accuracy_10pct >= 70
+              ? "var(--success,#22c55e)"
+              : m.accuracy_10pct >= 40
+                ? "var(--warning,#f59e0b)"
+                : "var(--danger,#ef4444)"
+            : "inherit";
+
+        html += `<tr style="border-bottom:1px solid var(--border-color,#e2e8f0);">
+          <td style="padding:8px;font-weight:600;">${MODEL_TARGET_LABELS[t] || t}</td>
+          <td style="padding:8px;">${noData ? "—" : m.mae}</td>
+          <td style="padding:8px;">${noData ? "—" : m.rmse}</td>
+          <td style="padding:8px;">${noData ? "—" : m.mape != null ? m.mape + "%" : "—"}</td>
+          <td style="padding:8px;font-weight:600;color:${accuracyColor};">${noData ? "—" : m.accuracy_10pct != null ? m.accuracy_10pct + "%" : "—"}</td>
+          <td style="padding:8px;color:var(--text-muted);">${m.n_samples}</td>
+        </tr>`;
+      }
+      metricsBody.innerHTML =
+        html ||
+        '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">Aucune donnée évaluée</td></tr>';
+    }
+
+    // --- Tableau log ---
+    const logBody = document.getElementById("model-log-body");
+    if (logBody && data.recent_evaluations) {
+      let html = "";
+      for (const entry of data.recent_evaluations) {
+        const targetTime = new Date(entry.target_at).toLocaleString("fr-FR", {
+          hour: "2-digit",
+          minute: "2-digit",
+          day: "2-digit",
+          month: "2-digit",
+        });
+        html += `<tr style="border-bottom:1px solid var(--border-color,#e2e8f0);">
+          <td style="padding:6px 8px;white-space:nowrap;">${targetTime}</td>
+          <td style="padding:6px 8px;">${entry.salle || "—"}</td>`;
+
+        for (const t of ["co2", "pm25", "tvoc", "temperature", "humidity"]) {
+          const p = entry.predicted?.[t];
+          const a = entry.actual?.[t];
+          const e = entry.errors?.[t];
+          if (p != null && a != null) {
+            const errColor =
+              e != null && a !== 0 && e / Math.abs(a) > 0.1
+                ? "var(--danger,#ef4444)"
+                : "var(--success,#22c55e)";
+            html += `<td style="padding:6px 8px;">
+              <span style="color:var(--text-muted);font-size:0.75rem;">P:</span>${p}
+              <span style="color:var(--text-muted);font-size:0.75rem;">R:</span>${a}
+              <br><span style="color:${errColor};font-size:0.75rem;">±${e ?? "?"}</span>
+            </td>`;
+          } else {
+            html += `<td style="padding:6px 8px;color:var(--text-muted);">—</td>`;
+          }
+        }
+        html += `</tr>`;
+      }
+      logBody.innerHTML =
+        html ||
+        '<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">Aucune évaluation enregistrée</td></tr>';
+    }
+  } catch (err) {
+    console.error("Erreur chargement performance modèle:", err);
+    const metricsBody = document.getElementById("model-metrics-body");
+    if (metricsBody) {
+      metricsBody.innerHTML = `<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--danger);">Erreur de chargement</td></tr>`;
+    }
+  }
+}
+
+// Charger automatiquement quand on navigue vers la section "modele"
+const _origShowSection =
+  typeof showSection === "function" ? showSection : null;
+function showSection(id) {
+  // appeler l'original (défini dans l'inline script du HTML)
+  document.querySelectorAll(".section").forEach((s) => s.classList.remove("active"));
+  document.querySelectorAll(".menu li").forEach((li) => li.classList.remove("active"));
+  const target = document.getElementById(id);
+  if (target) target.classList.add("active");
+  const activeItem = document.querySelector(`[data-section="${id}"]`);
+  if (activeItem) activeItem.classList.add("active");
+
+  if (id === "modele") {
+    loadModelPerformance();
+  }
+}
+window.showSection = showSection;
+window.loadModelPerformance = loadModelPerformance;

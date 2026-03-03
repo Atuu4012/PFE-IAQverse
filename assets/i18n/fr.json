@@ -65,6 +65,7 @@
       "notifications": "Notifications",
       "locations": "Lieux",
       "subscription": "Abonnement",
+      "model": "Modèle IA",
       "contact": "Contact"
     },
     "aboutTitle": "À propos de cette page",
@@ -84,12 +85,21 @@
       "subscription": "Votre abonnement",
       "contact": "Contact"
     },
+    "model": {
+      "info_title": "Informations du modèle",
+      "metrics_title": "Métriques de précision",
+      "log_title": "Dernières évaluations",
+      "total_predictions": "Prédictions totales",
+      "evaluated": "Évaluées",
+      "pending": "En attente"
+    },
     "infoList": {
       "account": "Gestion des informations du compte",
       "display": "Gestion de l'affichage et de la langue",
       "notifications": "Gestions de vos notifications",
       "rooms": "Ajout et suppression des salles",
       "subscription": "Choix de votre abonnement",
+      "model": "Suivi des performances du modèle IA",
       "contact": "Contactez nous"
     },
     "fields": {

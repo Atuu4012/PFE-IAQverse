@@ -39,6 +39,12 @@
             "poor": "Schlecht"
         }
     },
+    "airQualityStates": {
+        "excellent": "Ausgezeichnet",
+        "good": "Gut",
+        "moderate": "Mäßig",
+        "poor": "Schlecht"
+    },
     "charts": {
         "no_data": "Keine Daten",
         "trace": {

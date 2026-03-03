@@ -40,6 +40,12 @@
       "poor": "Poor"
     }
   },
+  "airQualityStates": {
+    "excellent": "Excellent",
+    "good": "Good",
+    "moderate": "Moderate",
+    "poor": "Poor"
+  },
   "charts": {
     "no_data": "No data",
     "trace": {

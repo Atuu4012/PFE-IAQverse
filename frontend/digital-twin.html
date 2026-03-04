@@ -372,14 +372,16 @@
     // Fullscreen handler
     document.getElementById('fullscreen-btn')?.addEventListener('click', async () => {
       const container = document.querySelector('.room-visual');
-      const isFullscreen = document.fullscreenElement || container.classList.contains('is-fullscreen');
+        const isFullscreen = document.fullscreenElement || container.classList.contains('is-fullscreen');
+        const body = document.body;
 
       if (!isFullscreen) {
         try {
           if (container.requestFullscreen) {
             await container.requestFullscreen();
           }
-          container.classList.add('is-fullscreen');
+            container.classList.add('is-fullscreen');
+            body.classList.add('twin-fullscreen');
         } catch (err) {
           console.error('Fullscreen error:', err);
         }
@@ -387,7 +389,8 @@
         if (document.exitFullscreen) {
           await document.exitFullscreen();
         }
-        container.classList.remove('is-fullscreen');
+          container.classList.remove('is-fullscreen');
+          body.classList.remove('twin-fullscreen');
       }
     });
 
@@ -395,6 +398,7 @@
       const container = document.querySelector('.room-visual');
       if (!document.fullscreenElement) {
         container.classList.remove('is-fullscreen');
+        document.body.classList.remove('twin-fullscreen');
       }
     });
   </script>

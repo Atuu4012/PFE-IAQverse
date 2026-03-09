@@ -35,5 +35,5 @@ ENV API_URL=http://backend:8000/api/iaq/data
 WORKDIR /app
 
 # Lancer le scheduler avec un script shell pour interpréter les variables
-CMD sh -c "python backend/dl/scheduler_retrain.py --interval $RETRAIN_INTERVAL" 
+CMD sh -c "python backend/dl/scheduler_retrain.py --interval $RETRAIN_INTERVAL -- run-now" 
 # --run-now"

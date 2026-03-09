@@ -21,10 +21,13 @@ ou via Docker :
 
 
 import argparse
+import csv
 import json
 import logging
 import os
+import tempfile
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import joblib
 import matplotlib.pyplot as plt
@@ -63,6 +66,8 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────
 LOOKBACK_STEPS = 72  # 6 h d'historique (72 × 5 min)
 HORIZON_STEPS = 6  # Prédire +5 min … +30 min (6 pas × 5 min)
+TARGET_HORIZON_IDX = min(5, HORIZON_STEPS - 1)
+TARGET_HORIZON_MINUTES = (TARGET_HORIZON_IDX + 1) * 5
 
 # Optuna persistant : fichier SQLite partagé entre exécutions
 # En prod Docker, /app/assets/ml_models est un volume persistant → la DB survit aux redéploiements
@@ -71,7 +76,13 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _PERSISTENT_DIR = _PROJECT_ROOT / "assets" / "ml_models"
 _PERSISTENT_DIR.mkdir(parents=True, exist_ok=True)
 OPTUNA_DB_PATH = _PERSISTENT_DIR / "optuna_lstm_study.db"
-OPTUNA_STUDY_NAME = "IAQ_LSTM_HPO"
+OPTUNA_OBJECTIVE_METRIC = f"combined_score_t{TARGET_HORIZON_MINUTES}min"
+OPTUNA_STUDY_NAME = os.getenv("OPTUNA_STUDY_NAME", "IAQ_LSTM_HPO_CORR_ALL_SENSORS_V1")
+OPTUNA_DIRECTION = "maximize"
+DEFAULT_SMOOTHING_WINDOW = max(1, int(os.getenv("LSTM_SMOOTHING_WINDOW", "3")))
+DEFAULT_SMOOTHING_CANDIDATES = os.getenv("LSTM_SMOOTHING_CANDIDATES", "1,3,6")
+DEFAULT_OBJECTIVE_CORR_WEIGHT = float(os.getenv("OPTUNA_CORR_WEIGHT", "0.7"))
+DEFAULT_OBJECTIVE_MAE_WEIGHT = float(os.getenv("OPTUNA_MAE_WEIGHT", "0.3"))
 
 # Seuil : nombre minimum de trials cumulés avant de considérer l'étude fiable
 MIN_TRIALS_FOR_BEST = 6
@@ -90,6 +101,18 @@ FEATURES = [
     "day_cos",
 ]
 TARGETS = ["co2", "pm25", "tvoc", "temperature", "humidity"]
+DATASET_COLUMNS = [
+    "timestamp",
+    "co2",
+    "pm25",
+    "tvoc",
+    "temperature",
+    "humidity",
+    "occupants",
+    "enseigne",
+    "salle",
+    "capteur_id",
+]
 
 # MLflow Setup
 MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
@@ -110,6 +133,224 @@ except Exception as e:
 #  Notification rechargement modèle au backend
 # ──────────────────────────────────────────────────────────────
 _BACKEND_RELOAD_URL = os.getenv("BACKEND_RELOAD_URL", "http://backend:8000/api/reload-model")
+
+
+def _default_api_url() -> str:
+    """Construit une URL backend valable """
+    lookback_hours = os.getenv("API_LOOKBACK_HOURS", "72")
+
+    if env_api_url := os.getenv("API_URL"):
+        return env_api_url
+
+    backend_host = "backend" if Path("/.dockerenv").exists() else "localhost"
+    return f"http://{backend_host}:8000/api/iaq/data?hours={lookback_hours}"
+
+
+def _recent_lookback_hours() -> int:
+    """Fenêtre des nouvelles données à récupérer à chaque réentraînement."""
+    raw_value = os.getenv("API_LOOKBACK_HOURS") or os.getenv("RETRAIN_INTERVAL") or "72"
+    try:
+        return max(1, int(float(raw_value)))
+    except ValueError:
+        logger.warning(f"API_LOOKBACK_HOURS invalide ({raw_value}), fallback à 72h")
+        return 72
+
+
+def _parse_positive_int_list(raw_value: str | None, default: list[int]) -> list[int]:
+    """Parse une liste d'entiers positifs séparés par des virgules."""
+    if not raw_value:
+        return default
+
+    values = []
+    for chunk in raw_value.split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        try:
+            parsed = int(chunk)
+        except ValueError:
+            logger.warning(f"Valeur de lissage ignorée (invalide): {chunk}")
+            continue
+        if parsed < 1:
+            logger.warning(f"Valeur de lissage ignorée (<1): {parsed}")
+            continue
+        values.append(parsed)
+
+    return sorted(set(values)) or default
+
+
+def _normalize_objective_weights(corr_weight: float, mae_weight: float) -> tuple[float, float]:
+    """Normalise les poids de l'objectif combiné pour éviter les dérives d'échelle."""
+    corr_weight = max(0.0, float(corr_weight))
+    mae_weight = max(0.0, float(mae_weight))
+    total = corr_weight + mae_weight
+    if total <= 0:
+        return 0.5, 0.5
+    return corr_weight / total, mae_weight / total
+
+
+def _safe_correlation(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Corrélation de Pearson robuste aux séries constantes."""
+    if len(y_true) <= 1:
+        return float("nan")
+    if np.std(y_true) <= 1e-12 or np.std(y_pred) <= 1e-12:
+        return float("nan")
+    corr, _ = pearsonr(y_true, y_pred)
+    return float(corr)
+
+
+def _safe_mape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """MAPE robuste en ignorant les cibles nulles."""
+    nonzero_mask = np.abs(y_true) > 1e-12
+    if nonzero_mask.sum() == 0:
+        return float("nan")
+    return float(np.mean(np.abs((y_true[nonzero_mask] - y_pred[nonzero_mask]) / y_true[nonzero_mask])) * 100)
+
+
+def _combined_objective_score(
+    avg_correlation: float,
+    avg_normalized_mae: float,
+    corr_weight: float,
+    mae_weight: float,
+) -> float:
+    """Score combiné à maximiser: corrélation haute et MAE normalisée basse."""
+    if np.isnan(avg_correlation) or np.isnan(avg_normalized_mae):
+        return float("nan")
+
+    corr_weight, mae_weight = _normalize_objective_weights(corr_weight, mae_weight)
+    return float((corr_weight * avg_correlation) - (mae_weight * avg_normalized_mae))
+
+
+def _log_metric_if_finite(name: str, value: float) -> None:
+    """Envoie une métrique à MLflow seulement si elle est exploitable."""
+    if value is None:
+        return
+    value = float(value)
+    if np.isfinite(value):
+        mlflow.log_metric(name, value)
+
+
+def _build_api_url(**override_params) -> str:
+    """Construit l'URL de requête en fusionnant les paramètres fournis."""
+    parsed = urlparse(_default_api_url())
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+
+    for key, value in override_params.items():
+        if value is None:
+            query.pop(key, None)
+        else:
+            query[key] = str(value)
+
+    return urlunparse(parsed._replace(query=urlencode(query)))
+
+
+def _normalize_api_data(records: list[dict]) -> pd.DataFrame:
+    """Met les données API au format du dataset ML 5 minutes."""
+    if not records:
+        return pd.DataFrame(columns=DATASET_COLUMNS)
+
+    df = pd.DataFrame(records).copy()
+    if df.empty:
+        return pd.DataFrame(columns=DATASET_COLUMNS)
+
+    if "sensor_id" in df.columns and "capteur_id" not in df.columns:
+        df = df.rename(columns={"sensor_id": "capteur_id"})
+
+    defaults = {
+        "occupants": 0,
+        "enseigne": "Maison",
+        "salle": "Bureau",
+        "capteur_id": "unknown",
+    }
+    for column, default in defaults.items():
+        if column not in df.columns:
+            df[column] = default
+        else:
+            df[column] = df[column].fillna(default)
+
+    if "timestamp" not in df.columns:
+        return pd.DataFrame(columns=DATASET_COLUMNS)
+
+    df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce", utc=True).dt.tz_localize(None)
+
+    for column in ["co2", "pm25", "tvoc", "temperature", "humidity", "occupants"]:
+        if column not in df.columns:
+            df[column] = np.nan if column != "occupants" else 0
+        df[column] = pd.to_numeric(df[column], errors="coerce")
+
+    df["occupants"] = df["occupants"].fillna(0).round().astype(int)
+    df = df.dropna(subset=["timestamp", "capteur_id"])
+    df = df.dropna(subset=TARGETS, how="all")
+    df = df[DATASET_COLUMNS]
+    df = df.sort_values(["timestamp", "capteur_id"]).reset_index(drop=True)
+    return df
+
+
+def _fetch_recent_api_data(hours: int) -> pd.DataFrame:
+    """Récupère les dernières données agrégées à 5 minutes depuis l'API."""
+    api_url = _build_api_url(hours=hours, step="5min", raw="false")
+    logger.info(f"Récupération des données récentes via {api_url}")
+
+    try:
+        resp = requests.get(api_url, timeout=15)
+        resp.raise_for_status()
+        return _normalize_api_data(resp.json() or [])
+    except Exception as e:
+        logger.warning(f"Impossible de récupérer les données récentes: {e}")
+        return pd.DataFrame(columns=DATASET_COLUMNS)
+
+
+def _save_training_dataset(df: pd.DataFrame, csv_path: str) -> None:
+    """Sauvegarde le dataset cumulatif dans le même format que le preprocessing."""
+    output_path = Path(csv_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_path, index=False, quoting=csv.QUOTE_ALL, float_format="%.6f")
+
+
+def refresh_training_dataset(csv_path: str, lookback_hours: int) -> None:
+    """Fusionne le dataset historique avec les nouvelles données Influx/API."""
+    csv_file = Path(csv_path)
+    if csv_file.exists():
+        base_df = pd.read_csv(csv_file)
+    else:
+        logger.warning(f"Dataset absent, création à partir des données récentes: {csv_path}")
+        base_df = pd.DataFrame(columns=DATASET_COLUMNS)
+
+    if not base_df.empty:
+        base_df.columns = base_df.columns.str.strip().str.replace('"', "")
+        base_df["timestamp"] = pd.to_datetime(base_df["timestamp"], errors="coerce").dt.tz_localize(None)
+        if "sensor_id" in base_df.columns and "capteur_id" not in base_df.columns:
+            base_df = base_df.rename(columns={"sensor_id": "capteur_id"})
+        for column in DATASET_COLUMNS:
+            if column not in base_df.columns:
+                base_df[column] = 0 if column == "occupants" else np.nan
+        base_df = base_df[DATASET_COLUMNS]
+        base_df["occupants"] = pd.to_numeric(base_df["occupants"], errors="coerce").fillna(0).round().astype(int)
+        base_df = base_df.dropna(subset=["timestamp", "capteur_id"])
+
+    recent_df = _fetch_recent_api_data(lookback_hours)
+    if recent_df.empty:
+        logger.info("Aucune nouvelle donnée API à fusionner dans le dataset cumulatif.")
+        return
+
+    previous_max_ts = base_df["timestamp"].max() if not base_df.empty else None
+    if previous_max_ts is not None:
+        recent_df = recent_df[recent_df["timestamp"] > previous_max_ts]
+
+    if recent_df.empty:
+        logger.info("Pas de données plus récentes que le dataset courant.")
+        return
+
+    before_rows = len(base_df)
+    merged_df = pd.concat([base_df, recent_df], ignore_index=True)
+    merged_df = merged_df.drop_duplicates(subset=["timestamp", "capteur_id"], keep="last")
+    merged_df = merged_df.sort_values(["timestamp", "capteur_id"]).reset_index(drop=True)
+    _save_training_dataset(merged_df, csv_path)
+
+    logger.info(
+        f"Dataset cumulatif mis à jour: +{len(recent_df)} nouvelles lignes, "
+        f"{before_rows} → {len(merged_df)} lignes"
+    )
 
 
 def _notify_backend_reload():
@@ -135,7 +376,30 @@ def _notify_backend_reload():
 # ──────────────────────────────────────────────────────────────
 #  Chargement & Préparation des données
 # ──────────────────────────────────────────────────────────────
-def load_data(csv_path: str) -> pd.DataFrame | None:
+def _apply_group_smoothing(df: pd.DataFrame, smoothing_window: int) -> pd.DataFrame:
+    """Applique un lissage par capteur, ou le désactive si la fenêtre vaut 1."""
+    smoothed_df = df.copy()
+    smoothing_window = max(1, int(smoothing_window))
+
+    if smoothing_window <= 1:
+        logger.info("Lissage désactivé pour cette variante (window=1)")
+        return smoothed_df
+
+    cols_to_smooth = ["co2", "pm25", "tvoc", "temperature", "humidity"]
+    logger.info(f"Application du lissage par capteur (window={smoothing_window})")
+    for col in cols_to_smooth:
+        if col in smoothed_df.columns:
+            smoothed_df[col] = smoothed_df.groupby("sensor_id")[col].transform(
+                lambda s: s.rolling(window=smoothing_window, min_periods=1).mean()
+            )
+    return smoothed_df
+
+
+def load_data(
+    csv_path: str,
+    fetch_recent_api: bool = True,
+    smoothing_window: int = DEFAULT_SMOOTHING_WINDOW,
+) -> pd.DataFrame | None:
     """Charge et nettoie les données (CSV + API si dispo).
 
     Retourne un DataFrame trié par (sensor_id, timestamp) avec features
@@ -157,20 +421,11 @@ def load_data(csv_path: str) -> pd.DataFrame | None:
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
 
     # --- (Optionnel) Récupérer nouvelles données API ---
-    api_url = os.getenv(
-        "API_URL",
-        f"http://localhost:8000/api/iaq/data?hours={LOOKBACK_STEPS * 5 / 60}",
-    )
-    try:
-        resp = requests.get(api_url, timeout=5)
-        if resp.status_code == 200:
-            if json_data := resp.json():
-                df_new = pd.DataFrame(json_data)
-                df_new["timestamp"] = pd.to_datetime(df_new["timestamp"], utc=True)
-                df = pd.concat([df, df_new], ignore_index=True)
-                logger.info(f"Ajouté {len(df_new)} points récents depuis l'API")
-    except Exception as e:
-        logger.warning(f"Impossible de récupérer les données récentes: {e}")
+    if fetch_recent_api:
+        df_new = _fetch_recent_api_data(_recent_lookback_hours())
+        if not df_new.empty:
+            df = pd.concat([df, df_new], ignore_index=True)
+            logger.info(f"Ajouté {len(df_new)} points récents depuis l'API")
 
     # --- Déduplication & Tri PAR CAPTEUR puis par timestamp ---
     df = df.drop_duplicates(subset=["timestamp", "sensor_id"])
@@ -195,13 +450,7 @@ def load_data(csv_path: str) -> pd.DataFrame | None:
 
     df = df.dropna(subset=FEATURES)
 
-    # --- Lissage PAR CAPTEUR (très important !) ---
-    cols_to_smooth = ["co2", "pm25", "tvoc", "temperature", "humidity"]
-    for col in cols_to_smooth:
-        if col in df.columns:
-            df[col] = df.groupby("sensor_id")[col].transform(
-                lambda s: s.rolling(window=6, min_periods=1).mean()
-            )
+    df = _apply_group_smoothing(df, smoothing_window)
 
     logger.info(f"Total données après nettoyage: {len(df)} lignes")
     logger.info(f"Capteurs: {df['sensor_id'].unique().tolist()}")
@@ -224,33 +473,232 @@ def create_sequences(data: np.ndarray, n_steps_in: int, n_steps_out: int):
     return np.array(X), np.array(y)
 
 
-def build_sequences_per_sensor(
-    df: pd.DataFrame, scaler: MinMaxScaler, n_in: int, n_out: int
+def build_train_test_sequences_per_sensor(
+    df: pd.DataFrame,
+    scaler: MinMaxScaler,
+    n_in: int,
+    n_out: int,
+    train_ratio: float = 0.8,
 ):
-    """Crée les séquences en respectant les frontières de chaque capteur.
+    """Crée les séquences pour tous les capteurs avec split temporel par capteur.
 
-    Seul le capteur ayant le plus de données est utilisé pour l'entraînement
-    afin d'éviter un biais dû au déséquilibre entre capteurs.
+    On évite ainsi de ne retenir qu'un seul capteur et on conserve un découpage
+    train/test chronologique indépendant pour chaque série temporelle.
     """
-    all_X, all_y = [], []
-    best_sensor, best_count = None, 0
+    train_X_parts, train_y_parts = [], []
+    test_X_parts, test_y_parts = [], []
+    total_sequences = 0
 
     for sensor_id, grp in df.groupby("sensor_id"):
         arr = grp[FEATURES].values
         scaled = scaler.transform(arr)
         Xs, ys = create_sequences(scaled, n_in, n_out)
-        if len(Xs) > 0:
-            logger.info(f"  Capteur {sensor_id}: {len(Xs)} séquences")
-            if len(Xs) > best_count:
-                best_sensor, best_count = sensor_id, len(Xs)
-            all_X.append((sensor_id, Xs))
-            all_y.append((sensor_id, ys))
+        if len(Xs) == 0:
+            continue
 
-    # Ne garder que le capteur principal
-    logger.info(f"  → Capteur retenu: {best_sensor} ({best_count} séquences)")
-    X = next(Xs for sid, Xs in all_X if sid == best_sensor)
-    y = next(ys for sid, ys in all_y if sid == best_sensor)
-    return X, y
+        split_idx = max(1, int(len(Xs) * train_ratio))
+        if split_idx >= len(Xs):
+            split_idx = len(Xs) - 1
+        if split_idx <= 0:
+            continue
+
+        logger.info(
+            f"  Capteur {sensor_id}: {len(Xs)} séquences "
+            f"(train={split_idx}, test={len(Xs) - split_idx})"
+        )
+
+        train_X_parts.append(Xs[:split_idx])
+        train_y_parts.append(ys[:split_idx])
+        test_X_parts.append(Xs[split_idx:])
+        test_y_parts.append(ys[split_idx:])
+        total_sequences += len(Xs)
+
+    if not train_X_parts or not test_X_parts:
+        raise RuntimeError("Pas assez de séquences multi-capteurs pour construire train/test.")
+
+    X_train = np.concatenate(train_X_parts, axis=0)
+    y_train = np.concatenate(train_y_parts, axis=0)
+    X_test = np.concatenate(test_X_parts, axis=0)
+    y_test = np.concatenate(test_y_parts, axis=0)
+
+    logger.info(
+        f"  → Multi-capteurs retenus: {len(train_X_parts)} capteurs, "
+        f"{total_sequences} séquences totales"
+    )
+    return X_train, X_test, y_train, y_test
+
+
+def prepare_train_test_data(
+    df_base: pd.DataFrame,
+    smoothing_window: int,
+    n_in: int,
+    n_out: int,
+    train_ratio: float = 0.8,
+) -> dict[str, np.ndarray | MinMaxScaler | int]:
+    """Prépare une variante complète train/test pour une fenêtre de lissage donnée."""
+    df_variant = _apply_group_smoothing(df_base, smoothing_window)
+
+    train_frames = []
+    for _, grp in df_variant.groupby("sensor_id"):
+        n_train = max(1, int(len(grp) * train_ratio))
+        train_frames.append(grp.iloc[:n_train])
+
+    if not train_frames:
+        raise RuntimeError("Impossible de préparer le scaler: aucun capteur exploitable.")
+
+    train_df = pd.concat(train_frames)
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaler.fit(train_df[FEATURES].values)
+
+    X_train, X_test, y_train, y_test = build_train_test_sequences_per_sensor(
+        df_variant,
+        scaler,
+        n_in,
+        n_out,
+        train_ratio=train_ratio,
+    )
+
+    if np.isnan(X_train).any() or np.isnan(y_train).any():
+        logger.warning("NaNs détectés dans train, nettoyage…")
+        valid_train = ~np.isnan(X_train).any(axis=(1, 2)) & ~np.isnan(y_train).any(axis=(1, 2))
+        X_train, y_train = X_train[valid_train], y_train[valid_train]
+    if np.isnan(X_test).any() or np.isnan(y_test).any():
+        logger.warning("NaNs détectés dans test, nettoyage…")
+        valid_test = ~np.isnan(X_test).any(axis=(1, 2)) & ~np.isnan(y_test).any(axis=(1, 2))
+        X_test, y_test = X_test[valid_test], y_test[valid_test]
+
+    X_trial = X_train[::2]
+    y_trial = y_train[::2]
+
+    logger.info(
+        f"Variante window={smoothing_window}: train={X_train.shape}, test={X_test.shape}, "
+        f"optuna={X_trial.shape}"
+    )
+
+    return {
+        "smoothing_window": smoothing_window,
+        "scaler": scaler,
+        "X_train": X_train,
+        "X_test": X_test,
+        "y_train": y_train,
+        "y_test": y_test,
+        "X_trial": X_trial,
+        "y_trial": y_trial,
+    }
+
+
+def _denormalize_targets(
+    y_true: np.ndarray, y_pred: np.ndarray, scaler: MinMaxScaler
+) -> tuple[np.ndarray, np.ndarray]:
+    """Ramène les targets dans leurs unités d'origine pour calculer des métriques lisibles."""
+    y_true_denorm = np.zeros_like(y_true)
+    y_pred_denorm = np.zeros_like(y_pred)
+
+    for index, target_name in enumerate(TARGETS):
+        try:
+            feat_idx = FEATURES.index(target_name)
+            data_min = scaler.data_min_[feat_idx]
+            data_range = scaler.data_range_[feat_idx]
+            y_true_denorm[:, :, index] = y_true[:, :, index] * data_range + data_min
+            y_pred_denorm[:, :, index] = y_pred[:, :, index] * data_range + data_min
+        except ValueError:
+            y_true_denorm[:, :, index] = y_true[:, :, index]
+            y_pred_denorm[:, :, index] = y_pred[:, :, index]
+
+    return y_true_denorm, y_pred_denorm
+
+
+def _compute_horizon_metrics(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    scaler: MinMaxScaler,
+    horizon_idx: int,
+) -> dict[str, float]:
+    """Calcule des métriques agrégées au pas d'horizon demandé."""
+    y_true_denorm, y_pred_denorm = _denormalize_targets(y_true, y_pred, scaler)
+
+    correlations = []
+    maes = []
+    normalized_maes = []
+    for target_index in range(len(TARGETS)):
+        y_true_h = y_true_denorm[:, horizon_idx, target_index]
+        y_pred_h = y_pred_denorm[:, horizon_idx, target_index]
+
+        mae = mean_absolute_error(y_true_h, y_pred_h)
+        maes.append(mae)
+
+        target_scale = max(float(np.std(y_true_h)), 1e-6)
+        normalized_maes.append(mae / target_scale)
+
+        corr = _safe_correlation(y_true_h, y_pred_h)
+        if not np.isnan(corr):
+            correlations.append(corr)
+
+    return {
+        "avg_mae": float(np.mean(maes)) if maes else float("nan"),
+        "avg_normalized_mae": float(np.mean(normalized_maes)) if normalized_maes else float("nan"),
+        "avg_correlation": float(np.mean(correlations)) if correlations else float("nan"),
+    }
+
+
+def _compute_metrics_by_horizon(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    scaler: MinMaxScaler,
+    corr_weight: float,
+    mae_weight: float,
+) -> pd.DataFrame:
+    """Construit un tableau complet des métriques par horizon et par cible."""
+    y_true_denorm, y_pred_denorm = _denormalize_targets(y_true, y_pred, scaler)
+    rows = []
+
+    for horizon_idx in range(y_true.shape[1]):
+        row = {
+            "horizon_step": horizon_idx + 1,
+            "horizon_minutes": (horizon_idx + 1) * 5,
+            "horizon_label": f"t+{(horizon_idx + 1) * 5}min",
+        }
+        correlations = []
+        maes = []
+        normalized_maes = []
+
+        for target_index, target_name in enumerate(TARGETS):
+            y_true_h = y_true_denorm[:, horizon_idx, target_index]
+            y_pred_h = y_pred_denorm[:, horizon_idx, target_index]
+
+            mae = mean_absolute_error(y_true_h, y_pred_h)
+            rmse = float(np.sqrt(mean_squared_error(y_true_h, y_pred_h)))
+            corr = _safe_correlation(y_true_h, y_pred_h)
+            r2 = float(r2_score(y_true_h, y_pred_h)) if len(y_true_h) > 1 else float("nan")
+            mape = _safe_mape(y_true_h, y_pred_h)
+            normalized_mae = mae / max(float(np.std(y_true_h)), 1e-6)
+
+            row[f"{target_name}_mae"] = float(mae)
+            row[f"{target_name}_rmse"] = rmse
+            row[f"{target_name}_correlation"] = corr
+            row[f"{target_name}_r2"] = r2
+            row[f"{target_name}_mape"] = mape
+            row[f"{target_name}_normalized_mae"] = float(normalized_mae)
+
+            maes.append(mae)
+            normalized_maes.append(normalized_mae)
+            if not np.isnan(corr):
+                correlations.append(corr)
+
+        row["avg_mae"] = float(np.mean(maes)) if maes else float("nan")
+        row["avg_normalized_mae"] = (
+            float(np.mean(normalized_maes)) if normalized_maes else float("nan")
+        )
+        row["avg_correlation"] = float(np.mean(correlations)) if correlations else float("nan")
+        row["combined_score"] = _combined_objective_score(
+            row["avg_correlation"],
+            row["avg_normalized_mae"],
+            corr_weight,
+            mae_weight,
+        )
+        rows.append(row)
+
+    return pd.DataFrame(rows)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -336,7 +784,7 @@ def _load_or_create_study():
     study = optuna.create_study(
         study_name=OPTUNA_STUDY_NAME,
         storage=storage,
-        direction="minimize",
+        direction=OPTUNA_DIRECTION,
         load_if_exists=True,  # ← Clé : reprend les trials précédents
     )
     return study
@@ -350,6 +798,9 @@ def train_best_model(
     n_trials: int = 2,
     n_epochs: int = 30,
     force_retrain: bool = False,
+    smoothing_candidates: list[int] | None = None,
+    objective_corr_weight: float = DEFAULT_OBJECTIVE_CORR_WEIGHT,
+    objective_mae_weight: float = DEFAULT_OBJECTIVE_MAE_WEIGHT,
 ):
     """Pipeline incrémental : data → Optuna (+N trials) → meilleur modèle → MLflow.
 
@@ -361,71 +812,81 @@ def train_best_model(
     """
 
     # ── 1. Préparation des données ───────────────────────────
-    df = load_data(csv_path)
-    if df is None:
+    lookback_hours = _recent_lookback_hours()
+    if os.getenv("DISABLE_INCREMENTAL_API") != "1":
+        refresh_training_dataset(csv_path, lookback_hours)
+    else:
+        logger.info("Synchronisation incrémentale API désactivée pour cet entraînement.")
+
+    df_base = load_data(csv_path, fetch_recent_api=False, smoothing_window=1)
+    if df_base is None:
         return
 
-    if len(df) < 500:
-        logger.error(f"Pas assez de données pour entraîner ({len(df)} lignes)")
+    if len(df_base) < 500:
+        logger.error(f"Pas assez de données pour entraîner ({len(df_base)} lignes)")
         return
 
-    # --- Scaler : fit uniquement sur les 80 % premiers de chaque capteur ---
-    train_frames = []
-    for sensor_id, grp in df.groupby("sensor_id"):
-        n_train = int(len(grp) * 0.8)
-        train_frames.append(grp.iloc[:n_train])
-
-    train_df = pd.concat(train_frames)
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    scaler.fit(train_df[FEATURES].values)
-    joblib.dump(scaler, "lstm_scaler.joblib")
-
-    # --- Séquences par capteur ---
-    logger.info("Création des séquences par capteur…")
-    X, y = build_sequences_per_sensor(df, scaler, LOOKBACK_STEPS, HORIZON_STEPS)
-
-    # Nettoyage NaN éventuels
-    if np.isnan(X).any() or np.isnan(y).any():
-        logger.warning("NaNs détectés, nettoyage…")
-        valid = ~np.isnan(X).any(axis=(1, 2)) & ~np.isnan(y).any(axis=(1, 2))
-        X, y = X[valid], y[valid]
-
-    logger.info(f"Total séquences: {len(X)}")
-
-    # Split Train/Test (pas de shuffle pour conserver l'ordre temporel)
-    split_idx = int(len(X) * 0.8)
-    X_train, X_test = X[:split_idx], X[split_idx:]
-    y_train, y_test = y[:split_idx], y[split_idx:]
-
-    logger.info(f"Train: {X_train.shape} | Test: {X_test.shape}")
-
-    # ── 2. Optuna incrémental (persistant SQLite) ────────────
-    # Sous-échantillonnage pour accélérer les trials sur CPU
-    # On prend 1 séquence sur 3 pour les trials (le modèle final utilise tout)
-    subsample = max(1, len(X_train) // 3)
-    X_trial = X_train[::3][:subsample]
-    y_trial = y_train[::3][:subsample]
+    smoothing_candidates = smoothing_candidates or _parse_positive_int_list(
+        DEFAULT_SMOOTHING_CANDIDATES,
+        [DEFAULT_SMOOTHING_WINDOW],
+    )
+    corr_weight, mae_weight = _normalize_objective_weights(
+        objective_corr_weight,
+        objective_mae_weight,
+    )
     logger.info(
-        f"Sous-échantillon Optuna: {X_trial.shape[0]} séquences "
-        f"(sur {X_train.shape[0]})"
+        f"Objectif combiné: corr_weight={corr_weight:.2f}, mae_weight={mae_weight:.2f}, "
+        f"horizon cible=t+{TARGET_HORIZON_MINUTES}min"
+    )
+    logger.info(f"Fenêtres de lissage testées: {smoothing_candidates}")
+
+    dataset_cache: dict[int, dict[str, np.ndarray | MinMaxScaler | int]] = {}
+
+    def get_dataset_variant(smoothing_window: int):
+        smoothing_window = int(smoothing_window)
+        if smoothing_window not in dataset_cache:
+            dataset_cache[smoothing_window] = prepare_train_test_data(
+                df_base=df_base,
+                smoothing_window=smoothing_window,
+                n_in=LOOKBACK_STEPS,
+                n_out=HORIZON_STEPS,
+            )
+        return dataset_cache[smoothing_window]
+
+    baseline_variant = get_dataset_variant(smoothing_candidates[0])
+    logger.info(
+        f"Variante initiale chargée: window={smoothing_candidates[0]}, "
+        f"train={baseline_variant['X_train'].shape}, test={baseline_variant['X_test'].shape}"
     )
 
+    # ── 2. Optuna incrémental (persistant SQLite) ────────────
     # Charger l'étude existante
     study = _load_or_create_study()
-    prev_best = study.best_value if len(study.trials) > 0 else float("inf")
+    prev_best = study.best_value if len(study.trials) > 0 else float("-inf")
     prev_n_trials = len(study.trials)
     logger.info(
         f"Étude Optuna '{OPTUNA_STUDY_NAME}': {prev_n_trials} trials existants, "
-        f"meilleur val_loss = {prev_best:.6f}"
+        f"meilleur {OPTUNA_OBJECTIVE_METRIC} = {prev_best:.6f}"
     )
 
     def objective(trial):
         # Hyperparamètres à explorer
-        lstm_units = trial.suggest_int("lstm_units", 64, 256, step=32)
-        n_layers = trial.suggest_int("n_layers", 2, 4)
+        lstm_units = trial.suggest_int("lstm_units", 64, 280, step=32)
+        n_layers = trial.suggest_int("n_layers", 1, 5)
         dropout_rate = trial.suggest_float("dropout_rate", 0.0, 0.15)
         learning_rate = trial.suggest_float("learning_rate", 1e-4, 5e-3, log=True)
         use_attention = trial.suggest_categorical("use_attention", [True, False])
+        if len(smoothing_candidates) > 1:
+            smoothing_window = trial.suggest_categorical("smoothing_window", smoothing_candidates)
+        else:
+            smoothing_window = smoothing_candidates[0]
+
+        dataset_variant = get_dataset_variant(smoothing_window)
+        X_trial = dataset_variant["X_trial"]
+        y_trial = dataset_variant["y_trial"]
+        X_test = dataset_variant["X_test"]
+        y_test = dataset_variant["y_test"]
+        scaler = dataset_variant["scaler"]
 
         model = build_model(
             lstm_units=lstm_units,
@@ -450,16 +911,47 @@ def train_best_model(
             )
 
             val_loss = history.history["val_loss"][-1]
-            logger.info(
-                f"  Trial {trial.number} → val_loss={val_loss:.6f} "
-                f"(units={lstm_units}, layers={n_layers}, lr={learning_rate:.5f}, "
-                f"attn={use_attention})"
+            train_loss = history.history["loss"][-1]
+            y_pred_trial = model.predict(X_test, verbose=0)
+            horizon_metrics = _compute_horizon_metrics(
+                y_true=y_test,
+                y_pred=y_pred_trial,
+                scaler=scaler,
+                horizon_idx=min(5, HORIZON_STEPS - 1),
             )
-            return float("inf") if np.isnan(val_loss) else val_loss
+
+            trial.set_user_attr("train_loss", float(train_loss))
+            trial.set_user_attr("val_loss", float(val_loss))
+            if not np.isnan(horizon_metrics["avg_correlation"]):
+                trial.set_user_attr(
+                    "avg_correlation_t30min", float(horizon_metrics["avg_correlation"])
+                )
+            if not np.isnan(horizon_metrics["avg_mae"]):
+                trial.set_user_attr("avg_mae_t30min", float(horizon_metrics["avg_mae"]))
+            if not np.isnan(horizon_metrics["avg_normalized_mae"]):
+                trial.set_user_attr(
+                    "avg_normalized_mae_t30min",
+                    float(horizon_metrics["avg_normalized_mae"]),
+                )
+
+            corr30 = horizon_metrics["avg_correlation"]
+            mae30_norm = horizon_metrics["avg_normalized_mae"]
+            score = _combined_objective_score(corr30, mae30_norm, corr_weight, mae_weight)
+            if np.isnan(score):
+                score = float("-inf")
+            trial.set_user_attr(f"combined_score_t{TARGET_HORIZON_MINUTES}min", float(score))
+            trial.set_user_attr("smoothing_window", int(smoothing_window))
+            logger.info(
+                f"  Trial {trial.number} → score={score:.6f} "
+                f"(corr30={corr30:.4f}, nmae30={mae30_norm:.4f}, val_loss={val_loss:.6f}, "
+                f"smooth={smoothing_window}, units={lstm_units}, layers={n_layers}, "
+                f"lr={learning_rate:.5f}, attn={use_attention})"
+            )
+            return score
 
         except Exception as e:
             logger.warning(f"Trial {trial.number} failed: {e}")
-            return float("inf")
+            return float("-inf")
 
     # Lancer les nouveaux trials (s'ajoutent aux précédents dans la DB)
     if n_trials > 0:
@@ -467,11 +959,11 @@ def train_best_model(
         study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
 
     total_trials = len(study.trials)
-    new_best = study.best_value if total_trials > 0 else float("inf")
+    new_best = study.best_value if total_trials > 0 else float("-inf")
     best_params = study.best_params if total_trials > 0 else None
 
     logger.info(f"Total trials cumulés: {total_trials}")
-    logger.info(f"Meilleur val_loss global: {new_best:.6f}")
+    logger.info(f"Meilleur {OPTUNA_OBJECTIVE_METRIC} global: {new_best:.6f}")
     logger.info(f"Meilleurs params: {best_params}")
 
     # ── 3. Décider si on réentraîne le modèle complet ────────
@@ -491,14 +983,15 @@ def train_best_model(
     if not should_retrain:
         # On réentraîne si on a trouvé mieux OU si c'est la première fois
         # qu'on atteint le seuil MIN_TRIALS_FOR_BEST
-        improved = new_best < prev_best
+        improved = new_best > prev_best
         first_threshold = prev_n_trials < MIN_TRIALS_FOR_BEST <= total_trials
         should_retrain = improved or first_threshold
 
         if improved:
             logger.info(
-                f"Amélioration détectée! {prev_best:.6f} → {new_best:.6f} "
-                f"(Δ = {prev_best - new_best:.6f})"
+                f"Amélioration détectée sur {OPTUNA_OBJECTIVE_METRIC}! "
+                f"{prev_best:.6f} → {new_best:.6f} "
+                f"(Δ = {new_best - prev_best:.6f})"
             )
         elif first_threshold:
             logger.info(
@@ -507,7 +1000,7 @@ def train_best_model(
             )
         else:
             logger.info(
-                f"Pas d'amélioration (best={new_best:.6f}). "
+                f"Pas d'amélioration sur {OPTUNA_OBJECTIVE_METRIC} (best={new_best:.6f}). "
                 f"Modèle existant conservé. Prochaine tentative demain."
             )
             return
@@ -521,6 +1014,20 @@ def train_best_model(
         mlflow.log_param("lookback_steps", LOOKBACK_STEPS)
         mlflow.log_param("horizon_steps", HORIZON_STEPS)
         mlflow.log_param("total_optuna_trials", total_trials)
+        mlflow.log_param("objective_metric", OPTUNA_OBJECTIVE_METRIC)
+        mlflow.log_param("objective_corr_weight", corr_weight)
+        mlflow.log_param("objective_mae_weight", mae_weight)
+
+        best_smoothing_window = int(best_params.get("smoothing_window", smoothing_candidates[0]))
+        best_variant = get_dataset_variant(best_smoothing_window)
+        scaler = best_variant["scaler"]
+        X_train = best_variant["X_train"]
+        X_test = best_variant["X_test"]
+        y_train = best_variant["y_train"]
+        y_test = best_variant["y_test"]
+        mlflow.log_param("smoothing_window", best_smoothing_window)
+        _log_metric_if_finite(OPTUNA_OBJECTIVE_METRIC, new_best)
+        joblib.dump(scaler, "lstm_scaler.joblib")
 
         model = build_model(
             lstm_units=best_params["lstm_units"],
@@ -555,25 +1062,18 @@ def train_best_model(
         mlflow.log_metric("final_train_loss", loss)
         mlflow.log_metric("final_val_loss", val_loss)
 
-        y_pred_full = model.predict(X_test)
+        y_pred_full = model.predict(X_test, verbose=0)
+        y_test_denorm, y_pred_denorm = _denormalize_targets(y_test, y_pred_full, scaler)
+        horizon_metrics_df = _compute_metrics_by_horizon(
+            y_true=y_test,
+            y_pred=y_pred_full,
+            scaler=scaler,
+            corr_weight=corr_weight,
+            mae_weight=mae_weight,
+        )
 
-        # --- Dénormalisation ---
-        y_test_denorm = np.zeros_like(y_test)
-        y_pred_denorm = np.zeros_like(y_pred_full)
-
-        for i, target_name in enumerate(TARGETS):
-            try:
-                feat_idx = FEATURES.index(target_name)
-                data_min = scaler.data_min_[feat_idx]
-                data_range = scaler.data_range_[feat_idx]
-                y_test_denorm[:, :, i] = y_test[:, :, i] * data_range + data_min
-                y_pred_denorm[:, :, i] = y_pred_full[:, :, i] * data_range + data_min
-            except ValueError:
-                y_test_denorm[:, :, i] = y_test[:, :, i]
-                y_pred_denorm[:, :, i] = y_pred_full[:, :, i]
-
-        # --- Métriques par target à t+30 min ---
-        horizon_idx = min(5, HORIZON_STEPS - 1)
+        # --- Métriques détaillées à l'horizon cible (déployé en production) ---
+        horizon_idx = TARGET_HORIZON_IDX
         for i, target_name in enumerate(TARGETS):
             y_true = y_test_denorm[:, horizon_idx, i]
             y_pred = y_pred_denorm[:, horizon_idx, i]
@@ -581,14 +1081,8 @@ def train_best_model(
             mae = mean_absolute_error(y_true, y_pred)
             rmse = np.sqrt(mean_squared_error(y_true, y_pred))
             r2 = r2_score(y_true, y_pred)
-            corr, _ = pearsonr(y_true, y_pred)
-
-            mask = y_true > 0
-            mape = (
-                np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100
-                if mask.sum() > 0
-                else 0
-            )
+            corr = _safe_correlation(y_true, y_pred)
+            mape = _safe_mape(y_true, y_pred)
 
             if len(y_true) > 1:
                 true_dir = np.diff(y_true) > 0
@@ -600,21 +1094,47 @@ def train_best_model(
             mlflow.log_metric(f"{target_name}_mae_t30min", mae)
             mlflow.log_metric(f"{target_name}_rmse_t30min", rmse)
             mlflow.log_metric(f"{target_name}_r2_t30min", r2)
-            mlflow.log_metric(f"{target_name}_correlation_t30min", corr)
-            mlflow.log_metric(f"{target_name}_mape_t30min", mape)
+            _log_metric_if_finite(f"{target_name}_correlation_t30min", corr)
+            _log_metric_if_finite(f"{target_name}_mape_t30min", mape)
             mlflow.log_metric(f"{target_name}_directional_accuracy", dir_acc)
 
         # --- Métriques par horizon ---
-        for h in range(HORIZON_STEPS):
-            corr_h, mae_h = [], []
-            for i in range(len(TARGETS)):
-                y_true = y_test_denorm[:, h, i]
-                y_pred = y_pred_denorm[:, h, i]
-                c, _ = pearsonr(y_true, y_pred)
-                corr_h.append(c)
-                mae_h.append(mean_absolute_error(y_true, y_pred))
-            mlflow.log_metric(f"avg_correlation_t{(h+1)*5}min", np.mean(corr_h))
-            mlflow.log_metric(f"avg_mae_t{(h+1)*5}min", np.mean(mae_h))
+        for _, row in horizon_metrics_df.iterrows():
+            horizon_minutes = int(row["horizon_minutes"])
+            _log_metric_if_finite(f"avg_correlation_t{horizon_minutes}min", row["avg_correlation"])
+            _log_metric_if_finite(f"avg_mae_t{horizon_minutes}min", row["avg_mae"])
+            _log_metric_if_finite(
+                f"avg_normalized_mae_t{horizon_minutes}min",
+                row["avg_normalized_mae"],
+            )
+            _log_metric_if_finite(f"combined_score_t{horizon_minutes}min", row["combined_score"])
+            for target_name in TARGETS:
+                _log_metric_if_finite(
+                    f"{target_name}_correlation_t{horizon_minutes}min",
+                    row[f"{target_name}_correlation"],
+                )
+                _log_metric_if_finite(
+                    f"{target_name}_mae_t{horizon_minutes}min",
+                    row[f"{target_name}_mae"],
+                )
+                _log_metric_if_finite(
+                    f"{target_name}_rmse_t{horizon_minutes}min",
+                    row[f"{target_name}_rmse"],
+                )
+                _log_metric_if_finite(
+                    f"{target_name}_r2_t{horizon_minutes}min",
+                    row[f"{target_name}_r2"],
+                )
+                _log_metric_if_finite(
+                    f"{target_name}_mape_t{horizon_minutes}min",
+                    row[f"{target_name}_mape"],
+                )
+
+        horizon_metrics_df.to_csv("horizon_metrics.csv", index=False)
+        with open("horizon_metrics.json", "w", encoding="utf-8") as horizon_fp:
+            json.dump(horizon_metrics_df.to_dict(orient="records"), horizon_fp, indent=2)
+        mlflow.log_artifact("horizon_metrics.csv")
+        mlflow.log_artifact("horizon_metrics.json")
 
         # ── Graphiques ───────────────────────────────────────
 
@@ -631,32 +1151,30 @@ def train_best_model(
         mlflow.log_artifact("loss_curve.png")
 
         # 2. Dégradation par horizon
-        horizons = [f"t+{(h+1)*5}min" for h in range(HORIZON_STEPS)]
-        avg_corr_by_h, avg_mae_by_h = [], []
-        for h in range(HORIZON_STEPS):
-            cl, ml_ = [], []
-            for i in range(len(TARGETS)):
-                yt = y_test_denorm[:, h, i]
-                yp = y_pred_denorm[:, h, i]
-                c, _ = pearsonr(yt, yp)
-                cl.append(c)
-                ml_.append(mean_absolute_error(yt, yp))
-            avg_corr_by_h.append(np.mean(cl))
-            avg_mae_by_h.append(np.mean(ml_))
+        horizons = horizon_metrics_df["horizon_label"].tolist()
+        avg_corr_by_h = horizon_metrics_df["avg_correlation"].tolist()
+        avg_mae_by_h = horizon_metrics_df["avg_mae"].tolist()
+        combined_by_h = horizon_metrics_df["combined_score"].tolist()
 
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20, 5))
         ax1.plot(horizons, avg_corr_by_h, marker="o", linewidth=2, markersize=8, color="#2ecc71")
         ax1.set_title("Corrélation moyenne par horizon", fontsize=12, fontweight="bold")
         ax1.set_xlabel("Horizon de prédiction")
         ax1.set_ylabel("Corrélation de Pearson")
         ax1.grid(True, alpha=0.3)
-        ax1.set_ylim([0, 1])
+        ax1.set_ylim([-1, 1])
 
         ax2.plot(horizons, avg_mae_by_h, marker="s", linewidth=2, markersize=8, color="#e74c3c")
         ax2.set_title("MAE moyenne par horizon", fontsize=12, fontweight="bold")
         ax2.set_xlabel("Horizon de prédiction")
         ax2.set_ylabel("MAE (dénormalisée)")
         ax2.grid(True, alpha=0.3)
+
+        ax3.plot(horizons, combined_by_h, marker="^", linewidth=2, markersize=8, color="#1f77b4")
+        ax3.set_title("Score combiné par horizon", fontsize=12, fontweight="bold")
+        ax3.set_xlabel("Horizon de prédiction")
+        ax3.set_ylabel("Corrélation pondérée - NMAE pondérée")
+        ax3.grid(True, alpha=0.3)
 
         plt.tight_layout()
         plt.savefig("horizon_degradation.png", dpi=150)
@@ -670,7 +1188,7 @@ def train_best_model(
             ax = axes[i]
             yt = y_test_denorm[:, horizon_idx, i]
             yp = y_pred_denorm[:, horizon_idx, i]
-            corr, _ = pearsonr(yt, yp)
+            corr = _safe_correlation(yt, yp)
             r2 = r2_score(yt, yp)
 
             ax.scatter(yt, yp, alpha=0.5, s=10, color="#3498db")
@@ -757,13 +1275,30 @@ def train_best_model(
         prediction_example = model.predict(input_example)
         signature = infer_signature(input_example, prediction_example)
 
-        mlflow.tensorflow.log_model(
-            model=model,
-            name="model",
-            registered_model_name="IAQ_LSTM_Model",
-            signature=signature,
-            input_example=input_example,
-        )
+        with tempfile.TemporaryDirectory(prefix="mlflow_lstm_model_") as tmp_dir:
+            model_artifact_dir = Path(tmp_dir) / "model"
+            mlflow.tensorflow.save_model(
+                model=model,
+                path=str(model_artifact_dir),
+                signature=signature,
+                input_example=input_example,
+                metadata={
+                    "objective_metric": OPTUNA_OBJECTIVE_METRIC,
+                    "target_horizon_minutes": TARGET_HORIZON_MINUTES,
+                    "smoothing_window": best_smoothing_window,
+                },
+            )
+            mlflow.log_artifacts(str(model_artifact_dir), artifact_path="model")
+
+        try:
+            model_uri = f"runs:/{run.info.run_id}/model"
+            registration = mlflow.register_model(model_uri=model_uri, name="IAQ_LSTM_Model")
+            logger.info(
+                f"Modèle MLflow enregistré: IAQ_LSTM_Model v{registration.version}"
+            )
+        except Exception as e:
+            logger.warning(f"Enregistrement du modèle MLflow impossible: {e}")
+
         mlflow.log_artifact("lstm_scaler.joblib")
 
         # --- Export Production ---
@@ -780,6 +1315,11 @@ def train_best_model(
             "targets": TARGETS,
             "lookback": LOOKBACK_STEPS,
             "horizon": HORIZON_STEPS,
+            "target_horizon_minutes": TARGET_HORIZON_MINUTES,
+            "smoothing_window": best_smoothing_window,
+            "objective_metric": OPTUNA_OBJECTIVE_METRIC,
+            "objective_corr_weight": corr_weight,
+            "objective_mae_weight": mae_weight,
         }
         with open(prod_path / "lstm_config.json", "w") as f:
             json.dump(config, f)
@@ -817,7 +1357,38 @@ if __name__ == "__main__":
         "--show-study", action="store_true",
         help="Afficher un résumé de l'étude Optuna et quitter",
     )
+    parser.add_argument(
+        "--smoothing-window",
+        type=int,
+        default=DEFAULT_SMOOTHING_WINDOW,
+        help="Fenêtre de lissage par défaut si aucune recherche n'est faite (défaut: 3)",
+    )
+    parser.add_argument(
+        "--smoothing-candidates",
+        default=DEFAULT_SMOOTHING_CANDIDATES,
+        help="Fenêtres de lissage à tester par Optuna, séparées par des virgules (ex: 1,3,6)",
+    )
+    parser.add_argument(
+        "--objective-corr-weight",
+        type=float,
+        default=DEFAULT_OBJECTIVE_CORR_WEIGHT,
+        help="Poids de la corrélation dans le score combiné Optuna",
+    )
+    parser.add_argument(
+        "--objective-mae-weight",
+        type=float,
+        default=DEFAULT_OBJECTIVE_MAE_WEIGHT,
+        help="Poids de la MAE normalisée dans le score combiné Optuna",
+    )
     args = parser.parse_args()
+
+    smoothing_candidates = _parse_positive_int_list(
+        args.smoothing_candidates,
+        [max(1, args.smoothing_window)],
+    )
+    if max(1, args.smoothing_window) not in smoothing_candidates:
+        smoothing_candidates.append(max(1, args.smoothing_window))
+        smoothing_candidates = sorted(set(smoothing_candidates))
 
     # Mode résumé : juste afficher l'état de l'étude Optuna
     if args.show_study:
@@ -829,10 +1400,10 @@ if __name__ == "__main__":
             print(f"DB : {OPTUNA_DB_PATH}")
             print(f"Trials cumulés : {n}")
             if n > 0:
-                print(f"Meilleur val_loss : {study.best_value:.6f}")
+                print(f"Meilleur {OPTUNA_OBJECTIVE_METRIC} : {study.best_value:.6f}")
                 print(f"Meilleurs params : {study.best_params}")
                 print(f"\nTop 5 trials :")
-                df_trials = study.trials_dataframe().sort_values("value").head(5)
+                df_trials = study.trials_dataframe().sort_values("value", ascending=False).head(5)
                 print(
                     df_trials[["number", "value", "state"]].to_string(index=False)
                 )
@@ -843,5 +1414,11 @@ if __name__ == "__main__":
             print(f"Erreur lecture étude: {e}")
     else:
         train_best_model(
-            args.csv, args.trials, args.epochs, force_retrain=args.force_retrain
+            args.csv,
+            args.trials,
+            args.epochs,
+            force_retrain=args.force_retrain,
+            smoothing_candidates=smoothing_candidates,
+            objective_corr_weight=args.objective_corr_weight,
+            objective_mae_weight=args.objective_mae_weight,
         )

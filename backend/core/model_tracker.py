@@ -217,7 +217,7 @@ def get_performance(hours: Optional[int] = None) -> Dict:
             "evaluated": int,
             "pending": int,
             "metrics": {
-                "co2":  {"mae": ..., "rmse": ..., "mape": ..., "direction_accuracy": ...},
+                "co2":  {"mae": ..., "correlation": ..., "mape": ..., "accuracy_5pct": ...},
                 "pm25": {...},
                 ...
             },
@@ -272,9 +272,9 @@ def get_performance(hours: Optional[int] = None) -> Dict:
                 if len(preds) < 2:
                     metrics[target] = {
                         "mae": None,
-                        "rmse": None,
+                        "correlation": None,
                         "mape": None,
-                        "direction_accuracy": None,
+                        "accuracy_5pct": None,
                         "n_samples": len(preds),
                     }
                     continue
@@ -285,7 +285,10 @@ def get_performance(hours: Optional[int] = None) -> Dict:
                 abs_errors = np.abs(errors)
 
                 mae = float(np.mean(abs_errors))
-                rmse = float(np.sqrt(np.mean(errors**2)))
+                if np.std(preds_arr) > 1e-12 and np.std(actuals_arr) > 1e-12:
+                    correlation = float(np.corrcoef(preds_arr, actuals_arr)[0, 1])
+                else:
+                    correlation = None
 
                 # MAPE (éviter division par zéro)
                 nonzero_mask = actuals_arr != 0
@@ -296,22 +299,20 @@ def get_performance(hours: Optional[int] = None) -> Dict:
                 else:
                     mape = None
 
-                # Direction accuracy : on compare avec la valeur "courante" implicite
-                # (la prédiction allait-elle dans le bon sens par rapport à la valeur réelle ?)
-                # Simplifié : % de fois où |erreur| < 10% de la valeur réelle
+                # Précision simplifiée : % de fois où |erreur| < 5% de la valeur réelle
                 if nonzero_mask.sum() > 0:
-                    within_10pct = np.abs(errors[nonzero_mask]) < 0.10 * np.abs(
+                    within_5pct = np.abs(errors[nonzero_mask]) < 0.05 * np.abs(
                         actuals_arr[nonzero_mask]
                     )
-                    direction_accuracy = float(np.mean(within_10pct) * 100)
+                    accuracy_5pct = float(np.mean(within_5pct) * 100)
                 else:
-                    direction_accuracy = None
+                    accuracy_5pct = None
 
                 metrics[target] = {
                     "mae": round(mae, 2),
-                    "rmse": round(rmse, 2),
+                    "correlation": round(correlation, 3) if correlation is not None else None,
                     "mape": round(mape, 1) if mape is not None else None,
-                    "accuracy_10pct": round(direction_accuracy, 1) if direction_accuracy else None,
+                    "accuracy_5pct": round(accuracy_5pct, 1) if accuracy_5pct is not None else None,
                     "n_samples": len(preds),
                 }
 

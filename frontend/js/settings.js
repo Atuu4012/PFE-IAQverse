@@ -2170,6 +2170,35 @@ const MODEL_TARGET_UNITS = {
   humidity: "%",
 };
 
+const MODEL_METRIC_COLORS = {
+  good: "var(--success,#22c55e)",
+  medium: "var(--warning,#f59e0b)",
+  bad: "var(--danger,#ef4444)",
+  neutral: "inherit",
+};
+
+const MODEL_MAE_THRESHOLDS = {
+  co2: { good: 50, medium: 100 },
+  pm25: { good: 5, medium: 10 },
+  tvoc: { good: 30, medium: 60 },
+  temperature: { good: 1, medium: 2 },
+  humidity: { good: 3, medium: 6 },
+};
+
+function getHigherIsBetterColor(value, goodThreshold, mediumThreshold) {
+  if (value == null) return MODEL_METRIC_COLORS.neutral;
+  if (value >= goodThreshold) return MODEL_METRIC_COLORS.good;
+  if (value >= mediumThreshold) return MODEL_METRIC_COLORS.medium;
+  return MODEL_METRIC_COLORS.bad;
+}
+
+function getLowerIsBetterColor(value, goodThreshold, mediumThreshold) {
+  if (value == null) return MODEL_METRIC_COLORS.neutral;
+  if (value <= goodThreshold) return MODEL_METRIC_COLORS.good;
+  if (value <= mediumThreshold) return MODEL_METRIC_COLORS.medium;
+  return MODEL_METRIC_COLORS.bad;
+}
+
 /**
  * Charge et affiche les performances du modèle ML.
  * @param {number|null} hours - Fenêtre temporelle (null = tout)
@@ -2210,21 +2239,18 @@ async function loadModelPerformance(hours = 24) {
         const m = data.metrics[t];
         if (!m) continue;
         const noData = m.n_samples < 2;
-        const accuracyColor =
-          m.accuracy_10pct != null
-            ? m.accuracy_10pct >= 70
-              ? "var(--success,#22c55e)"
-              : m.accuracy_10pct >= 40
-                ? "var(--warning,#f59e0b)"
-                : "var(--danger,#ef4444)"
-            : "inherit";
+        const maeThresholds = MODEL_MAE_THRESHOLDS[t] || { good: 1, medium: 2 };
+        const maeColor = getLowerIsBetterColor(m.mae, maeThresholds.good, maeThresholds.medium);
+        const correlationColor = getHigherIsBetterColor(m.correlation, 0.7, 0.4);
+        const mapeColor = getLowerIsBetterColor(m.mape, 10, 20);
+        const accuracyColor = getHigherIsBetterColor(m.accuracy_5pct, 70, 40);
 
         html += `<tr style="border-bottom:1px solid var(--border-color,#e2e8f0);">
           <td style="padding:8px;font-weight:600;">${MODEL_TARGET_LABELS[t] || t}</td>
-          <td style="padding:8px;">${noData ? "—" : m.mae}</td>
-          <td style="padding:8px;">${noData ? "—" : m.rmse}</td>
-          <td style="padding:8px;">${noData ? "—" : m.mape != null ? m.mape + "%" : "—"}</td>
-          <td style="padding:8px;font-weight:600;color:${accuracyColor};">${noData ? "—" : m.accuracy_10pct != null ? m.accuracy_10pct + "%" : "—"}</td>
+          <td style="padding:8px;font-weight:600;color:${maeColor};">${noData ? "—" : m.mae}</td>
+          <td style="padding:8px;font-weight:600;color:${correlationColor};">${noData ? "—" : m.correlation}</td>
+          <td style="padding:8px;font-weight:600;color:${mapeColor};">${noData ? "—" : m.mape != null ? m.mape + "%" : "—"}</td>
+          <td style="padding:8px;font-weight:600;color:${accuracyColor};">${noData ? "—" : m.accuracy_5pct != null ? m.accuracy_5pct + "%" : "—"}</td>
           <td style="padding:8px;color:var(--text-muted);">${m.n_samples}</td>
         </tr>`;
       }

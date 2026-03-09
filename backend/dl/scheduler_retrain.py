@@ -15,6 +15,8 @@ import schedule
 import time
 import logging
 import argparse
+import math
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -31,7 +33,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def run_training(with_influxdb=True):
+def run_training(with_influxdb=True, lookback_hours=None):
     """Lance le script d'entraînement ml_train.py"""
     try:
         logger.info("="*70)
@@ -63,13 +65,20 @@ def run_training(with_influxdb=True):
         logger.info(f"Commande: {' '.join(cmd)}")
         
         # Exécuter le script avec streaming des logs en temps réel
+        child_env = os.environ.copy()
+        if lookback_hours is not None:
+            child_env["API_LOOKBACK_HOURS"] = str(lookback_hours)
+        if not with_influxdb:
+            child_env["DISABLE_INCREMENTAL_API"] = "1"
+
         with subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,  # Rediriger stderr vers stdout pour tout capter
             text=True,
             bufsize=1,  # Buffer par ligne
-            universal_newlines=True
+            universal_newlines=True,
+            env=child_env,
         ) as process:
             # Lire ligne par ligne
             for line in process.stdout:
@@ -92,13 +101,13 @@ def run_training(with_influxdb=True):
         return False
 
 
-def job_wrapper(with_influxdb=True):
+def job_wrapper(with_influxdb=True, lookback_hours=None):
     """Wrapper pour le job schedulé"""
     logger.info("\n" + "="*70)
     logger.info("DÉCLENCHEMENT RÉENTRAÎNEMENT PROGRAMMÉ")
     logger.info("="*70)
     
-    success = run_training(with_influxdb=with_influxdb)
+    success = run_training(with_influxdb=with_influxdb, lookback_hours=lookback_hours)
     
     if success:
         logger.info("Job terminé avec succès")
@@ -142,32 +151,36 @@ def main():
     args = parser.parse_args()
     
     use_influxdb = not args.no_influxdb
+    lookback_hours = max(1, math.ceil((args.interval_minutes or (args.interval * 60)) / 60))
     
     logger.info("="*70)
     logger.info("SCHEDULER DE RÉENTRAÎNEMENT ML/DL IAQ")
     logger.info("="*70)
     logger.info(f"Intervalle: {args.interval_minutes or args.interval} {'minutes' if args.interval_minutes else 'heures'}")
     logger.info(f"InfluxDB: {'Activé' if use_influxdb else 'Désactivé (CSV seulement)'}")
+    logger.info(f"Fenêtre d'ajout cumulatif: {lookback_hours} heures")
     logger.info(f"Exécution immédiate: {'Oui' if args.run_now else 'Non'}")
     logger.info("="*70 + "\n")
     
     # Exécuter immédiatement si demandé
     if args.run_now:
         logger.info("Exécution immédiate demandée...")
-        run_training(with_influxdb=use_influxdb)
+        run_training(with_influxdb=use_influxdb, lookback_hours=lookback_hours)
         logger.info("")
     
     # Programmer les réentraînements
     if args.interval_minutes:
         schedule.every(args.interval_minutes).minutes.do(
             job_wrapper, 
-            with_influxdb=use_influxdb
+            with_influxdb=use_influxdb,
+            lookback_hours=lookback_hours,
         )
         logger.info(f"Prochain réentraînement dans {args.interval_minutes} minutes")
     else:
         schedule.every(args.interval).hours.do(
             job_wrapper,
-            with_influxdb=use_influxdb
+            with_influxdb=use_influxdb,
+            lookback_hours=lookback_hours,
         )
         logger.info(f"Prochain réentraînement dans {args.interval} heures")
     

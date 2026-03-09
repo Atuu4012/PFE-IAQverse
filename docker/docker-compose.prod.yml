@@ -79,6 +79,8 @@ services:
     container_name: iaqverse-ml-scheduler
     restart: always
     volumes:
+      # Utilise le dataset du dépôt VPS sans nécessiter un rebuild pour chaque mise à jour CSV
+      - ../assets/datasets:/app/assets/datasets:ro
       # Sauvegarde des nouveaux modèles entraînés ici
       - ml_models:/app/assets/ml_models
       # Enseignement des metrics à MLflow
@@ -86,6 +88,7 @@ services:
     environment:
       - RETRAIN_INTERVAL=${RETRAIN_INTERVAL}
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - API_URL=http://backend:8000/api/iaq/data?hours=72
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
     depends_on:

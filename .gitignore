@@ -18,6 +18,7 @@ database/*.db
 assets/ml_models/*.db
 assets/ml_models/*.keras
 assets/ml_models/*.joblib
+assets/ml_models/optuna_plots/
 
 # Large ML model files (use Git LFS or download separately)
 assets/ml_models/generic_multi_output.joblib
